@@ -285,11 +285,7 @@ export const footerData = {
         image: '/images/app-download-placeholder.png',
     },
     bottomBar: {
-        copyright: '© 2026 Fly Bismillah. All rights reserved.',
-        links: [
-            { label: 'Terms of Use', href: '/terms' },
-            { label: 'Privacy Policy', href: '/privacy' },
-        ],
+        copyright: 'Bismillah Travels. All rights reserved.',
     },
 };
 

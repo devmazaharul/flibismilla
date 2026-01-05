@@ -27,9 +27,9 @@ export const appTheme = {
     },
     
     navbar: {
-      bg: "bg-white/90 backdrop-blur-md", // মেইন মেনুর গ্লাস ইফেক্ট
-      text: "text-gray-800",              // মেনু টেক্সট
-      border: "border-gray-200",          // নিচের বর্ডার
+      bg: "bg-white/90 backdrop-blur-md", 
+      text: "text-gray-800",              
+      border: "border-gray-200",         
     },
 
     // General Text
