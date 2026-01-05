@@ -11,7 +11,7 @@ const PackageCard = ({ data }: PackageCardProps) => {
     const { button } = appTheme;
 
     return (
-        <div className="group bg-white rounded-2xl overflow-hidden border border-gray-200/70 shadow-2xl shadow-gray-100 hover:shadow-xl transition duration-300">
+        <div className="group hover:scale-101 bg-white rounded-2xl overflow-hidden border border-gray-200/70 shadow-2xl shadow-gray-100 hover:shadow-xl transition duration-300">
             {/* Image Container */}
             <div className="relative h-60 w-full bg-gray-200 overflow-hidden">
                 {/* Placeholder for Image - Replace src with actual image path */}
@@ -28,7 +28,7 @@ const PackageCard = ({ data }: PackageCardProps) => {
 
             {/* Content */}
             <div className="p-5">
-                <h3 className="text-lg font-bold text-gray-800 leading-snug mb-3 line-clamp-2 h-14">
+                <h3 title={data.title} className="text-lg font-bold text-gray-800 leading-snug mb-3 line-clamp-2 h-14">
                     {data.title}
                 </h3>
 
@@ -38,7 +38,7 @@ const PackageCard = ({ data }: PackageCardProps) => {
                         <span className="text-xl font-bold text-gray-900">{data.price}</span>
                     </div>
 
-                    <Button className={`${button.secondary}`} variant={'secondary'}>
+                    <Button  variant={'default'}>
                         Explore
                     </Button>
                 </div>

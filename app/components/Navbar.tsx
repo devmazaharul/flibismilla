@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import {  headerData } from "@/constant/data";
-import { appTheme } from "@/constant/theme/global"; // পাথ চেক করে নিও
+import { headerData } from "@/constant/data";
+import { appTheme } from "@/constant/theme/global";
 
 import {
     FaPhoneAlt,
@@ -23,7 +23,6 @@ import { IoMdArrowDropdown } from "react-icons/io";
 const Navbar = () => {
     const { colors, layout, button } = appTheme;
 
-
     const getIcon = (iconName: string) => {
         switch (iconName) {
             case "facebook": return <FaFacebookF />;
@@ -33,9 +32,6 @@ const Navbar = () => {
         }
     };
 
-
-
-
     return (
         <header className="w-full relative z-50">
             {/* ================= 1. Top Bar ================= */}
@@ -43,12 +39,12 @@ const Navbar = () => {
                 <div className={`${layout.container} flex justify-between items-center`}>
                     {/* Left: Contact */}
                     <div className="flex gap-6 font-medium">
-                        <a href={`mailto:${headerData.contact.email}`} className="flex items-center gap-2 hover:text-rose-500 transition">
+                        <a href={`mailto:${headerData.contact.email}`} className="flex items-center gap-2 hover:text-rose-400 transition">
                             <FaEnvelope className="text-gray-400" /> {headerData.contact.email}
                         </a>
                         <div className="flex gap-4">
                             {headerData.contact.phones.map((item, i) => (
-                                <a key={i} href={`tel:${item}`} className="flex items-center gap-1 hover:text-rose-500 transition">
+                                <a key={i} href={`tel:${item}`} className="flex items-center gap-1 hover:text-rose-400 transition">
                                     <FaPhoneAlt className="text-gray-400" /> {item}
                                 </a>
                             ))}
@@ -95,8 +91,6 @@ const Navbar = () => {
                     {/* Desktop Menu */}
                     <ul className="hidden lg:flex items-center gap-8 text-sm font-bold">
                         {headerData.navLinks.map((link, idx) => {
-                            // const subLinks = getSubLinks(link.label); 
-                            
                             return (
                                 <li key={idx} className="relative group h-20 flex items-center">
                                     <Link
@@ -104,10 +98,13 @@ const Navbar = () => {
                                         className={`${colors.navbar.text} hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wide`}
                                     >
                                         {link.label}
-                                        {link.hasDropdown && <IoMdArrowDropdown  className="text-xl transition-transform group-hover:rotate-180 duration-300" />}
+                                        {/* Dropdown Icon Logic */}
+                                        {link.subMenu && (
+                                            <IoMdArrowDropdown className="text-xl transition-transform group-hover:rotate-180 duration-300" />
+                                        )}
                                     </Link>
 
-                                    {/* Dropdown Menu (Only if subLinks exist) */}
+                                    {/* Dropdown Menu */}
                                     {link.subMenu && (
                                         <div className="absolute top-[80%] left-0 w-60 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:top-full transition-all duration-300 ease-in-out">
                                             <ul className="bg-white shadow-xl rounded-b-xl border-t-4 border-rose-600 py-2 overflow-hidden">
@@ -155,11 +152,12 @@ const Navbar = () => {
 
                                     <div className="flex flex-col p-6">
                                         {headerData.navLinks.map((link, idx) => (
-                                            <MobileMenuItem key={idx} link={link} getSubLinks={link.subMenu} />
+                                            
+                                            <MobileMenuItem key={idx} link={link} subMenu={link.subMenu} />
                                         ))}
 
                                         <div className="mt-8 flex flex-col gap-3 pt-6 border-t border-gray-100">
-                                            <Button variant="outline" className="w-full justify-center text-gray-700 border-gray-300 h-12">
+                                            <Button variant="secondary" className="w-full justify-center text-gray-700 border-gray-100 h-12">
                                                 Log In
                                             </Button>
                                             <Button className={`w-full ${button.primary} h-12`}>
@@ -177,25 +175,29 @@ const Navbar = () => {
     );
 };
 
-// ================= Helper Component for Mobile Accordion =================
-const MobileMenuItem = ({ link, getSubLinks }: { link: any, getSubLinks: any }) => {
+
+const MobileMenuItem = ({ link, subMenu }: { link: any, subMenu: any }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const subLinks = getSubLinks(link.label);
+    
 
     return (
         <div className="border-b border-gray-50 last:border-0">
             <div 
                 className="flex items-center justify-between py-4 cursor-pointer group"
-                onClick={() => subLinks && setIsOpen(!isOpen)}
+       
+                onClick={() => subMenu && setIsOpen(!isOpen)}
             >
                 <Link 
                     href={link.href} 
                     className="text-lg font-bold text-gray-700 group-hover:text-rose-600 transition-colors uppercase"
-                    onClick={(e) => subLinks && e.preventDefault()} 
+                    
+                    onClick={(e) => subMenu && e.preventDefault()} 
                 >
                     {link.label}
                 </Link>
-                {subLinks && (
+                
+
+                {subMenu && (
                     <FaChevronRight 
                         className={`text-gray-400 text-sm transition-transform duration-300 ${isOpen ? "rotate-90 text-rose-600" : ""}`} 
                     />
@@ -203,14 +205,14 @@ const MobileMenuItem = ({ link, getSubLinks }: { link: any, getSubLinks: any }) 
             </div>
 
             {/* Mobile Submenu Expansion */}
-            {subLinks && (
-                <div className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-40 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+            {subMenu && (
+                <div className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-60 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
                     <div className="flex flex-col gap-2 pl-4 border-l-2 border-rose-100 ml-1">
-                        {subLinks.map((sub: any, idx: number) => (
+                        {subMenu.map((sub: any, idx: number) => (
                             <Link 
                                 key={idx} 
                                 href={sub.href}
-                                className="text-gray-500 font-medium hover:text-rose-600 py-1 block text-sm"
+                                className="text-gray-500 font-medium hover:text-rose-600 py-2 block text-sm"
                             >
                                 {sub.label}
                             </Link>
