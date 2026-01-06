@@ -58,3 +58,23 @@ export const registerSchema = z.object({
 // Types Export
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.infer<typeof registerSchema>;
+
+
+
+
+// 1. Forgot Password Schema (Email only)
+export const forgotPasswordSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+});
+
+// 2. New Password Schema (Password + Confirm)
+export const newPasswordSchema = z.object({
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+export type NewPasswordValues = z.infer<typeof newPasswordSchema>;

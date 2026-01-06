@@ -1,18 +1,17 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { authData } from "@/constant/data";
 import { appTheme } from "@/constant/theme/global";
 import { Button } from "@/components/ui/button";
-import { FaGoogle, FaFacebookF, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { LoginFormValues, loginSchema } from "@/validation/zod";
+import { authStaticData } from "@/constant/others";
 
 const LoginPage = () => {
-  const { colors, layout, button } = appTheme;
+  const { button } = appTheme;
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
@@ -38,9 +37,9 @@ const LoginPage = () => {
           {/* Header */}
           <div className="text-center lg:text-left">
             <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
-              {authData.login.title}
+              {authStaticData.login.title}
             </h1>
-            <p className="text-gray-500">{authData.login.subtitle}</p>
+            <p className="text-gray-500">{authStaticData.login.subtitle}</p>
           </div>
 
           {/* Form */}
@@ -61,7 +60,7 @@ const LoginPage = () => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <label className="text-sm font-semibold text-gray-700">Password</label>
-                <Link href="#" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
+                <Link href={authStaticData.login.forgotpasswordLink} className="text-sm font-semibold text-rose-600 hover:text-rose-700">
                   Forgot Password?
                 </Link>
               </div>
@@ -89,7 +88,7 @@ const LoginPage = () => {
               className={`w-full h-12 text-base font-bold ${button.primary} shadow-rose-500/25`}
               disabled={loading}
             >
-              {loading ? "Signing in..." : authData.login.btnText}
+              {loading ? "Signing in..." : authStaticData.login.btnText}
             </Button>
           </form>
 
@@ -97,9 +96,9 @@ const LoginPage = () => {
 
           {/* Footer */}
           <p className="text-center text-sm text-gray-600">
-            {authData.login.footerText}{" "}
-            <Link href={authData.login.footerLink} className="font-bold text-rose-600 hover:underline">
-              {authData.login.footerLinkText}
+            {authStaticData.login.footerText}{" "}
+            <Link href={authStaticData.login.footerLink} className="font-bold text-rose-600 hover:underline">
+              {authStaticData.login.footerLinkText}
             </Link>
           </p>
         </div>

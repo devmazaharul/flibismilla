@@ -354,24 +354,3 @@ export const contactPageData = {
   }
 };
 
-//account
-export const authData = {
-  login: {
-    title: "Welcome Back",
-    subtitle: "Please enter your details to sign in.",
-    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000&auto=format&fit=crop", // Travel Image
-    btnText: "Sign In",
-    footerText: "Don't have an account?",
-    footerLinkText: "Create free account",
-    footerLink: "/signup"
-  },
-  register: {
-    title: "Create Account",
-    subtitle: "Start your spiritual journey with us today.",
-    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000&auto=format&fit=crop", // Travel Image
-    btnText: "Create Account",
-    footerText: "Already have an account?",
-    footerLinkText: "Sign in",
-    footerLink: "/login"
-  }
-};

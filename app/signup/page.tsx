@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { authData } from "@/constant/data";
 import { appTheme } from "@/constant/theme/global";
 import { Button } from "@/components/ui/button";
 import { RegisterFormValues, registerSchema } from "@/validation/zod";
+import { authStaticData } from "@/constant/others";
 
 const page = () => {
   const { button } = appTheme;
@@ -40,9 +40,9 @@ const page = () => {
           
           <div className="text-center lg:text-left">
             <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
-              {authData.register.title}
+              {authStaticData.register.title}
             </h1>
-            <p className="text-gray-500">{authData.register.subtitle}</p>
+            <p className="text-gray-500">{authStaticData.register.subtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -87,14 +87,14 @@ const page = () => {
               className={`w-full h-12 text-base font-bold ${button.primary} mt-4`}
               disabled={loading}
             >
-              {loading ? "Creating Account..." : authData.register.btnText}
+              {loading ? "Creating Account..." : authStaticData.register.btnText}
             </Button>
           </form>
 
           <p className="text-center text-sm text-gray-600">
-            {authData.register.footerText}{" "}
-            <Link href={authData.register.footerLink} className="font-bold text-rose-600 hover:underline">
-              {authData.register.footerLinkText}
+            {authStaticData.register.footerText}{" "}
+            <Link href={authStaticData.register.footerLink} className="font-bold text-rose-600 hover:underline">
+              {authStaticData.register.footerLinkText}
             </Link>
           </p>
         </div>
