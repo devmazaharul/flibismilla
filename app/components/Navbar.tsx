@@ -161,9 +161,11 @@ const Navbar = () => {
                     <div className="flex items-center gap-3">
                         <div className="hidden lg:flex items-center gap-3">
                             <Button variant="ghost" className={`${button.ghost} font-bold`}>
-                                Log In
+                                <Link href={"/login"} >Log In</Link>
                             </Button>
-                            <Button className={`${button.primary} px-6`}>Sign Up</Button>
+                            <Button className={`${button.primary} px-6`}>
+                                <Link href={"/signup"}>Sign Up</Link>
+                            </Button>
                         </div>
 
                         {/* ================= UPDATED MOBILE MENU ================= */}
