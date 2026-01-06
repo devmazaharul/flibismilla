@@ -13,6 +13,8 @@ import {
     FaInstagram,
     FaLinkedinIn,
     FaChevronRight,
+    FaYoutube,
+    FaPinterest,
 } from 'react-icons/fa';
 
 // Shadcn UI Components
@@ -27,12 +29,14 @@ const Navbar = () => {
         switch (iconName) {
             case 'facebook':
                 return <FaFacebookF />;
+            case 'youtube':
+                return <FaYoutube />;
             case 'twitter':
                 return <FaTwitter />;
             case 'instagram':
                 return <FaInstagram />;
             default:
-                return <FaLinkedinIn />;
+                return <FaPinterest />;
         }
     };
 
@@ -72,6 +76,7 @@ const Navbar = () => {
                                 <a
                                     key={idx}
                                     href={social.href}
+                                    target='_blank'
                                     className={`w-6 h-6 flex items-center justify-center rounded-full bg-gray-800 text-white transition-all duration-300 hover:bg-rose-600 hover:-translate-y-0.5`}
                                 >
                                     {getIcon(social.icon)}
@@ -128,6 +133,7 @@ const Navbar = () => {
                                                     <li key={sIdx}>
                                                         <Link
                                                             href={sub.href}
+                                                            
                                                             className="block px-6 py-3 text-gray-600 hover:text-rose-600 hover:bg-gray-50 transition-colors font-medium border-b border-gray-100 last:border-0"
                                                         >
                                                             {sub.label}

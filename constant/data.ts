@@ -3,6 +3,9 @@ export const websiteDetails = {
     url: 'https://www.flybismillah.com',
     description:
         'Fly Bismillah - Your Trusted Travel Partner for Hajj, Umrah, Flights, Hotels, and Tours.',
+        address:"24146 blackmar Ave Warren, Michigan 48091",
+        phone:"+1-213-985-8499",
+        email:"Murad.usa09@gmail.com"
 };
 // ==================== 1. Header & Navigation ====================
 export const headerData = {
@@ -11,10 +14,11 @@ export const headerData = {
         phones: ['+1 213-985-8499', '+1 213-296-8786', '+1 213-792-0038'],
     },
     socialLinks: [
-        { icon: 'facebook', href: '#' },
-        { icon: 'FaTwitter', href: '#' },
-        { icon: 'instagram', href: '#' },
-        { icon: 'pinterest', href: '#' },
+        { icon: 'facebook', href: 'https://www.facebook.com/FlyBismillah' },
+        { icon: 'youtube', href: 'https://www.youtube.com/@FlyBismillah' },
+        { icon: 'twitter', href: 'https://x.com/FlyBismillah' },
+        { icon: 'instagram', href: 'https://www.instagram.com/flybismillah' },
+        { icon: 'pinterest', href: 'https://www.pinterest.com/FlyBismillah/' },
     ],
     navLinks: [
         { label: 'HOME', href: '/', hasDropdown: false,subMenu:null },
@@ -264,21 +268,20 @@ export const footerData = {
         info: [
             { icon: 'map', text: '24146 blackmar Ave Warren, Michigan 48091' },
             { icon: 'phone', text: '+1 213-985-8499' },
-            { icon: 'email', text: 'info@flybismillah.com' },
+            { icon: 'email', text: 'Murad.usa09@gmail.com' },
         ],
     },
     support: {
         title: 'SUPPORT',
         links: [
             { label: 'FAQ', href: '/faq' },
-            { label: 'Privacy Policy', href: '/privacy' },
-            { label: 'Terms & Conditions', href: '/terms' },
+            { label: 'Privacy Policy', href: '/privacy-policy' },
             { label: 'Contact Us', href: '/contact' },
         ],
     },
     getApp: {
         title: 'GET THE APP',
-        text: 'Download our app for the best experience and exclusive deals.',
+        text: 'Visit our website for the best experience and exclusive deals.',
 
         image: '/images/app-download-placeholder.png',
     },

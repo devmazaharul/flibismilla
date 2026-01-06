@@ -11,6 +11,8 @@ import {
     FaTwitter,
     FaInstagram,
     FaLinkedinIn,
+    FaPinterest,
+    FaYoutube,
 } from 'react-icons/fa';
 import { appTheme } from '@/constant/theme/global';
 
@@ -33,8 +35,12 @@ const Footer = () => {
                 return <FaFacebookF />;
             case 'twitter':
                 return <FaTwitter />;
+            case 'pinterest':
+                return <FaPinterest />;
             case 'instagram':
                 return <FaInstagram />;
+            case 'youtube':
+                return <FaYoutube />;
             default:
                 return <FaLinkedinIn />;
         }
@@ -151,6 +157,7 @@ const Footer = () => {
                             <a
                                 key={idx}
                                 href={social.href}
+                                target='_blank'
                                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 text-gray-400 hover:bg-rose-600 hover:text-white transition-all duration-300"
                             >
                                 {getIcon(social.icon)}
