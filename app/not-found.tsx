@@ -9,7 +9,7 @@ export default function NotFound() {
   const { colors, typography, layout } = appTheme;
 
   return (
-    <div className={`min-h-[80vh] flex flex-col items-center justify-center text-center px-4 bg-gray-50`}>
+    <div className={`min-h-[80vh] pt-20 pb-30 flex flex-col items-center justify-center text-center px-4 bg-gray-50`}>
       
       {/* Icon Animation */}
       <div className="relative mb-8">

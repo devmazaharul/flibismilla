@@ -253,8 +253,6 @@ export const blogsData = [
     },
 ];
 
-// ==================== 9. Footer ====================
-
 // ==================== Footer Data ====================
 export const footerData = {
     about: {
@@ -264,7 +262,7 @@ export const footerData = {
     contact: {
         title: 'CONTACT US',
         info: [
-            { icon: 'map', text: '123, Main Street, Your City, Country' },
+            { icon: 'map', text: '24146 blackmar Ave Warren, Michigan 48091' },
             { icon: 'phone', text: '+1 213-985-8499' },
             { icon: 'email', text: 'info@flybismillah.com' },
         ],
@@ -289,6 +287,7 @@ export const footerData = {
     },
 };
 
+//partners data
 export const partnersData = [
     {
         id: 1,
@@ -311,3 +310,65 @@ export const partnersData = [
         logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/IATA_logo.svg/1200px-IATA_logo.svg.png?20190926085114',
     },
 ];
+
+//cotact page data
+export const contactPageData = {
+  header: {
+    title: "Get In Touch",
+    subtitle: "Have questions about Hajj, Umrah, or Holiday packages? We are here to help you 24/7.",
+  },
+  info: {
+    locations: [
+      {
+        id: 1,
+        city: "Los Angeles Office",
+        address: "1053 S New Hampshire Ave # 506 Los Angeles, CA 90006",
+        icon: "map"
+      },
+      {
+        id: 2,
+        city: "Michigan Office",
+        address: "24146 Blackmar Ave Warren, Michigan 48091",
+        icon: "map"
+      }
+    ],
+    contacts: [
+      {
+        id: "phone",
+        label: "Phone Number",
+        value: "+1 213-985-8499",
+        link: "tel:+12139858499",
+        icon: "phone"
+      },
+      {
+        id: "email",
+        label: "Email Us",
+        value: "Murad.usa09@gmail.com",
+        link: "mailto:Murad.usa09@gmail.com",
+        icon: "email"
+      }
+    ]
+  }
+};
+
+//account
+export const authData = {
+  login: {
+    title: "Welcome Back",
+    subtitle: "Please enter your details to sign in.",
+    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000&auto=format&fit=crop", // Travel Image
+    btnText: "Sign In",
+    footerText: "Don't have an account?",
+    footerLinkText: "Create free account",
+    footerLink: "/signup"
+  },
+  register: {
+    title: "Create Account",
+    subtitle: "Start your spiritual journey with us today.",
+    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000&auto=format&fit=crop", // Travel Image
+    btnText: "Create Account",
+    footerText: "Already have an account?",
+    footerLinkText: "Sign in",
+    footerLink: "/login"
+  }
+};

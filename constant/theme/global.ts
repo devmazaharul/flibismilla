@@ -44,7 +44,7 @@ export const appTheme = {
   // ================= 2. Button Styles =================
   button: {
     // Solid Dark Button (Sign Up, Search)
-    primary: "bg-gray-700 text-white hover:bg-gray-800 shadow-2xl shadow-gray-100 hover:shadow-lg active:scale-95 transition-all duration-300",
+    primary: "bg-rose-500 text-white hover:bg-rose-600 shadow-2xl shadow-gray-100 hover:shadow-xl active:scale-95 transition-all duration-300",
     
     // Outline / White Button
     secondary: "bg-gray-50 text-gray-800 border border-gray-200/50 hover:text-white hover:bg-gray-700 hover:border-gray-300 shadow-xl shadow-gray-100 transition-all duration-300",

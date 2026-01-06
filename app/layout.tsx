@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Poppins, Great_Vibes } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
+import Footer from "./components/Footer";
+import Navbar from "./components/Navbar";
 
 // 1. Primary Font (Body & Headings)
 const poppins = Poppins({
@@ -65,7 +68,23 @@ export default function RootLayout({
       <body
         className={`${poppins.variable} ${greatVibes.variable} font-sans antialiased bg-gray-50 text-gray-800`}
       >
+        <Navbar />
         {children}
+
+          <Toaster
+                    position="top-center"
+                    closeButton
+                    expand={false}
+                    duration={3000}
+                    visibleToasts={5}
+                    toastOptions={{
+                        style: {
+                            maxWidth: '25rem',
+                            width: 'auto',
+                        },
+                    }}
+                />
+                  <Footer />
       </body>
     </html>
   );

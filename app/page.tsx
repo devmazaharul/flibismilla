@@ -1,13 +1,9 @@
 import { packagesData } from '@/constant/data';
-
 import { Button } from '@/components/ui/button'; // Shadcn Button
-
 // Components
 import Hero from './components/Hero';
-import Navbar from './components/Navbar';
 import PackageCard from './components/PackageCard';
 import { appTheme } from '@/constant/theme/global';
-import Footer from './components/Footer';
 import About from './components/About';
 import Testimonials from './components/Testimonial';
 import Blog from './components/Blog';
@@ -17,11 +13,9 @@ import Stats from './components/Stats';
 
 export default function Home() {
     const { colors, layout, typography, button } = appTheme;
-
     return (
         <main className={`min-h-screen font-sans ${colors.background.main}`}>
             {/* 1. Navbar */}
-            <Navbar />
 
             {/* 2. Hero Section */}
             <Hero />
@@ -49,25 +43,18 @@ export default function Home() {
 
                     {/* View All Button */}
                     <div className="mt-12 text-center">
-                        {/* এখানে আমরা থিমের secondary বাটন স্টাইল ব্যবহার করেছি */}
                         <Button className={`${button.secondary} px-8 h-12 rounded-full`}>
                             View All Packages
                         </Button>
                     </div>
                 </div>
             </section>
-<PopularDestinations/>
+            <PopularDestinations />
             <About />
             <Stats />
             <Testimonials />
-            
             <Blog />
             <Partners />
-       
-           
-
-            {/* 5. Footer Placeholder */}
-            <Footer />
         </main>
     );
 }
