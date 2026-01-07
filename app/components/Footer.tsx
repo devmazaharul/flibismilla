@@ -13,6 +13,7 @@ import {
     FaLinkedinIn,
     FaPinterest,
     FaYoutube,
+    FaWhatsapp,
 } from 'react-icons/fa';
 import { appTheme } from '@/constant/theme/global';
 
@@ -41,6 +42,8 @@ const Footer = () => {
                 return <FaInstagram />;
             case 'youtube':
                 return <FaYoutube />;
+            case 'whatsapp':
+                return <FaWhatsapp />;
             default:
                 return <FaLinkedinIn />;
         }

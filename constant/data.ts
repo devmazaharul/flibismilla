@@ -14,19 +14,21 @@ export const headerData = {
         phones: ['+1 213-985-8499', '+1 213-296-8786', '+1 213-792-0038'],
     },
     socialLinks: [
+          { icon: 'whatsapp', href: 'https://api.whatsapp.com/send/?phone=12139858499&text=Hello%2C+Welcome+to+Bismillah+Travel+%26+Tours.%0D%0AWe%27re+excited+to+help+you+plan+your+next+trip&type=phone_number&app_absent=0' },
         { icon: 'facebook', href: 'https://www.facebook.com/FlyBismillah' },
         { icon: 'youtube', href: 'https://www.youtube.com/@FlyBismillah' },
         { icon: 'twitter', href: 'https://x.com/FlyBismillah' },
         { icon: 'instagram', href: 'https://www.instagram.com/flybismillah' },
-        { icon: 'pinterest', href: 'https://www.pinterest.com/FlyBismillah/' },
+        { icon: 'pinterest', href: 'https://www.pinterest.com/FlyBismillah/' }
+      
     ],
     navLinks: [
         { label: 'HOME', href: '/', hasDropdown: false,subMenu:null },
         { label: 'FLIGHT', href: '/flight', hasDropdown: false,subMenu:null },
         { label: 'HOTEL', href: '/hotel', hasDropdown: false ,subMenu:null},
         {
-            label: 'UMRAH',
-            href: '/umrah',
+            label: 'HAJJ',
+            href: '/hajj',
             hasDropdown: true,
             subMenu: [
                 { label: 'Economy Hajj Package', href: '/hajj/economy' },
@@ -34,8 +36,8 @@ export const headerData = {
             ],
         },
         {
-            label: 'HAJJ',
-            href: '/hajj',
+            label: 'UMRAH',
+            href: '/umrah',
             hasDropdown: true,
             subMenu: [
                 { label: 'Family Umrah Package', href: '/umrah/family' },
@@ -139,26 +141,20 @@ export const destinationsData = [
     {
         id: 1,
         name: 'Malé, Maldives',
-        reviews: 0,
+        reviews: 20,
         image: 'https://flybismillah.com/wp-content/uploads/2022/07/Male-maldives.webp',
     },
     {
         id: 2,
         name: 'Dubai Fountain',
-        reviews: 0,
+        reviews: 10,
         image: 'https://flybismillah.com/wp-content/uploads/2022/07/Sagarmatha-National-Park-Nepal.webp',
     },
     {
         id: 3,
         name: 'Senso-Ji Temple, Tokyo',
-        reviews: 0,
+        reviews: 5,
         image: 'https://flybismillah.com/wp-content/uploads/2022/07/The-Dubai-Fountain.webp',
-    },
-    {
-        id: 4,
-        name: 'Burj Al Arab, Dubai',
-        reviews: 0,
-        image: 'https://flybismillah.com/wp-content/uploads/2022/07/Great-Wall-of-China.webp',
     },
     {
         id: 5,
@@ -187,6 +183,57 @@ export const aboutData = {
     },
 };
 
+
+// constant/data.ts
+
+export const aboutPageData = {
+  hero: {
+    title: "About Us",
+    subtitle: "Your trusted partner for Hajj, Umrah, and Worldwide Travel.",
+    bgImage: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1000&auto=format&fit=crop"
+  },
+  intro: {
+    title: "Welcome to our agency",
+    heading: "We make your travel dreams come true",
+    description1: "At Bismillah Travel and Tour, we are passionate about making your travel dreams come true. Based in the USA, we specialize in providing a wide range of travel services, including flight bookings, hotel reservations, Umrah and Hajj packages, and personalized tours.",
+    description2: "We understand that every traveler has unique needs. That’s why we offer tailored packages designed to suit your preferences and budget. Our team is committed to providing expert advice and exceptional service.",
+    highlightBadge: "1M+ Travelers Monthly", 
+    image: "https://images.unsplash.com/photo-1527631746610-bca00a040d60?q=80&w=1000&auto=format&fit=crop"
+  },
+  missionVision: [
+    {
+      title: "Our Mission",
+      text: "To provide seamless and memorable travel experiences. We focus on offering personalized services for flights, hotels, and pilgrimage packages, ensuring each journey is smooth and enjoyable.",
+      icon: "mission"
+    },
+    {
+      title: "Our Vision",
+      text: "To be the leading travel agency in the USA, known for exceptional service, customer satisfaction, and offering accessible, customized travel solutions for both leisure and spiritual journeys.",
+      icon: "vision"
+    }
+  ],
+  steps: {
+    title: "3 Steps for the Perfect Trip",
+    subtitle: "Find Travel Perfection",
+    desc: "We have simplified the travel booking process for you.",
+    items: [
+      { id: 1, title: "Tell us what you want to do", desc: "Share your travel goals, whether it's a pilgrimage or a vacation." },
+      { id: 2, title: "Share your travel preference", desc: "Let us know your budget, dates, and preferred accommodation style." },
+      { id: 3, title: "We’ll give you recommendations", desc: "Get a customized itinerary and package designed just for you." }
+    ]
+  },
+  stats: [
+    { value: "28k", label: "Total Users" },
+    { value: "13k", label: "Total Tours" },
+    { value: "68k", label: "Social Likes" },
+    { value: "10k", label: "5 Star Ratings" }
+  ],
+  skills: [
+    { label: "Countryside Tours", percentage: 78 },
+    { label: "Vineyard & Nature", percentage: 92 },
+    { label: "Wine & Food Tasting", percentage: 62 }
+  ]
+};
 // ==================== 6. Stats Section ====================
 
 export const statsData = [

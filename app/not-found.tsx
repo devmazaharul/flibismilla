@@ -37,7 +37,7 @@ export default function NotFound() {
         </Link>
         
         <Link href="/contact">
-           <Button variant="outline" className={`${appTheme.button.secondary} px-6 gap-2`}>
+           <Button variant="outline" className={`border-gray-100 px-6 gap-2`}>
             <FaSearch /> Contact Support
           </Button>
         </Link>

@@ -11,7 +11,6 @@ import {
     FaFacebookF,
     FaTwitter,
     FaInstagram,
-    FaLinkedinIn,
     FaChevronRight,
     FaHome,
     FaPlaneDeparture,
@@ -21,24 +20,23 @@ import {
     FaHeadset,
     FaYoutube,
     FaPinterest,
+    FaWhatsapp,
 } from 'react-icons/fa';
 
 // Shadcn UI Components
 import { Button } from '@/components/ui/button';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { IoMdArrowDropdown } from 'react-icons/io';
+import { usePathname } from 'next/navigation';
 
 const Navbar = () => {
+    const pathName = usePathname();
     const { colors, layout, button } = appTheme;
 
     const getIcon = (iconName: string) => {
         switch (iconName) {
+            case 'whatsapp':
+                return <FaWhatsapp />;
             case 'facebook':
                 return <FaFacebookF />;
             case 'twitter':
@@ -129,7 +127,17 @@ const Navbar = () => {
                             <li key={idx} className="relative group h-20 flex items-center">
                                 <Link
                                     href={link.href}
-                                    className={`${colors.navbar.text} hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wide`}
+                                    className={`${colors.navbar.text}   
+                                     ${
+                                         link.href === '/'
+                                             ? pathName === '/'
+                                                 ? 'text-rose-400'
+                                                 : ''
+                                             : pathName.startsWith(link.href)
+                                             ? 'text-rose-400'
+                                             : ''
+                                     }
+hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wide`}
                                 >
                                     {link.label}
                                     {link.subMenu && (
@@ -161,10 +169,10 @@ const Navbar = () => {
                     <div className="flex items-center gap-3">
                         <div className="hidden lg:flex items-center gap-3">
                             <Button variant="ghost" className={`${button.ghost} font-bold`}>
-                                <Link href={"/login"} >Log In</Link>
+                                <Link href={'/login'}>Log In</Link>
                             </Button>
                             <Button className={`${button.primary} px-6`}>
-                                <Link href={"/signup"}>Sign Up</Link>
+                                <Link href={'/signup'}>Sign Up</Link>
                             </Button>
                         </div>
 
@@ -214,20 +222,19 @@ const Navbar = () => {
                                             ))}
                                         </div>
 
-                                     <br />
+                                        <br />
                                         {/* Auth Buttons */}
                                         <div className="flex flex-col gap-3">
                                             <Button
                                                 variant="outline"
                                                 className="w-full justify-center shadow-2xl shadow-gray-100 border text-gray-700 border-gray-200/70 h-12 font-bold hover:bg-gray-50 hover:text-rose-600"
                                             >
-                                                <Link href={"/login"}>Log In</Link>
+                                                <Link href={'/login'}>Log In</Link>
                                             </Button>
                                             <Button
                                                 className={`w-full ${button.primary} h-12 font-bold shadow-lg shadow-rose-500/20`}
                                             >
-                                                <Link href={"/signup"}> Create Account</Link>
-                                              
+                                                <Link href={'/signup'}> Create Account</Link>
                                             </Button>
                                         </div>
                                     </div>
@@ -287,7 +294,6 @@ const Navbar = () => {
 const MobileMenuItem = ({ link, subMenu }: { link: any; subMenu: any }) => {
     const [isOpen, setIsOpen] = useState(false);
 
- 
     const getLinkIcon = (label: string) => {
         const l = label.toLowerCase();
         if (l.includes('home')) return <FaHome />;

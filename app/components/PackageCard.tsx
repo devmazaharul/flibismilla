@@ -38,7 +38,8 @@ const PackageCard = ({ data }: PackageCardProps) => {
                         <span className="text-xl font-bold text-gray-900">{data.price}</span>
                     </div>
 
-                    <Button  variant={'default'}>
+
+                    <Button className={`${button.primary}`} >
                         Explore
                     </Button>
                 </div>
