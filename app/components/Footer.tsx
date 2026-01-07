@@ -151,7 +151,7 @@ const Footer = () => {
                             target="_blank"
                             href="https://mazaharul.site"
                         >
-                            Maza IT.
+                           <i> Maza IT</i>
                         </Link>{' '}
                     </p>
                     {/* Right Side: Social Icons (Reusing headerData) */}
