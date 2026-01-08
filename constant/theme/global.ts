@@ -28,7 +28,8 @@ export const appTheme = {
     
     navbar: {
       bg: "bg-white/90 backdrop-blur-md", 
-      text: "text-gray-800",              
+      text: "text-gray-800",  
+      hoverText:"hover:text-rose-500",       
       border: "border-gray-200",         
     },
 

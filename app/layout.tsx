@@ -28,8 +28,8 @@ export const metadata: Metadata = {
     template: "%s | Bismillah Travels & Tours",
   },
 icons: {
-    icon: "/iconn.png", // এখানে আপনার PNG ইমেজের পাথ দিন (public ফোল্ডার থেকে)
-    apple: "/icon.png", // (অপশনাল) আইফোন বা আইপ্যাডের জন্য
+    icon: "/icon.png",
+    apple: "/icon.png", 
   },
   description: "Your best travel partner for Hajj, Umrah, and holiday packages. We provide flight booking, hotel reservation, and visa processing services in Bangladesh and USA.",
   keywords: ["Travel Agency", "Hajj Package 2026", "Umrah Visa", "Flight Booking", "Bismillah Travels", "Tour Operator"],

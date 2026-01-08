@@ -44,7 +44,7 @@ const page = () => {
               />
             </div>
             {/* Floating Badge */}
-            <div className="absolute -bottom-6 -right-6 bg-white p-6 rounded-2xl shadow-xl border-l-4 border-rose-600 max-w-[200px] hidden md:block">
+            <div className="absolute -bottom-6 -right-6 bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border-l-4 border-rose-600 max-w-[200px] hidden md:block">
               <h4 className="text-4xl font-bold text-rose-600 mb-1">1M+</h4>
               <p className="text-gray-600 font-bold leading-tight">Travel in a Month</p>
             </div>
@@ -85,7 +85,7 @@ const page = () => {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div 
-                      className="bg-rose-600 h-2.5 rounded-full transition-all duration-1000" 
+                      className={`${appTheme.colors.brand.primary} h-2.5 rounded-full transition-all duration-1000`} 
                       style={{ width: `${skill.percentage}%` }}
                     ></div>
                   </div>
@@ -155,7 +155,7 @@ const page = () => {
 
              <div className="bg-rose-50 text-gray-900 p-10 rounded-3xl relative overflow-hidden border border-rose-100">
                 <div className="relative z-10">
-                   <div className="w-14 h-14 bg-white shadow-sm text-rose-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
+                   <div className="w-14 h-14 bg-white shadow-2xl text-rose-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
                       <FaEye />
                    </div>
                    <h3 className="text-2xl font-bold mb-4">Our Vision</h3>

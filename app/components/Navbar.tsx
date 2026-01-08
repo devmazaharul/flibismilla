@@ -131,13 +131,13 @@ const Navbar = () => {
                                      ${
                                          link.href === '/'
                                              ? pathName === '/'
-                                                 ? 'text-rose-400'
+                                                 ? `${appTheme.colors.brand.accent}`
                                                  : ''
                                              : pathName.startsWith(link.href)
-                                             ? 'text-rose-400'
+                                             ? `${appTheme.colors.brand.accent}`
                                              : ''
                                      }
-hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wide`}
+                                      transition-colors flex items-center gap-1 ${appTheme.colors.navbar.hoverText} uppercase tracking-wide`}
                                 >
                                     {link.label}
                                     {link.subMenu && (

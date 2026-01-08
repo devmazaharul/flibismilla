@@ -13,7 +13,7 @@ const PrivacyPolicy = () => {
       
       {/* ================= Header ================= */}
       <div className={`${layout.container} max-w-4xl mx-auto mb-10 text-center`}>
-        <div className="inline-flex items-center justify-center p-4 bg-rose-100 rounded-full mb-4">
+        <div className="inline-flex items-center justify-center p-4 bg-rose-100/30 rounded-full mb-4">
             <FaShieldAlt className="text-3xl text-rose-600" />
         </div>
         <h1 className={`${typography.h2} text-gray-900 mb-4`}>Privacy Policy</h1>

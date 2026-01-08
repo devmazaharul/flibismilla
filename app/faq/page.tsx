@@ -22,7 +22,7 @@ const FaqPage = () => {
       
       {/* ================= Header Section ================= */}
       <div className={`${layout.container} text-center mb-16 max-w-3xl mx-auto`}>
-        <div className="inline-flex items-center justify-center p-3 bg-rose-100 rounded-full mb-4 animate-bounce">
+        <div className="inline-flex items-center justify-center p-3 bg-rose-100/30 rounded-full mb-4 animate-bounce">
             <FaQuestionCircle className="text-2xl text-rose-600" />
         </div>
         <h1 className={`${typography.h2} ${colors.text.heading} mb-4`}>
