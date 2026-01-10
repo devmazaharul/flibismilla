@@ -118,7 +118,7 @@ const DestinationDetails = () => {
                         <div className="sticky top-24 space-y-8">
                             
                             {/* Facts Card */}
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                            <div className="bg-white p-6 rounded-3xl border border-gray-200/70 shadow-2xl shadow-gray-200/50">
                                 <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-3">Quick Facts</h3>
                                 
                                 <div className="space-y-5">

@@ -90,9 +90,9 @@ export const destinations = [
         language: 'Dhivehi',
         attractions: ['Grand Friday Mosque', 'Artificial Beach', 'Fish Market', 'National Museum', 'Banana Reef'],
         gallery: [
-            'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?q=80&w=1000',
-            'https://images.unsplash.com/photo-1573843981267-be1999ff37cd?q=80&w=1000',
-            'https://images.unsplash.com/photo-1540206351-d6465b3ac5c1?q=80&w=1000'
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
         ]
     },
     {
@@ -109,9 +109,9 @@ export const destinations = [
         language: 'Arabic',
         attractions: ['Burj Khalifa', 'The Dubai Mall', 'Palm Jumeirah', 'Dubai Creek', 'Desert Safari'],
         gallery: [
-            'https://images.unsplash.com/photo-1523816026461-73ad84069f3d?q=80&w=1000',
-            'https://images.unsplash.com/photo-1518684079-3c830dcef6c0?q=80&w=1000',
-            'https://images.unsplash.com/photo-1546412414-e1885259563a?q=80&w=1000'
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
         ]
     },
     {
@@ -127,10 +127,10 @@ export const destinations = [
         currency: 'Turkish Lira (TRY)',
         language: 'Turkish',
         attractions: ['Hagia Sophia', 'Blue Mosque', 'Topkapi Palace', 'Grand Bazaar', 'Bosphorus Cruise'],
-        gallery: [
-            'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a6b?q=80&w=1000',
-            'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?q=80&w=1000',
-            'https://images.unsplash.com/photo-1622546758362-3652d87e078a?q=80&w=1000'
+       gallery: [
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
         ]
     },
 ];
@@ -155,7 +155,6 @@ export const aboutData = {
 };
 
 // about page 
-
 export const aboutPageData = {
     hero: {
         title: 'About Us',
@@ -602,7 +601,7 @@ export const packages = [
         slug: 'uzbekistan-silk-road',
         title: 'Uzbekistan Silk Road - 7 Days',
         price: '$1,550.00',
-        image: 'https://images.unsplash.com/photo-1528659556826-6b607062400a?q=80&w=1000',
+        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
         category: 'Heritage',
         location: 'Bukhara & Samarkand',
         description:
@@ -621,7 +620,7 @@ export const packages = [
         slug: 'jordan-petra-tour',
         title: 'Jordan & Petra Discovery - 5 Days',
         price: '$1,350.00',
-        image: 'https://images.unsplash.com/photo-1575351296813-911e86a51206?q=80&w=1000',
+        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
         category: 'Heritage',
         location: 'Amman & Petra',
         description: 'Discover the ancient city of Petra and the site of the Battle of Mutah.',
@@ -641,7 +640,7 @@ export const packages = [
         slug: 'dubai-family-fun',
         title: 'Dubai Family Fun - 5 Days',
         price: '$950.00',
-        image: 'https://images.unsplash.com/photo-1512453979798-5ea90b7cadc9?q=80&w=1000',
+        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
         category: 'Holiday',
         location: 'Dubai, UAE',
         description:
@@ -772,7 +771,7 @@ export const packages = [
         slug: 'sri-lanka-scenic',
         title: 'Scenic Sri Lanka - 5 Days',
         price: '$550.00',
-        image: 'https://images.unsplash.com/photo-1586203002663-71868351b88e?q=80&w=1000',
+        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
         category: 'Holiday',
         location: 'Kandy & Ella',
         description: 'Experience the famous train ride, tea gardens, and elephants in Sri Lanka.',

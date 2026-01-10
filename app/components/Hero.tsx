@@ -77,7 +77,7 @@ const Hero = () => {
     const filteredFrom = filterAirports(fromQuery);
     const filteredTo = filterAirports(toQuery);
 
-    // Selection Handler
+    // Selection Handler (Dropdown click)
     const handleSelect = (type: 'from' | 'to', airport: (typeof airportSuggestions)[0]) => {
         const val = `${airport.city} (${airport.code})`;
 
@@ -113,12 +113,19 @@ const Hero = () => {
 
     // Submit Handler
     const onSubmit: SubmitHandler<SearchInputs> = (data) => {
-        if (data.from === data.to) {
+        // Basic Validation
+        if (!data.from || !data.to) {
+            toast.error("Please select or type valid airport codes.");
+            return;
+        }
+
+        if (data.from.toUpperCase() === data.to.toUpperCase()) {
             toast.error('Origin and Destination cannot be the same airport.');
             setError('to', { type: 'manual', message: 'Same as origin' });
             return;
         }
-        router.push(`/flight/search?from=${data.from}&to=${data.to}&date=${data.date}`);
+        
+        router.push(`/flight/search?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`);
     };
 
     return (
@@ -169,49 +176,58 @@ const Hero = () => {
                             type="text"
                             value={fromQuery}
                             onChange={(e) => {
-                                setFromQuery(e.target.value);
+                                const val = e.target.value;
+                                setFromQuery(val);
                                 setShowFromDropdown(true);
-                                setValue('from', '');
+                                // 🟢 Update: Set value immediately to allow custom input
+                                setValue('from', val.toUpperCase()); 
+                                if(val) clearErrors('from');
                             }}
                             onFocus={() => setShowFromDropdown(true)}
-                            placeholder="City or Airport"
-                            className="w-full font-bold text-lg outline-none placeholder-gray-300 bg-transparent truncate"
+                            placeholder="City or Airport (e.g. DAC)"
+                            className="w-full  font-bold text-lg outline-none placeholder-gray-300 bg-transparent truncate"
                         />
                         <input type="hidden" {...register('from')} />
                         {errors.from && (
-                            <span className="text-[10px] text-red-500 absolute bottom-0 left-4">Required</span>
+                            <span className="text-[10px] text-red-500 absolute bottom-0 left-4">
+                                Required
+                            </span>
                         )}
 
                         {/* Dropdown Suggestions (FROM) */}
                         {showFromDropdown && filteredFrom.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-xl border border-gray-100 max-h-60 overflow-y-auto z-50">
-                                {filteredFrom.sort((a,b)=>a.city.localeCompare(b.city)).map((airport,i) => {
-                                    // 🟢 NEW LOGIC: Check if selected in TO
-                                    const isSelectedInTo = getValues('to') === airport.code;
+                                {filteredFrom
+                                    .sort((a, b) => a.city.localeCompare(b.city))
+                                    .map((airport, i) => {
+                                        const isSelectedInTo = getValues('to') === airport.code;
 
-                                    return (
-                                        <div
-                                            key={i+1}
-                                            // Disable click if selected in TO
-                                            onClick={() => !isSelectedInTo && handleSelect('from', airport)}
-                                            className={`px-4 py-3 flex justify-between items-center text-left border-b border-gray-50 last:border-0 ${
-                                                isSelectedInTo
-                                                    ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                                                    : 'hover:bg-gray-50 cursor-pointer'
-                                            }`}
-                                        >
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-800">
-                                                    {airport.city}, {airport.country}
-                                                </p>
-                                                <p className="text-xs text-gray-500">{airport.name}</p>
+                                        return (
+                                            <div
+                                                key={i + 1}
+                                                onClick={() =>
+                                                    !isSelectedInTo && handleSelect('from', airport)
+                                                }
+                                                className={`px-4 py-3 flex justify-between items-center text-left border-b border-gray-50 last:border-0 ${
+                                                    isSelectedInTo
+                                                        ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                                                        : 'hover:bg-gray-50 cursor-pointer'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">
+                                                        {airport.city}, {airport.country}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {airport.name}
+                                                    </p>
+                                                </div>
+                                                <span className="bg-gray-100 text-gray-600 font-bold text-xs px-2 py-1 rounded">
+                                                    {airport.code}
+                                                </span>
                                             </div>
-                                            <span className="bg-gray-100 text-gray-600 font-bold text-xs px-2 py-1 rounded">
-                                                {airport.code}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
                             </div>
                         )}
                     </div>
@@ -244,13 +260,16 @@ const Hero = () => {
                             type="text"
                             value={toQuery}
                             onChange={(e) => {
-                                setToQuery(e.target.value);
+                                const val = e.target.value;
+                                setToQuery(val);
                                 setShowToDropdown(true);
-                                setValue('to', '');
+                                // 🟢 Update: Set value immediately to allow custom input
+                                setValue('to', val.toUpperCase());
+                                if(val) clearErrors('to');
                             }}
                             onFocus={() => setShowToDropdown(true)}
-                            placeholder="City or Airport"
-                            className="w-full font-bold text-lg outline-none placeholder-gray-300 bg-transparent truncate"
+                            placeholder="City or Airport (e.g. JFK)"
+                            className="w-full  font-bold text-lg outline-none placeholder-gray-300 bg-transparent truncate"
                         />
                         <input type="hidden" {...register('to')} />
 
@@ -263,31 +282,36 @@ const Hero = () => {
                         {/* Dropdown Suggestions (TO) */}
                         {showToDropdown && filteredTo.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-xl border border-gray-100 max-h-60 overflow-y-auto z-50">
-                                {filteredTo.sort((a,b)=>a.city.localeCompare(b.city)).map((airport,i) => {
-                                    // 🟢 Existing Logic: Check if selected in FROM
-                                    const isSelectedInFrom = getValues('from') === airport.code;
-                                    return (
-                                        <div
-                                            key={i+1}
-                                            onClick={() => !isSelectedInFrom && handleSelect('to', airport)}
-                                            className={`px-4 py-3 flex justify-between items-center text-left border-b border-gray-50 last:border-0 ${
-                                                isSelectedInFrom
-                                                    ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                                                    : 'hover:bg-gray-50 cursor-pointer'
-                                            }`}
-                                        >
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-800">
-                                                    {airport.city}, {airport.country}
-                                                </p>
-                                                <p className="text-xs text-gray-500">{airport.name}</p>
+                                {filteredTo
+                                    .sort((a, b) => a.city.localeCompare(b.city))
+                                    .map((airport, i) => {
+                                        const isSelectedInFrom = getValues('from') === airport.code;
+                                        return (
+                                            <div
+                                                key={i + 1}
+                                                onClick={() =>
+                                                    !isSelectedInFrom && handleSelect('to', airport)
+                                                }
+                                                className={`px-4 py-3 flex justify-between items-center text-left border-b border-gray-50 last:border-0 ${
+                                                    isSelectedInFrom
+                                                        ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                                                        : 'hover:bg-gray-50 cursor-pointer'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">
+                                                        {airport.city}, {airport.country}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {airport.name}
+                                                    </p>
+                                                </div>
+                                                <span className="bg-gray-100 text-gray-600 font-bold text-xs px-2 py-1 rounded">
+                                                    {airport.code}
+                                                </span>
                                             </div>
-                                            <span className="bg-gray-100 text-gray-600 font-bold text-xs px-2 py-1 rounded">
-                                                {airport.code}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
                             </div>
                         )}
                     </div>
@@ -307,7 +331,9 @@ const Hero = () => {
                             className="w-full font-bold text-lg outline-none bg-transparent cursor-pointer text-gray-800"
                         />
                         {errors.date && (
-                            <span className="text-[10px] text-red-500 absolute bottom-0 left-4">Required</span>
+                            <span className="text-[10px] text-red-500 absolute bottom-0 left-4">
+                                Required
+                            </span>
                         )}
                     </div>
 
