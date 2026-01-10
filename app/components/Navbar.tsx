@@ -183,7 +183,7 @@ const Navbar = () => {
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        className="border-gray-200/70 shadow-2xl shadow-gray-100 text-gray-900 hover:bg-gray-50 h-10 w-10 rounded-xl"
+                                        className=" shadow-2xl shadow-gray-100 text-gray-900 hover:bg-gray-50 h-10 w-10 rounded-xl"
                                     >
                                         <FaBars className="text-lg" />
                                     </Button>

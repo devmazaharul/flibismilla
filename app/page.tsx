@@ -7,7 +7,8 @@ import Blog from './components/Blog';
 import PopularDestinations from './components/PopularDestinations';
 import Partners from './components/Partners';
 import Stats from './components/Stats';
-import Packages from './components/Packages';
+import PackageSection from './components/PackageSection';
+
 
 export default function Home() {
     const { colors } = appTheme;
@@ -19,7 +20,7 @@ export default function Home() {
             <Hero />
 
             {/* 3. Discover Weekly Section */}
-           <Packages/>
+           <PackageSection/>
             <PopularDestinations />
             <About />
             <Stats />
