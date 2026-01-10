@@ -1,0 +1,36 @@
+1. Project Description & Requirements (For Client)
+Subject: Project Update: Bismillah Travels & Tours Website & Deployment Requirements
+
+Project Title: Bismillah Travels & Tours - Official Website Development
+
+Project Overview: We have successfully developed a modern, high-performance web application for "Bismillah Travels & Tours." Built with the latest technologies (Next.js 14), this platform is designed to rival top-tier international travel agencies like Booking.com or Expedia in terms of speed, user experience, and functionality.
+
+Key Features Implemented:
+
+Advanced Flight Search: A robust search engine with autocomplete for airports, date validation, and instant results.
+
+Dynamic Holiday Packages: Dedicated pages for Hajj, Umrah, and Holiday packages featuring itineraries, galleries, and inclusion details.
+
+Destination Guides: A visual gallery of popular destinations with smart filtering and detailed travel guides.
+
+Fully Responsive Design: Optimized for a seamless experience across all devices—Mobile, Tablet, and Desktop.
+
+Direct Booking Integration: Features WhatsApp integration and inquiry forms for instant customer connection.
+
+⚠️ Deployment Requirements: To launch the website live on the internet, I require the following access credentials to configure the server and domain:
+
+GitHub Account Access:
+
+Need your Username & Password to securely host the source code. Alternatively, I can host it on my repository and invite you as a collaborator.
+
+Vercel Account Access:
+
+We will use Vercel for high-speed hosting. I need your Login Credentials to deploy the project.
+
+Domain Control Panel (Namecheap/GoDaddy):
+
+To connect your domain (e.g., https://flybismillah.com) to the new website, I need access to your domain provider's account (e.g., Namecheap) to update the DNS settings.
+
+Please provide these details at your earliest convenience so we can go live within 24 hours.
+
+Best Regards, Mazaharul Islam Full Stack Web Developer

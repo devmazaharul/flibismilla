@@ -438,3 +438,80 @@ export const airportSuggestions = Object.freeze([
     { code: 'PED', city: 'Pardubice', name: 'Pardubice Airport', country: 'Czech Republic' },
     { code: 'KLV', city: 'Karlovy Vary', name: 'Karlovy Vary Airport', country: 'Czech Republic' },
 ]);
+
+
+// flight result int-dom
+
+export const flightResultsForAnyType = [
+  // --- Domestic Flights (Within Bangladesh) ---
+  {
+    id: 1,
+    type: 'domestic', // New Field
+    airline: "Biman Bangladesh",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJ2A-8b37sTBV34-D9YP-WPq-Lfme3vL7l2Q&s",
+    flightNumber: "BG-411",
+    fromCode: "DAC",
+    fromCity: "Dhaka",
+    toCode: "CXB",
+    toCity: "Cox's Bazar",
+    departureTime: "08:00 AM",
+    arrivalTime: "09:00 AM",
+    duration: "1h 00m",
+    price: 45,
+    stops: 0,
+    stopInfo: "Non-stop"
+  },
+  {
+    id: 2,
+    type: 'domestic',
+    airline: "US-Bangla Airlines",
+    logo: "https://cdn.usbair.com/website/public/images/home_page/homepage_logo.png.svg",
+    flightNumber: "BS-143",
+    fromCode: "DAC",
+    fromCity: "Dhaka",
+    toCode: "CGP",
+    toCity: "Chittagong",
+    departureTime: "10:30 AM",
+    arrivalTime: "11:15 AM",
+    duration: "0h 45m",
+    price: 35,
+    stops: 0,
+    stopInfo: "Non-stop"
+  },
+
+  // --- International Flights ---
+  {
+    id: 3,
+    type: 'international', // New Field
+    airline: "Emirates",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Emirates_logo.svg",
+    flightNumber: "EK-585",
+    fromCode: "DAC",
+    fromCity: "Dhaka",
+    toCode: "JFK",
+    toCity: "New York",
+    departureTime: "10:00 AM",
+    arrivalTime: "04:00 PM",
+    duration: "20h 30m",
+    price: 1250,
+    stops: 1,
+    stopInfo: "Via Dubai"
+  },
+  {
+    id: 4,
+    type: 'international',
+    airline: "Qatar Airways",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/c/c2/Qatar_Airways_Logo.png",
+    flightNumber: "QR-640",
+    fromCode: "DAC",
+    fromCity: "Dhaka",
+    toCode: "LHR",
+    toCity: "London",
+    departureTime: "08:00 PM",
+    arrivalTime: "02:00 PM",
+    duration: "16h 00m",
+    price: 950,
+    stops: 1,
+    stopInfo: "Via Doha"
+  }
+];

@@ -154,7 +154,7 @@ export const aboutData = {
     },
 };
 
-// constant/data.ts
+// about page 
 
 export const aboutPageData = {
     hero: {

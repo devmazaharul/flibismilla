@@ -1,9 +1,7 @@
 'use client';
-
 import { useState } from 'react';
 import Image from 'next/image';
-import { destinations } from '@/constant/data'; // আপনার ডাটা পাথ
-
+import { destinations } from '@/constant/data';
 import { appTheme } from '@/constant/theme/global';
 import { Button } from '@/components/ui/button';
 import { FaSearch, FaGlobeAmericas, FaSadTear } from 'react-icons/fa';

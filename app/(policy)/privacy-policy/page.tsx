@@ -47,7 +47,6 @@ const PrivacyPolicy = () => {
                   {section.items.map((item, i) => (
                     <li key={i} className="flex gap-3 text-gray-600 leading-relaxed">
                       <span className="w-2 h-2 bg-rose-400 rounded-full mt-2.5 shrink-0"></span>
-                      {/* বোল্ড টেক্সট রেন্ডার করার জন্য লজিক */}
                       <span dangerouslySetInnerHTML={{ 
                         __html: item.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-900">$1</strong>') 
                       }} />
@@ -69,7 +68,6 @@ const PrivacyPolicy = () => {
               <div className="flex items-center gap-3">
                  <FaMapMarkerAlt className="text-rose-600 text-xl" />
                  <span className="text-gray-700 font-medium">
-                    {/* এখানে ফুটার ডাটা থেকে এড্রেস নেওয়া হচ্ছে */}
                     {websiteDetails.address}
                  </span>
               </div>

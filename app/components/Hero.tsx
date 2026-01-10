@@ -118,7 +118,7 @@ const Hero = () => {
             setError('to', { type: 'manual', message: 'Same as origin' });
             return;
         }
-        router.push(`/flights/search?from=${data.from}&to=${data.to}&date=${data.date}`);
+        router.push(`/flight/search?from=${data.from}&to=${data.to}&date=${data.date}`);
     };
 
     return (

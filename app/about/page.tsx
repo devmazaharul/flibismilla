@@ -4,7 +4,7 @@ import Link from "next/link";
 import { aboutPageData } from "@/constant/data";
 import { appTheme } from "@/constant/theme/global";
 import { Button } from "@/components/ui/button";
-import { FaBullseye, FaEye, FaCheckCircle, FaPhoneAlt, FaMapMarkedAlt } from "react-icons/fa";
+import { FaBullseye, FaEye } from "react-icons/fa";
 import Stats from "../components/Stats";
 
 const page = () => {

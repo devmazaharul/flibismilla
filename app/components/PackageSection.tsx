@@ -24,7 +24,6 @@ const PackageSection = () => {
                 </div>
 
                 {/* Cards Grid */}
-                {/* এখানে slice(0, 6) দিয়েছি যাতে হোম পেজে ৬টা দেখায়। সব দেখাতে চাইলে slice বাদ দিন */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {packages.slice(0, 6).map((pkg) => (
                         <PackageCard key={pkg.id} data={pkg} />

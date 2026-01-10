@@ -4,13 +4,13 @@ import { appTheme } from "@/constant/theme/global";
 import { FaUserFriends, FaMapMarkedAlt, FaThumbsUp, FaStar } from "react-icons/fa";
 
 const Stats = () => {
-  const { colors, layout } = appTheme;
+  const { layout } = appTheme;
 
   const getIcon = (iconName: string) => {
-    // আইকনের স্টাইল এবং গ্লো ইফেক্ট
+
     const iconClass = "text-3xl md:text-4xl text-rose-500 relative z-10 transition-colors duration-300 group-hover:text-white";
     
-    // আইকন র‍্যাপার (যেটা গোল হবে এবং হোভারে কালার হবে)
+
     const wrapperClass = "w-16 h-16 md:w-20 md:h-20 rounded-full bg-rose-500/10 flex items-center justify-center mb-6 transition-all duration-500 group-hover:bg-rose-600 group-hover:scale-110 shadow-[0_0_20px_rgba(225,29,72,0.2)] group-hover:shadow-[0_0_30px_rgba(225,29,72,0.6)]";
 
     let IconComponent;

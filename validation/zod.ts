@@ -1,17 +1,15 @@
 import z from "zod";
-
 // 1. Zod Schema Definition
-
 export const searchSchema = z.object({
   from: z
     .string()
-    .length(3, { message: "Enter 3-letter Airport Code (e.g. DAC)" }) // ঠিক ৩ অক্ষর হতে হবে
-    .regex(/^[a-zA-Z]+$/, { message: "Only letters allowed" }) // কোনো নাম্বার বা সিম্বল চলবে না
-    .transform((val) => val.toUpperCase()), // অটোমেটিক 'dac' কে 'DAC' বানিয়ে দেবে
+    .min(3, { message: "Enter 3-letter Airport Code (e.g. DAC)" }) 
+    .regex(/^[a-zA-Z]+$/, { message: "Only letters allowed" })
+    .transform((val) => val.toUpperCase()), 
 
   to: z
     .string()
-    .length(3, { message: "Enter 3-letter Airport Code (e.g. JED)" })
+    .min(3, { message: "Enter 3-letter Airport Code (e.g. JED)" })
     .regex(/^[a-zA-Z]+$/, { message: "Only letters allowed" })
     .transform((val) => val.toUpperCase()),
 

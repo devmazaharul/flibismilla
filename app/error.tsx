@@ -16,7 +16,6 @@ export default function Error({
   const { colors, typography } = appTheme;
 
   useEffect(() => {
-    // এখানে তুমি চাইলে এরর লগিং সার্ভিসে ডাটা পাঠাতে পারো
     console.error(error);
   }, [error]);
 

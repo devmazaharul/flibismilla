@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { footerData, headerData } from '@/constant/data'; // headerData থেকে সোশ্যাল লিংক নিচ্ছি
+import { footerData, headerData } from '@/constant/data'; 
 
 import {
     FaMapMarkerAlt,
@@ -20,9 +20,8 @@ import { appTheme } from '@/constant/theme/global';
 const Footer = () => {
     const { colors, layout } = appTheme;
 
-    // আইকন হেল্পার ফাংশন
+
     const getIcon = (iconName: string) => {
-        // এখানে থিমের প্রাইমারি কালার (rose-600) ব্যবহার করছি
         const iconClass = 'text-rose-600 mt-1 shrink-0';
         switch (iconName) {
             case 'map':

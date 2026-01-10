@@ -8,7 +8,7 @@ import { appTheme } from "@/constant/theme/global";
 const Testimonials = () => {
   const { colors, layout, typography } = appTheme;
 
-  // স্টার রেন্ডার করার ফাংশন
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, index) => (
       <FaStar

@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +25,7 @@ const page = () => {
     alert("Account Created Successfully!");
   };
 
-  // ইনপুট ফিল্ড স্টাইল (Re-usable class string)
+
   const inputStyle = (hasError: boolean) => 
     `w-full p-3.5 rounded-xl border bg-gray-50 focus:bg-white transition-all outline-none ${hasError ? "border-red-500 bg-red-50" : "border-gray-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"}`;
 

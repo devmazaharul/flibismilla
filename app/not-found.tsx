@@ -6,7 +6,7 @@ import { FaPlaneSlash, FaHome, FaSearch } from "react-icons/fa";
 import { appTheme } from "@/constant/theme/global";
 
 export default function NotFound() {
-  const { colors, typography, layout } = appTheme;
+  const { colors, typography } = appTheme;
 
   return (
     <div className={`min-h-[80vh] pt-20 pb-30 flex flex-col items-center justify-center text-center px-4 bg-gray-50`}>
