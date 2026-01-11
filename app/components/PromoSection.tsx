@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { promoBanners } from '@/constant/others';
 
 const PromoSection = () => {
-    const { layout } = appTheme;
+    const { layout,button } = appTheme;
     const whatsappNumber = "12139858499"; 
 
     return (
@@ -26,12 +26,17 @@ const PromoSection = () => {
                             Unbeatable <span className="text-rose-600">Travel Deals</span>
                         </h2>
                     </div>
+
                     <div>
-                        <Button variant={"destructive"}>
-                            <Link href={"/offers"}>
-                               View All Offers
-                            </Link>
+                        <div className="mt-12 text-center">
+                   <Link href={"/offers"}>
+                        <Button className={`${button.primary}  shadow-none hover:shadow-none `}>
+                            View All Offers
                         </Button>
+                    </Link>
+                </div>
+
+                       
                     </div>
                 </div>
 

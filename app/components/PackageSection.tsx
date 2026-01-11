@@ -30,14 +30,15 @@ const PackageSection = () => {
                     ))}
                 </div>
 
-                {/* View All Button */}
-                <div className="mt-12 text-center">
+                 <div className="mt-12 text-center">
                     <Link href="/packages">
-                        <Button className={`${button.primary} px-8 h-12 text-lg shadow-xl `}>
+                        <Button className={`${button.primary}  shadow-none hover:shadow-none `}>
                             View All Packages
                         </Button>
                     </Link>
                 </div>
+
+             
 
             </div>
         </section>

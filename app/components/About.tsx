@@ -5,6 +5,7 @@ import { aboutData } from "@/constant/data";
 import { Button } from "@/components/ui/button";
 import { FaCheckCircle, FaArrowRight } from "react-icons/fa";
 import { appTheme } from "@/constant/theme/global";
+import Link from "next/link";
 
 const About = () => {
   const { colors, layout, typography, button } = appTheme;
@@ -76,12 +77,7 @@ const About = () => {
               ))}
             </div>
 
-            {/* Action Button */}
-            <div>
-              <Button className={`${button.primary} px-8 h-12 text-base`}>
-                Discover More <FaArrowRight className="ml-2" />
-              </Button>
-            </div>
+           
 
           </div>
         </div>

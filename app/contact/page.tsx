@@ -175,10 +175,13 @@ const ContactPage = () => {
               {errors.message && <span className="text-xs text-red-500">{errors.message.message}</span>}
             </div>
 
+
+
+
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className={`w-full h-12 text-lg ${button.primary} mt-2`}
+              className={`w-full h-12 text-lg ${button.primary}`}
               disabled={isSubmitting}
             >
               {isSubmitting ? "Sending..." : (

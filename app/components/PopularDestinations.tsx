@@ -61,7 +61,7 @@ const PopularDestinations = () => {
 
                 <div className="mt-12 text-center">
                     <Link href="/destinations">
-                        <Button className={`${button.primary} px-8 h-12 text-lg shadow-none hover:shadow-none `}>
+                        <Button className={`${button.primary}  shadow-none hover:shadow-none `}>
                             View All Destinations
                         </Button>
                     </Link>
