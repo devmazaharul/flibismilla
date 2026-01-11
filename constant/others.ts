@@ -96,7 +96,7 @@ export const promoBanners = [
         id: 8,
         title: "Dhaka to Atlanta",
         description: "Return tickets or one-way from DAC to ATL special deal.",
-       image: "/asset/offer/atlanta1.jpg",
+       image: "/asset/offer/Buffalo.jpg",
         whatsappMessage: "Hi, do you have tickets from Dhaka to Atlanta?",
         isLarge: false,
     }
