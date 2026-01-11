@@ -2,112 +2,93 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { promoBanners } from '@/constant/others';
+
 import { appTheme } from '@/constant/theme/global';
+import { FaWhatsapp, FaArrowRight } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
-import { FaWhatsapp, FaArrowRight, FaCopy } from 'react-icons/fa'; // FaClock সরানো হয়েছে
-import { toast } from 'sonner';
+import { promoBanners } from '@/constant/others';
 
 const PromoSection = () => {
-    const { layout, typography } = appTheme;
-
-    const handleCopy = (code: string) => {
-        navigator.clipboard.writeText(code);
-        toast.success(`Coupon ${code} copied!`);
-    };
+    const { layout } = appTheme;
+    const whatsappNumber = "12139858499"; 
 
     return (
-        <section className="py-20 bg-gray-50 relative overflow-hidden">
-            
-            {/* Background Decoration */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute top-10 right-10 w-64 h-64 bg-rose-200 rounded-full blur-[100px] opacity-20"></div>
-                <div className="absolute bottom-10 left-10 w-72 h-72 bg-blue-200 rounded-full blur-[100px] opacity-20"></div>
-            </div>
-
-            <div className={`${layout.container} relative`}>
+        <section className="py-20 bg-gray-50">
+            <div className={layout.container}>
                 
                 {/* Header */}
-                <div className="text-center max-w-2xl mx-auto mb-12">
-                    <span className="text-rose-600 font-bold tracking-[0.2em] uppercase text-xs mb-3 block animate-pulse">
-                        Don't Miss Out
-                    </span>
-                    <h2 className={`${typography.h2} text-gray-900 mb-4`}>
-                        Exclusive Travel Deals
-                    </h2>
-                    <div className="h-1 w-20 bg-rose-600 mx-auto rounded-full"></div>
+                <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
+                    <div>
+                        <span className="text-rose-600 font-bold tracking-widest uppercase text-xs bg-rose-100 px-3 py-1 rounded-full">
+                            Limited Time Offers
+                        </span>
+                        <h2 className="text-3xl md:text-5xl font-extrabold text-gray-900 mt-4 leading-tight">
+                            Unbeatable <span className="text-rose-600">Travel Deals</span>
+                        </h2>
+                    </div>
+                    <div>
+                        <Button variant={"destructive"}>
+                            <Link href={"/offers"}>
+                               View All Offers
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Banners Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {promoBanners.map((promo) => (
-                        <div key={promo.id} className="group relative h-[450px] w-full rounded-[2rem] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 border border-white/50">
-                            
-                            {/* Background Image */}
+                {/* Modern Bento Grid Layout */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[350px]">
+                    {promoBanners.slice(0,5).map((banner) => (
+                        <div 
+                            key={banner.id} 
+                            className={`relative group rounded-[2rem] overflow-hidden shadow-xl cursor-pointer ${
+                                banner.isLarge ? 'md:col-span-2' : 'md:col-span-1'
+                            }`}
+                        >
+                            {/* 1. Background Image with Zoom Effect */}
                             <Image
-                                src={promo.image}
-                                alt={promo.title}
+                                src={banner.image}
+                                alt={banner.title}
                                 fill
-                                className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
                             />
                             
-                            {/* Dark Gradient Overlay */}
+                            {/* 2. Gradient Overlay (Always visible for text readability) */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
-                            {/* Top Left Badge (Subtitle) */}
-                            <div className="absolute top-6 left-6 flex gap-3">
-                                <span className={`bg-gradient-to-r ${promo.color} text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg`}>
-                                    {promo.subTitle}
+                            {/* 3. Content at Bottom */}
+                            <div className="absolute bottom-0 left-0 w-full p-8 z-20 translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                                <h3 className={`font-bold text-white mb-2 leading-tight ${banner.isLarge ? 'text-3xl md:text-4xl' : 'text-2xl'}`}>
+                                    {banner.title}
+                                </h3>
+                                <p className="text-gray-300 text-sm md:text-base line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                                    {banner.description}
+                                </p>
+                                
+                                {/* WhatsApp Button (Slide Up Effect) */}
+                                <div className="overflow-hidden h-0 group-hover:h-auto transition-all duration-500">
+                                    <Link 
+                                        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(banner.whatsappMessage)}`}
+                                        target="_blank"
+                                    >
+                                        <Button className="bg-green-500 hover:bg-green-600 text-white font-bold w-full md:w-auto h-12 rounded-xl flex items-center gap-2 shadow-lg shadow-green-500/30 animate-pulse-slow">
+                                            <FaWhatsapp className="text-xl" />
+                                            Book via WhatsApp
+                                            <FaArrowRight className="text-xs ml-2" />
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* 4. Top Right Tag */}
+                            <div className="absolute top-6 right-6 z-20">
+                                <span className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+                                    {banner.isLarge ? 'Best Seller' : 'Hot Deal'}
                                 </span>
                             </div>
-                            
-                            {/* 🟢 Removed Expiry Date Badge from Top Right */}
 
-                            {/* Bottom Content (Glassmorphism) */}
-                            <div className="absolute bottom-0 left-0 w-full p-8 transition-all duration-500 transform translate-y-12 group-hover:translate-y-0">
-                                
-                                {/* Text Content */}
-                                <div className="mb-6 relative z-10">
-                                    <h3 className="text-3xl font-extrabold text-white mb-2 leading-tight">
-                                        {promo.title}
-                                    </h3>
-                                    <p className="text-gray-300 text-sm md:text-base line-clamp-2 group-hover:line-clamp-none transition-all">
-                                        {promo.description}
-                                    </p>
-                                </div>
-
-                                {/* Action Buttons Area */}
-                                <div className="flex flex-col gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100">
-                                    
-                                   
-                                    
-
-                                    {/* Buttons Row */}
-                                    <div className="flex gap-3 mt-1">
-                                        <Link href={promo.link} className="flex-1">
-                                            <Button className="w-full h-12 bg-white text-gray-900 hover:bg-gray-100 font-bold rounded-xl border-none">
-                                                View Details <FaArrowRight className="ml-2" />
-                                            </Button>
-                                        </Link>
-                                        
-                                        <a href="https://wa.me/12139858499" target="_blank" rel="noreferrer" className="flex-1">
-                                            <Button className="w-full h-12 bg-[#25D366] hover:bg-[#20b85c] text-white font-bold rounded-xl border-none">
-                                                <FaWhatsapp className="mr-2 text-xl" /> WhatsApp
-                                            </Button>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                {/* Hover Hint Arrow */}
-                                <div className="absolute bottom-12 right-8 text-white/50 animate-bounce group-hover:hidden">
-                                    <FaArrowRight className="-rotate-90 text-2xl" />
-                                </div>
-
-                            </div>
                         </div>
                     ))}
                 </div>
-
 
             </div>
         </section>
