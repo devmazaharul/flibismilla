@@ -28,7 +28,7 @@ const PopularDestinations = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {destinations.slice(0, 6).map((item) => (
+                    {destinations.slice(0, 8).map((item) => (
                         <Link
                             href={`/destinations/${item.slug}`}
                             key={item.id}

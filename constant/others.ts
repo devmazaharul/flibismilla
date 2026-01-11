@@ -33,3 +33,25 @@ export const authStaticData = {
   }
 };
 
+// constant/promos.ts
+
+export const promoBanners = [
+    {
+        id: 1,
+        title: "Florida to Dhaka Exclusive",
+        subTitle: "Special Fares Alert",
+        image: "https://flibismilla.vercel.app/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1542627088-6603b66e5c54%3Fq%3D80%26w%3D1000&w=1920&q=75",
+        link: "/contact", 
+        description: "Unbeatable prices for FLL to DAC. Limited seats available for upcoming season.",
+        color: "from-blue-600 to-blue-400"
+    },
+    {
+        id: 2,
+        title: "Ramadan Umrah Package",
+        subTitle: "Spiritual Journey",
+        image: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000",
+        link: "/package/ramadan-umrah",
+        description: "Experience the holy month in Makkah & Madinah with 5-star hospitality.",
+        color: "from-rose-600 to-rose-400"
+    },
+];

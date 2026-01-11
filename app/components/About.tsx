@@ -20,7 +20,7 @@ const About = () => {
             <div className={`relative h-[400px] md:h-[500px] w-full md:w-[85%] ${layout.radius.card} overflow-hidden shadow-2xl`}>
                {/* Replace src with your actual image path like '/images/about-1.jpg' */}
                <Image 
-                 src="https://flybismillah.com/wp-content/uploads/elementor/thumbs/image-2-qxwe5qttaapr8zyw3ahqj068y764nwpws18qcbz57k.webp" 
+                 src="/asset/others/aboutbg.webp" 
                  alt="Makkah Clock Tower"
                  fill
                  className="object-cover hover:scale-105 transition-transform duration-700"
@@ -31,7 +31,7 @@ const About = () => {
             <div className={`hidden md:block absolute bottom-[-30px] right-0 w-[55%] h-[300px] ${layout.radius.card} overflow-hidden border-8 border-white shadow-xl`}>
               {/* Replace src with '/images/about-2.jpg' */}
               <Image 
-                src="https://flybismillah.com/wp-content/uploads/elementor/thumbs/image-1-1-qxwe1dutasuk0mqtrexn4s9gtijqo2j1u3l56mlt6w.webp" 
+                  src={"/asset/others/about-welcomwe.webp"}
                 alt="Happy Traveler"
                 fill
                 className="object-cover"

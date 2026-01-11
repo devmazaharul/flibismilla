@@ -58,7 +58,8 @@ const Footer = () => {
                 {/* Logo */}
                 <div>
                     <Link href="/" className="group flex items-center gap-2">
-                        <div className="bg-gray-700 text-white p-2.5 rounded-xl shadow-lg group-hover:bg-gray-700 transition-colors duration-300">
+                      <Image height={200} width={200} alt='logo' src={'/logo1.jpeg'}/>
+                        {/* <div className="bg-gray-700 text-white p-2.5 rounded-xl shadow-lg group-hover:bg-gray-700 transition-colors duration-300">
                             <span className="text-2xl">✈️</span>
                         </div>
                         <div>
@@ -70,7 +71,7 @@ const Footer = () => {
                             <span className="text-[10px] text-gray-400 font-bold tracking-[0.2em] uppercase">
                                 Travels & Tours
                             </span>
-                        </div>
+                        </div> */}
                     </Link>
 
                     <p className={`${colors.text.muted} leading-relaxed pr-4 py-4`}>

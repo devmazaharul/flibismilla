@@ -39,21 +39,15 @@ export const headerData = {
         { label: 'HOTEL', href: '/hotel', hasDropdown: false, subMenu: null },
         {
             label: 'HAJJ',
-            href: '/hajj',
-            hasDropdown: true,
-            subMenu: [
-                { label: 'Economy Hajj Package', href: '/hajj/economy' },
-                { label: 'Premium Hajj Package', href: '/hajj/premium' },
-            ],
+             href: '/packages?type=hajj',
+            hasDropdown: false,
+            subMenu:null,
         },
         {
             label: 'UMRAH',
-            href: '/umrah',
-            hasDropdown: true,
-            subMenu: [
-                { label: 'Family Umrah Package', href: '/umrah/family' },
-                { label: 'Group Umrah Package', href: '/umrah/group' },
-            ],
+            href: '/packages?type=umrah',
+            hasDropdown: false,
+            subMenu:null,
         },
         { label: 'ABOUT', href: '/about', hasDropdown: false },
         { label: 'CONTACT', href: '/contact', hasDropdown: false, subMenu: null },
@@ -72,68 +66,6 @@ export const heroData = {
     ],
 };
 
-// ==================== 4. Popular Destinations ====================
-// constant/data.ts
-
-export const destinations = [
-    {
-        id: 1,
-        slug: 'male-maldives',
-        name: 'Malé, Maldives',
-        country: 'Maldives',
-        reviews: 156,
-        rating: 4.8,
-        image: 'https://flybismillah.com/wp-content/uploads/2022/07/Male-maldives.webp',
-        description: 'Discover the sunny side of life. Malé is the densely populated capital of the Maldives, known for its colorful buildings and mosques. Beyond the capital, the Maldives offers overwater villas, crystal clear turquoise waters, and vibrant coral reefs perfect for diving and snorkeling.',
-        bestTime: 'November to April',
-        currency: 'Maldivian Rufiyaa (MVR)',
-        language: 'Dhivehi',
-        attractions: ['Grand Friday Mosque', 'Artificial Beach', 'Fish Market', 'National Museum', 'Banana Reef'],
-        gallery: [
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
-        ]
-    },
-    {
-        id: 2,
-        slug: 'dubai-uae',
-        name: 'Dubai, UAE',
-        country: 'United Arab Emirates',
-        reviews: 340,
-        rating: 4.9,
-        image: 'https://flybismillah.com/wp-content/uploads/2022/07/The-Dubai-Fountain.webp',
-        description: 'Dubai is a city of skyscrapers, ports, and beaches, where big business takes place alongside sun-seeking tourism. Experience the top of the world at Burj Khalifa, shop at the world\'s largest mall, or take a safari into the golden desert dunes.',
-        bestTime: 'November to March',
-        currency: 'Dirham (AED)',
-        language: 'Arabic',
-        attractions: ['Burj Khalifa', 'The Dubai Mall', 'Palm Jumeirah', 'Dubai Creek', 'Desert Safari'],
-        gallery: [
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
-        ]
-    },
-    {
-        id: 3,
-        slug: 'istanbul-turkey',
-        name: 'Istanbul, Turkey',
-        country: 'Turkey',
-        reviews: 210,
-        rating: 4.7,
-        image: 'https://images.unsplash.com/photo-1527838832700-5059252407fa?q=80&w=1000',
-        description: 'Istanbul is a major city in Turkey that straddles Europe and Asia across the Bosphorus Strait. Its Old City reflects cultural influences of the many empires that once ruled here.',
-        bestTime: 'April to May & Sept to Nov',
-        currency: 'Turkish Lira (TRY)',
-        language: 'Turkish',
-        attractions: ['Hagia Sophia', 'Blue Mosque', 'Topkapi Palace', 'Grand Bazaar', 'Bosphorus Cruise'],
-       gallery: [
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-            'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000'
-        ]
-    },
-];
 
 // ==================== 5. About Us Section ====================
 
@@ -160,7 +92,7 @@ export const aboutPageData = {
         title: 'About Us',
         subtitle: 'Your trusted partner for Hajj, Umrah, and Worldwide Travel.',
         bgImage:
-            'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1000&auto=format&fit=crop',
+            '/asset/others/aboutbg.webp',
     },
     intro: {
         title: 'Welcome to our agency',
@@ -170,7 +102,7 @@ export const aboutPageData = {
         description2:
             'We understand that every traveler has unique needs. That’s why we offer tailored packages designed to suit your preferences and budget. Our team is committed to providing expert advice and exceptional service.',
         highlightBadge: '1M+ Travelers Monthly',
-        image: 'https://images.unsplash.com/photo-1527631746610-bca00a040d60?q=80&w=1000&auto=format&fit=crop',
+        image: '/asset/others/about-welcomwe.webp',
     },
     missionVision: [
         {
@@ -236,7 +168,7 @@ export const testimonialsData = [
         role: 'Umrah Pilgrim',
         review: 'Alhamdulillah, the service was exceptional. From visa processing to hotel booking near Haram, everything was perfectly managed by Bismillah Travels.',
         rating: 5,
-        image: 'https://randomuser.me/api/portraits/men/32.jpg', // Placeholder URL
+        image: '/asset/testimonial/32.webp', 
     },
     {
         id: 2,
@@ -244,7 +176,7 @@ export const testimonialsData = [
         role: 'London, UK',
         review: 'I booked a family holiday package to Dubai. The guide was very professional and the hotels were exactly as promised. Highly recommended!',
         rating: 5,
-        image: 'https://randomuser.me/api/portraits/women/44.jpg',
+      image: '/asset/testimonial/44.webp', 
     },
     {
         id: 3,
@@ -252,7 +184,7 @@ export const testimonialsData = [
         role: 'Business Traveler',
         review: 'Great experience with flight booking. I got the best deal on urgent tickets. Their support team is available 24/7 which is very helpful.',
         rating: 4,
-        image: 'https://randomuser.me/api/portraits/men/85.jpg',
+       image: '/asset/testimonial/85.webp', 
     },
 ];
 
@@ -266,7 +198,7 @@ export const blogsData = [
         author: 'Admin',
         excerpt:
             'Preparing for Hajj can be overwhelming. Here is a comprehensive guide on what to pack and how to prepare spiritually.',
-        image: 'https://flybismillah.com/wp-content/uploads/2022/07/Seamless-Flight-768x660.webp', // Replace with local image
+        image: '/asset/blog/blog1.webp',
     },
     {
         id: 2,
@@ -275,7 +207,7 @@ export const blogsData = [
         author: 'Travel Desk',
         excerpt:
             'Turkey is more than just Istanbul. Discover the beautiful landscapes of Cappadocia and the ancient ruins of Ephesus.',
-        image: 'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?q=80&w=1000&auto=format&fit=crop',
+        image: '/asset/blog/glog2.webp',
     },
     {
         id: 3,
@@ -284,7 +216,7 @@ export const blogsData = [
         author: 'Support',
         excerpt:
             'Want to save money on your next trip? Learn the secrets of booking cheap flights and the best times to fly.',
-        image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1000&auto=format&fit=crop',
+     image: '/asset/blog/blog3.webp',
     },
 ];
 
@@ -326,22 +258,22 @@ export const partnersData = [
     {
         id: 1,
         name: 'MasterCard',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg',
+        logo: '/asset/sponsor/Mastercard-logo.svg',
     },
     {
         id: 2,
         name: 'Visa',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg',
+        logo: '/asset/sponsor/Visa_Inc._logo.svg',
     },
     {
         id: 3,
         name: 'Discover',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/5/57/Discover_Card_logo.svg',
+        logo: '/asset/sponsor/Discover_Card_logo.svg',
     },
     {
         id: 4,
         name: 'IATA',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/IATA_logo.svg/1200px-IATA_logo.svg.png?20190926085114',
+        logo: '/asset/sponsor/1200px-IATA_logo.webp',
     },
 ];
 
@@ -397,391 +329,559 @@ export interface PackageType {
     slug: string;
     location: string;
 }
-// constant/data.ts
 
+// packages data
 export const packages = [
-    // --- HAJJ PACKAGES ---
+    // --- HAJJ PACKAGES (Based on your Image) ---
     {
         id: 1,
-        slug: 'economy-hajj-package-2025',
-        title: 'Economy Hajj Package 2025 - 14 Days',
+        slug: 'economy-hajj-package-1e-2025',
+        title: 'Bismillah Tours Economy Hajj Package 1E 2025: 13 Nights Package',
         price: '$7,148.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
+        image: '/asset/hajj/hajj1.webp', // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
-        description:
-            'An affordable yet comfortable Hajj journey focusing on the spiritual essentials. Includes shifting accommodation near Haram.',
+        description: `Departure from USA: 28th May | Departure from Saudi Arabia: 10th June.
+        
+        **Madinah Stay:** Saja Al Madinah Hotel Or Similar (29th May - 03 Nights). Half Board included.
+        **Makkah Stay:** Azizia Building (01st June - 09 Nights). Close to Jamarat. Half Board included.
+        **Manasik Hajj:** Category "D" Camps in Mina & Arafat (04th June - 08th June).
+        
+        **Package Includes:**
+        - Hajj Visa Included (Pakistani Citizens Only)
+        - Medical Insurance & Wristbands
+        - Full Board in Mina/Arafat (Breakfast, Lunch, Dinner box)
+        - Visit to Historical Sites In Madinah (Ziyarat)
+        - Guided by Experienced Group Leaders & Scholars
+        - Gift Pack: Ihram, Prayer Rugs, Shoe Bag
+        - 24 Hours Assistance during the stay
+        - Full VIP Bus Transport for all transfers
+        
+        **Land Package Pricing:**
+        - Quad: $7,148.00/Person
+        - Triple: $7,648.00/Person
+        - Double: $8,148.00/Person`,
         included: [
             'Round Trip Airfare',
             'Hajj Visa & Insurance',
-            '3 Star Hotel (Shifting)',
+            'Economy Hotel / Azizia',
             'Full Board Meals',
             'Guided Hajj Rituals',
-            'Bus Transport',
+            'VIP Bus Transport',
         ],
     },
     {
         id: 2,
-        slug: 'vip-shifting-hajj-package',
-        title: 'VIP Shifting Hajj Package - 20 Days',
-        price: '$9,500.00',
-        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
+        slug: 'economy-hajj-package-1d-2025',
+        title: 'Bismillah Tours Economy Hajj Package 1D 2025: 13 Nights Package',
+        price: '$8,448.00',
+       image: '/asset/hajj/hajj2.webp', // madina
         category: 'Hajj',
         location: 'Makkah & Madinah',
-        description:
-            'Experience Hajj with VIP services. Stay in luxury apartments in Azizia and 5-star hotels facing the Haram during Hajj days.',
+        description: `Departure from USA: 30th May | Departure from Saudi Arabia: 12th June.
+        
+        **Madinah Stay:** Pullman Zamzam Madinah (5 Star) - 03 Nights. Open Buffet Breakfast & Dinner.
+        **Makkah Stay:** Premium Azizia Apartment (Walking distance to Jamarat) - 10 Nights.
+        **Manasik Hajj:** Upgraded European Tents in Mina (04th June - 08th June).
+        
+        **Package Highlights:**
+        - Direct Flights from JFK/IAD
+        - Hajj Visa Processing & MoH Fees
+        - Qurbani Included
+        - Private Air-Conditioned Buses for Mina-Arafat-Muzdalifah
+        - Educational Seminars by Shaykh
+        - Ziyarat in Makkah & Madinah with Guide
+        - Complimentary 5L Zamzam Water
+        
+        **Land Package Pricing:**
+        - Quad: $8,448.00/Person
+        - Triple: $8,948.00/Person
+        - Double: $9,548.00/Person`,
         included: [
             'Direct Flights',
-            'VIP Hajj Visa',
-            '5 Star Hotel',
+            'Hajj Visa',
+            '5 Star Madinah Hotel',
             'Azizia Apartment',
-            'Private AC Bus',
+            'Qurbani',
+            'VIP Tents',
             'Buffet Meals',
-            'Ziyarat Tours',
         ],
     },
     {
         id: 3,
-        slug: 'non-shifting-hajj-package',
-        title: 'Premium Non-Shifting Hajj - 15 Days',
-        price: '$11,200.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
+        slug: 'deluxe-hajj-package-1c-2025',
+        title: 'Bismillah Tours Deluxe Hajj Package 1C 2025: (No Azizia)-13 Nights Package',
+        price: '$9,448.00',
+        image: '/asset/hajj/hajj3.webp', // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
-        description:
-            'No hassle of changing hotels. Stay in one dedicated 5-star hotel throughout your Hajj journey with closest access to Jamarat.',
+        description: `Departure from USA: 2nd June | Return: 15th June. **NO AZIZIA SHIFTING - Direct Hotel Stay.**
+        
+        **Makkah Stay:** Swissotel Makkah (Clock Tower) - 05 Nights (Before Hajj). Steps away from Haram.
+        **Madinah Stay:** Anwar Al Madinah Mövenpick - 04 Nights (After Hajj).
+        **Manasik Hajj:** VIP North American Tents (Zone B) - Sofa beds, AC, Buffet meals.
+        
+        **Exclusive Services:**
+        - No Shifting to Azizia (Maximum Comfort)
+        - Hajj Visa & Drafts
+        - Buffet Breakfast & Dinner in Hotels
+        - 24/7 Tea/Coffee & Snacks in Mina Tent
+        - Dedicated Mutawwif for Group
+        - Private VIP Bus (Model 2024/25)
+        
+        **Land Package Pricing:**
+        - Quad: $9,448.00/Person
+        - Triple: $10,148.00/Person
+        - Double: $11,248.00/Person`,
         included: [
-            'Business Class Flight',
-            'Luxury Hotel (Zero Dist)',
-            'Private Tent in Mina',
-            '24/7 Guide',
-            'All Meals',
-            'Exclusive Transport',
+            'No Shifting (Direct Hotel)',
+            'Clock Tower Hotel',
+            'North American Tents',
+            'Hajj Visa',
+            'Full Board',
+            'Private Transport',
         ],
     },
-
-    // --- UMRAH PACKAGES ---
     {
         id: 4,
-        slug: 'luxury-umrah-package-10-days',
-        title: 'Luxury Umrah Package - 10 Days',
-        price: '$2,500.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
-        category: 'Umrah',
+        slug: 'super-deluxe-hajj-package-1b-2025',
+        title: 'Bismillah Tours Super Deluxe Hajj Package 1B 2025: (No Azizia)-13 Nights Package',
+        price: '$12,198.00',
+         image: '/asset/hajj/hajj4.webp', // Kaaba
+        category: 'Hajj',
         location: 'Makkah & Madinah',
-        description:
-            'Perform Umrah with ease and luxury. Our 10-day package offers 5-star hotel stays directly facing the Kaaba.',
+        description: `Departure: 4th June | Return: 17th June. **The Ultimate Luxury Hajj Experience.**
+        
+        **Makkah Stay:** Fairmont Makkah Clock Royal Tower (5 Star) - 05 Nights. Kaaba View Rooms available on request.
+        **Madinah Stay:** The Oberoi Madinah (Steps from Green Dome) - 04 Nights.
+        **Manasik Hajj:** VIP Majed Tents (Zone A - Closest to Jamarat). Private washrooms available.
+        
+        **VIP Features:**
+        - Fast Track Immigration
+        - Private SUV Transfers (GMC/Land Cruiser) option available
+        - Open Buffet 24/7 in Mina
+        - Exclusive religious guidance by Senior Scholars
+        - Ziyarat of Historical sites in Luxury Bus
+        - Meet & Greet Service at Jeddah Airport
+        
+        **Land Package Pricing:**
+        - Quad: $12,198.00/Person
+        - Triple: $13,198.00/Person
+        - Double: $14,698.00/Person`,
         included: [
-            'Return Flights',
-            'Umrah Visa',
-            '5 Star Hotel (Clock Tower)',
-            'Breakfast Included',
-            'Private Car Transfer',
-            'Ziyarat Makkah/Madinah',
+            'Fairmont & Oberoi Hotels',
+            'Zone A VIP Tents',
+            'Fast Track Immigration',
+            'Gourmet Dining',
+            'Private Washrooms (Mina)',
+            'No Shifting',
         ],
     },
     {
         id: 5,
-        slug: 'economy-umrah-group',
-        title: 'Economy Group Umrah - 15 Days',
-        price: '$1,200.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
-        category: 'Umrah',
+        slug: 'executive-hajj-package-1a-2025',
+        title: 'Bismillah Tours Executive Hajj Package 1A 2025: (No Azizia)-13 Nights Package',
+        price: '$12,948.00',
+       image: '/asset/hajj/hajj1.webp', // Kaaba
+        category: 'Hajj',
         location: 'Makkah & Madinah',
-        description:
-            'Join our guided group for a budget-friendly spiritual journey. Perfect for first-timers needing guidance.',
+        description: `Departure: 4th June | Return: 17th June. **Executive Service for Distinguished Guests.**
+        
+        **Makkah Stay:** Raffles Makkah Palace (Suites Only) - 05 Nights. 24-hour Butler Service.
+        **Madinah Stay:** Dar Al Iman InterContinental - 04 Nights. Haram View.
+        **Manasik Hajj:** Royal Tents in Mina (Zone A+). Private Cubicles, Ensuite Bathrooms, Executive Lounge access.
+        
+        **Executive Inclusions:**
+        - Business Class Flights Included
+        - Private Limousine Transfer for Airport & Inter-city
+        - Hajj Visa (VIP Processing)
+        - 1-on-1 Scholar Session
+        - Premium Gift Hamper (Perfumes, Premium Dates, Ihram)
+        - Dedicated Porter Service throughout the trip
+        
+        **Land Package Pricing:**
+        - Quad: $12,948.00/Person
+        - Triple: $13,948.00/Person
+        - Double: $16,948.00/Person`,
         included: [
-            'Economy Flight',
-            'Group Visa',
-            '3 Star Hotel (500m)',
-            'Bus Transport',
-            'Bengali Guide',
-            'Weekly Ziyarat',
+            'Raffles & InterContinental',
+            'Royal Tents (Ensuite)',
+            'Business Class Flight',
+            'Private Limousine',
+            'Butler Service',
+            'VIP Hajj Visa',
         ],
     },
+
+    // --- UMRAH PACKAGES (Updated Description Style) ---
     {
         id: 6,
-        slug: 'ramadan-umrah-full-month',
-        title: 'Full Month Ramadan Umrah',
-        price: '$3,800.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
+        slug: 'package-1c-2025-umrah',
+        title: 'Package 1C 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-10 Nights Package',
+        price: '$2,048.00',
+         image: '/asset/hajj/hajj5.webp', // Kaaba
         category: 'Umrah',
         location: 'Makkah & Madinah',
-        description:
-            'Spend the entire holy month of Ramadan in the holy cities. Experience the spiritual atmosphere of Laylatul Qadr.',
+        description: `Flexible Departure Dates. **Ideal for Families.**
+        
+        **Makkah Stay:** Swissotel Al Maqam (5 Nights). Direct access to Haram via Tunnel.
+        **Madinah Stay:** Anwar Al Madinah (5 Nights). Steps from Ladies Gate.
+        
+        **Package Details:**
+        - Umrah Visa Processing (USA/UK/Canada/Bangladesh passports)
+        - Daily Open Buffet Breakfast
+        - Complete Ground Transportation by GMC/H1
+        - Ziyarat in Makkah: Cave Hira, Thawr, Mina, Arafat
+        - Ziyarat in Madinah: Quba Mosque, Qiblatain, Uhud
+        - Valid from April 2025 to March 2026
+        
+        **Pricing:**
+        - Quad: $2,048/Person
+        - Triple: $2,248/Person
+        - Double: $2,548/Person`,
         included: [
-            'Return Ticket',
             'Umrah Visa',
-            'Standard Hotel',
-            'Suhoor & Iftar',
-            'Eid Celebration',
-            'Transport',
+            '5 Star Hotels',
+            'Daily Breakfast',
+            'Private Transport',
+            'Ziyarat Tours',
+            'Rawdah Permit',
         ],
     },
     {
         id: 7,
-        slug: 'short-express-umrah',
-        title: 'Express Umrah Package - 7 Days',
-        price: '$1,500.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
+        slug: 'package-1b-2025-umrah',
+        title: 'Package 1B 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-07 Nights Package',
+        price: '$1,648.00',
+       image: '/asset/hajj/hajj2.webp', // Kaaba
+        category: 'Umrah',
+        location: 'Makkah & Madinah',
+        description: `Short & Spiritual. **Perfect for a 1-Week Trip.**
+        
+        **Makkah Stay:** Le Meridien Makkah (4 Nights). Shuttle service available 24/7.
+        **Madinah Stay:** Crowne Plaza Madinah (3 Nights).
+        
+        **Package Features:**
+        - Electronic Umrah Visa included
+        - Meet & Assist at Jeddah/Madinah Airport
+        - Breakfast included
+        - High-Speed Haramain Train Ticket (Makkah to Madinah)
+        - Guidance on Umrah Rituals
+        
+        **Pricing:**
+        - Quad: $1,648/Person
+        - Triple: $1,748/Person
+        - Double: $1,948/Person`,
+        included: [
+            'Umrah Visa',
+            '4/5 Star Hotels',
+            'Haramain Train',
+            'Breakfast',
+            'Airport Transfer',
+        ],
+    },
+    {
+        id: 8,
+        slug: 'package-1a-2025-umrah',
+        title: 'Package 1A 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-05 Nights Package',
+        price: '$1,348.00',
+       image: '/asset/hajj/hajj3.webp', // Kaaba
         category: 'Umrah',
         location: 'Makkah Only',
-        description:
-            'A quick spiritual recharge. Perfect for busy professionals who want to perform Umrah over a week.',
+        description: `Express Umrah. **Focus on Makkah.**
+        
+        **Makkah Stay:** Hilton Suites Makkah (5 Nights). Located in Jabal Omar, overlooking the Haram.
+        
+        **Package Inclusions:**
+        - Umrah Visa with Insurance
+        - Private Car for Jeddah Airport to Hotel Transfer
+        - Ziyarat of Holy Sites in Makkah
+        - Daily Breakfast
+        - 24/7 WhatsApp Support
+        
+        **Pricing:**
+        - Quad: $1,348/Person
+        - Triple: $1,448/Person
+        - Double: $1,648/Person`,
         included: [
-            'Direct Flight',
-            'Express Visa',
-            '4 Star Hotel',
-            'Airport Transfer',
+            'Makkah Stay Only',
+            'Hilton Suites',
+            'Umrah Visa',
+            'Private Transfer',
             'Breakfast',
-            'Rawdah Slot Booking',
         ],
     },
 
-    // --- ISLAMIC HERITAGE TOURS ---
+    // --- OTHER PACKAGES (Updated Descriptions to be detailed) ---
     {
-        id: 8,
+        id: 9,
         slug: 'alaqsa-jerusalem-tour',
         title: 'Al-Aqsa & Jerusalem Tour - 5 Days',
         price: '$1,800.00',
-        image: 'https://images.unsplash.com/photo-1542627088-6603b66e5c54?q=80&w=1000',
+        image: '/asset/hajj/Al-Aqsa.jpg', // Kaaba
         category: 'Heritage',
         location: 'Jerusalem, Palestine',
-        description:
-            'Visit the first Qibla of Islam. Pray at Masjid Al-Aqsa and visit historical sites of Prophets.',
+        description: `**Day 1: Arrival in Amman & Transfer to Jerusalem.** Crossing the Allenby Bridge border. Check-in at the National Hotel Jerusalem (4 Star).
+        
+        **Day 2: Jumu'ah at Al-Aqsa.** Guided tour of the Old City. Visit Dome of the Rock, Al-Aqsa Mosque, and the Buraq Wall.
+        
+        **Day 3: Hebron & Bethlehem.** Visit the Masjid Ibrahimi (Tomb of Prophet Ibrahim A.S) and birthplace of Prophet Isa A.S.
+        
+        **Day 4: Islamic History.** Visit Mount of Olives, Tomb of Salman Al Farsi, and Rabia Basri.
+        
+        **Day 5: Departure.** Transfer back to Amman Airport for flight.
+        
+        **Includes:**
+        - All Border Taxes
+        - English Speaking Muslim Guide
+        - Daily Breakfast & Dinner
+        - VIP Bus Transport`,
         included: [
             'Return Flights',
-            'Entry Visa',
+            'Entry Visa & Taxes',
             'Heritage Hotel',
-            'Local Guide',
+            'Muslim Guide',
             'Ziyarat of Prophets',
-            'Daily Breakfast',
+            'Half Board Meals',
         ],
     },
     {
-        id: 9,
+        id: 10,
         slug: 'turkey-islamic-history',
         title: 'Turkey Islamic History - 8 Days',
         price: '$1,650.00',
-        image: 'https://images.unsplash.com/photo-1527838832700-5059252407fa?q=80&w=1000',
+        image: '/asset/hajj/turkey.jpg',
         category: 'Heritage',
         location: 'Istanbul & Bursa',
-        description:
-            'Explore the capital of the Ottoman Empire. Visit Blue Mosque, Hagia Sophia, and Topkapi Palace.',
+        description: `**Day 1-4: Istanbul - The City of Sultans.**
+        Stay at The Peak Hotel (4 Star). Visit Sultan Ahmet (Blue Mosque), Hagia Sophia Grand Mosque, and Topkapi Palace Museum (Holy Relics). Full day Bosphorus Cruise with dinner.
+        
+        **Day 5-7: Bursa - The First Ottoman Capital.**
+        Visit the Grand Mosque (Ulu Cami), Green Tomb, and Cable Car ride to Uludag Mountain. Shopping at the Silk Market.
+        
+        **Day 8: Departure.**
+        Private transfer to IST Airport.
+        
+        **Package Includes:**
+        - Domestic Flight (Istanbul-Bursa)
+        - Museum Entry Tickets
+        - Daily Breakfast
+        - English Speaking Guide`,
         included: [
-            'Flight Ticket',
-            'E-Visa Assistance',
-            '4 Star Hotel',
+            'Intl & Domestic Flight',
+            'E-Visa',
+            '4 Star Hotels',
             'Bosphorus Cruise',
             'Museum Tickets',
             'Daily Breakfast',
         ],
     },
     {
-        id: 10,
-        slug: 'egypt-pyramids-tour',
-        title: 'Egypt & Pyramids Tour - 6 Days',
-        price: '$1,400.00',
-        image: 'https://images.unsplash.com/photo-1539768942893-daf53e448371?q=80&w=1000',
-        category: 'Heritage',
-        location: 'Cairo & Alexandria',
-        description:
-            'Walk through history. Visit the Pyramids of Giza, Al-Azhar Mosque, and the Nile River.',
-        included: [
-            'Flight Ticket',
-            'Visa Support',
-            'Nile Cruise Dinner',
-            'Hotel Stay',
-            'Pyramid Entry',
-            'Transport',
-        ],
-    },
-    {
         id: 11,
-        slug: 'uzbekistan-silk-road',
-        title: 'Uzbekistan Silk Road - 7 Days',
-        price: '$1,550.00',
-        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-        category: 'Heritage',
-        location: 'Bukhara & Samarkand',
-        description:
-            'Visit the land of Imam Bukhari. Stunning blue mosques and ancient Islamic architecture.',
+        slug: 'dubai-family-fun',
+        title: 'Dubai Family Fun - 5 Days',
+        price: '$950.00',
+        image: '/asset/tour/The-Dubai-Fountain.webp', 
+        category: 'Holiday',
+        location: 'Dubai, UAE',
+        description: `**Day 1: Arrival & Dhow Cruise.**
+        Meet & Greet at DXB Airport. Evening Marina Dhow Cruise with International Buffet Dinner. Stay at Citymax Hotel Bur Dubai.
+        
+        **Day 2: City Tour & Burj Khalifa.**
+        Half-day Dubai City Tour (Palm Jumeirah, Atlantis photo stop). Evening visit to Burj Khalifa 124th Floor (Non-prime hours).
+        
+        **Day 3: Desert Safari.**
+        Afternoon pickup by 4x4 Land Cruiser. Dune Bashing, Camel Ride, Belly Dance Show, and BBQ Dinner in the desert camp.
+        
+        **Day 4: Shopping & Leisure.**
+        Free day for shopping at Dubai Mall or Gold Souk.
+        
+        **Day 5: Departure.**
+        Drop off at airport.`,
         included: [
-            'Flight Ticket',
-            'Visa Fees',
-            'Bullet Train Ticket',
-            'Heritage Hotel',
-            'Guide',
+            'Round Trip Flight',
+            'UAE Tourist Visa',
+            'Citymax Hotel',
+            'Desert Safari (BBQ)',
+            'Burj Khalifa Ticket',
             'All Transfers',
         ],
     },
     {
         id: 12,
-        slug: 'jordan-petra-tour',
-        title: 'Jordan & Petra Discovery - 5 Days',
-        price: '$1,350.00',
-        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-        category: 'Heritage',
-        location: 'Amman & Petra',
-        description: 'Discover the ancient city of Petra and the site of the Battle of Mutah.',
-        included: [
-            'Return Flight',
-            'Visa On Arrival',
-            'Hotel Stay',
-            'Petra Entry Ticket',
-            'Dead Sea Visit',
-            'Transport',
-        ],
-    },
-
-    // --- INTERNATIONAL HOLIDAYS ---
-    {
-        id: 13,
-        slug: 'dubai-family-fun',
-        title: 'Dubai Family Fun - 5 Days',
-        price: '$950.00',
-        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Dubai, UAE',
-        description:
-            'Ultimate family vacation. Includes Desert Safari, Burj Khalifa top view, and Dhow Cruise.',
-        included: [
-            'Flight Ticket',
-            'UAE Visa',
-            'Citymax Hotel',
-            'Desert Safari BBQ',
-            'Burj Khalifa Ticket',
-            'Airport Transfer',
-        ],
-    },
-    {
-        id: 14,
         slug: 'maldives-honeymoon',
         title: 'Maldives Honeymoon Bliss - 4 Days',
         price: '$2,100.00',
-        image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?q=80&w=1000',
+       image: '/asset/tour/Male-maldives.webp', 
         category: 'Holiday',
         location: 'Male, Maldives',
-        description:
-            'Romantic getaway in a water villa. Crystal clear waters and white sandy beaches.',
+        description: `**The Ultimate Romantic Getaway.**
+        Stay at **Adaaran Prestige Vadoo** (5 Star) in a Sunrise Water Villa with Private Jacuzzi.
+        
+        **Inclusions:**
+        - **All-Inclusive Plan:** Unlimited Food & Premium Beverages (Alcohol/Non-Alcohol).
+        - **Transfers:** Round trip Speedboat transfer from Male Airport.
+        - **Honeymoon Specials:** Bed decoration, Candlelight Dinner on the beach, and a Complimentary Cake.
+        - **Activities:** Snorkeling gear, Evening entertainment, and Sunset Fishing trip.
+        
+        **Pricing:** Based on double occupancy.`,
         included: [
             'Return Flights',
-            'Visa Free',
-            'Water Villa Stay',
+            'Visa Free Entry',
+            'Water Villa + Jacuzzi',
             'Speedboat Transfer',
-            'All Meals',
-            'Candlelight Dinner',
+            'All-Inclusive Meals',
+            'Honeymoon Cake',
         ],
+    },
+   
+];
+
+// ==================== 4. Popular Destinations ====================
+export const destinations = [
+    {
+        id: 1,
+        slug: 'male-maldives',
+        name: 'Malé, Maldives',
+        country: 'Maldives',
+        reviews: 156,
+        rating: 4.8,
+        image: '/asset/tour/Male-maldives.webp',
+        description: 'Discover the sunny side of life. Malé is the gateway to the Maldives, offering overwater villas, crystal clear turquoise waters, and vibrant coral reefs perfect for diving and snorkeling.',
+        bestTime: 'November to April',
+        currency: 'Maldivian Rufiyaa (MVR)',
+        language: 'Dhivehi',
+        attractions: ['Grand Friday Mosque', 'Banana Reef', 'Artificial Beach', 'Local Market', 'Maafushi Island'],
+        gallery: [
+          "/asset/tour/mald-sub1.jpg",
+          "/asset/tour/mald-sub2.webp"
+           
+        ]
     },
     {
-        id: 15,
-        slug: 'malaysia-budget-trip',
-        title: 'Malaysia Budget Trip - 5 Days',
-        price: '$650.00',
-        image: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Kuala Lumpur',
-        description: 'Explore the Twin Towers, Genting Highlands, and Batu Caves on a budget.',
-        included: [
-            'Flight Ticket',
-            'E-Visa',
-            '3 Star Hotel',
-            'Cable Car Ticket',
-            'City Tour',
-            'Breakfast',
-        ],
+        id: 2,
+        slug: 'burj-khalifa-dubai',
+        name: 'Burj Khalifa, Dubai',
+        country: 'United Arab Emirates',
+        reviews: 850,
+        rating: 4.9,
+         image: '/asset/tour/Burj_Khalifa.jpg.webp',
+        description: 'The world\'s tallest building. Experience breathtaking views from the observation decks on the 124th, 125th, and 148th floors. A marvel of modern engineering and design.',
+        bestTime: 'November to March',
+        currency: 'Dirham (AED)',
+        language: 'Arabic',
+        attractions: ['At The Top Sky', 'Dubai Mall', 'Dubai Aquarium', 'Dubai Opera', 'Souk Al Bahar'],
+        gallery: [
+           "/asset/tour/dubai-sub2.webp"
+        ]
     },
     {
-        id: 16,
-        slug: 'singapore-city-tour',
-        title: 'Singapore City Delight - 4 Days',
-        price: '$850.00',
-        image: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Singapore',
-        description:
-            'Cleanest city in the world. Visit Marina Bay Sands, Sentosa Island, and Universal Studios.',
-        included: [
-            'Return Flight',
-            'Visa Processing',
-            'Hotel Boss',
-            'Sentosa Pass',
-            'Universal Studios',
-            'Transfer',
-        ],
+        id: 3,
+        slug: 'makkah-saudi-arabia',
+        name: 'Makkah (The Holy Kaaba)',
+        country: 'Saudi Arabia',
+        reviews: 1200,
+        rating: 5.0,
+         image: '/asset/tour/Al-Kaaba-saudi-arabia.webp',
+        description: 'The holiest city in Islam. Millions of pilgrims travel here for Hajj and Umrah to visit the Masjid al-Haram and the Holy Kaaba. A place of peace and spiritual reflection.',
+        bestTime: 'November to February (Umrah)',
+        currency: 'Saudi Riyal (SAR)',
+        language: 'Arabic',
+        attractions: ['Masjid Al-Haram', 'Jabal al-Nour', 'Abraj Al-Bait', 'Mina', 'Mount Arafat'],
+        gallery: [
+            '/asset/hajj/hajj1.webp',
+            '/asset/hajj/hajj3.webp',
+          
+        ]
     },
     {
-        id: 17,
-        slug: 'thailand-phuket-adventure',
-        title: 'Thailand Phuket Adventure - 6 Days',
-        price: '$700.00',
-        image: 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Bangkok & Phuket',
-        description:
-            'Island hopping, shopping, and street food. The perfect mix of city and beach life.',
-        included: [
-            'Flight Ticket',
-            'Thai Visa',
-            'Beach Resort',
-            'Phi Phi Island Tour',
-            'Internal Flight',
-            'Breakfast',
-        ],
+        id: 4,
+        slug: 'sagarmatha-national-park',
+        name: 'Sagarmatha National Park',
+        country: 'Nepal',
+        reviews: 180,
+        rating: 4.8,
+          image: '/asset/tour/Sagarmatha-National-Park-Nepal.webp',
+        description: 'Home to Mount Everest, the highest peak in the world. This protected area in the Himalayas offers dramatic mountains, glaciers, and deep valleys. A paradise for trekkers.',
+        bestTime: 'Oct-Nov & Mar-May',
+        currency: 'Nepalese Rupee (NPR)',
+        language: 'Nepali',
+        attractions: ['Mount Everest', 'Namche Bazaar', 'Tengboche Monastery', 'Kala Patthar', 'Gokyo Lakes'],
+        gallery: [
+          "/asset/tour/sug-sub1.webp",
+          "/asset/tour/sug-sub2b.webp",
+        ]
     },
     {
-        id: 18,
-        slug: 'london-paris-combo',
-        title: 'London & Paris Combo - 8 Days',
-        price: '$2,800.00',
-        image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1000',
-        category: 'Holiday',
-        location: 'UK & France',
-        description:
-            'Visit two iconic European capitals. See the Big Ben and the Eiffel Tower in one trip.',
-        included: [
-            'Multi-City Flight',
-            'Visa Assistance',
-            'Central Hotel',
-            'Eurostar Train',
-            'River Cruise',
-            'Breakfast',
-        ],
+        id: 5,
+        slug: 'senso-ji-temple-tokyo',
+        name: 'Senso-ji Temple, Tokyo',
+        country: 'Japan',
+        reviews: 420,
+        rating: 4.7,
+        image: '/asset/tour/Senso-ji-Japan.webp',
+        description: 'Tokyo\'s oldest and most significant ancient Buddhist temple. Located in Asakusa, it is dedicated to Kannon, the bodhisattva of compassion. The vibrant Nakamise shopping street leads to it.',
+        bestTime: 'March to May (Cherry Blossom)',
+        currency: 'Japanese Yen (JPY)',
+        language: 'Japanese',
+        attractions: ['Kaminarimon Gate', 'Nakamise Shopping Street', 'Asakusa Shrine', 'Five-story Pagoda', 'Tokyo Skytree'],
+        gallery: [
+           
+           "/asset/tour/Senso-ji-sub1.webp"
+          
+        ]
     },
     {
-        id: 19,
-        slug: 'bali-nature-retreat',
-        title: 'Bali Nature Retreat - 6 Days',
-        price: '$900.00',
-        image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Bali, Indonesia',
-        description: 'Rice terraces, swings, and temples. A peaceful escape into nature.',
-        included: [
-            'Flight Ticket',
-            'Visa Free',
-            'Private Pool Villa',
-            'Ubud Tour',
-            'Nusa Penida Trip',
-            'Spa Session',
-        ],
+        id: 6,
+        slug: 'dubai-fountain',
+        name: 'The Dubai Fountain',
+        country: 'United Arab Emirates',
+        reviews: 600,
+        rating: 4.8,
+            image: '/asset/tour/The-Dubai-Fountain.webp',
+        description: 'The world\'s largest choreographed fountain system. Set on the huge Burj Khalifa Lake, the fountain shoots water up to 500 ft in the air accompanied by music and light shows.',
+        bestTime: 'Year-round (Evening)',
+        currency: 'Dirham (AED)',
+        language: 'Arabic',
+        attractions: ['Fountain Show', 'Burj Park', 'Dubai Opera', 'Souk Al Bahar', 'Dubai Mall Boardwalk'],
+        gallery: [
+            "/asset/tour/duabisub1.webp"
+        ]
     },
     {
-        id: 20,
-        slug: 'sri-lanka-scenic',
-        title: 'Scenic Sri Lanka - 5 Days',
-        price: '$550.00',
-        image: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=1000',
-        category: 'Holiday',
-        location: 'Kandy & Ella',
-        description: 'Experience the famous train ride, tea gardens, and elephants in Sri Lanka.',
-        included: [
-            'Return Flight',
-            'ETA Visa',
-            'Hilltop Hotel',
-            'Private Driver',
-            'Train Ticket',
-            'Breakfast',
-        ],
+        id: 8,
+        slug: 'himeji-castle-japan',
+        name: 'Himeji Castle',
+        country: 'Japan',
+        reviews: 310,
+        rating: 4.8,
+            image: '/asset/tour/Himeji-Castle-Japan1.webp',
+        description: 'Also known as the "White Heron Castle" due to its elegant, white appearance. Himeji Castle is the finest surviving example of early 17th-century Japanese castle architecture and a UNESCO World Heritage Site.',
+        bestTime: 'March to May (Cherry Blossoms) & Sept to Nov',
+        currency: 'Japanese Yen (JPY)',
+        language: 'Japanese',
+        attractions: ['Main Keep (Tenshu)', 'Koko-en Garden', 'Hyakken Roka', 'Senhime Peony Garden', 'Nishi-No-Maru'],
+        gallery: [
+            '/asset/tour/himeji1.webp',
+            '/asset/tour/himeji2sub.webp',
+        ]
     },
+    {
+        id: 9,
+        slug: 'great-wall-china',
+        name: 'Great Wall of China',
+        country: 'China',
+        reviews: 2500,
+        rating: 4.9,
+            image: '/asset/tour/Great-Wall-of-China.webp',
+        description: 'One of the greatest wonders of the world. A series of fortifications that stretch thousands of miles, built to protect the Chinese empires. Walking on the wall offers breathtaking views of the surrounding mountains.',
+        bestTime: 'April to May & Sept to Oct',
+        currency: 'Chinese Yuan (CNY)',
+        language: 'Mandarin',
+        attractions: ['Mutianyu Section', 'Badaling Section', 'Jinshanling', 'Simatai', 'Juyongguan'],
+        gallery: [
+           "/asset/tour/greatwallsub1.webp",
+           "/asset/tour/greatwallsub2.webp"
+        ]
+    }
 ];

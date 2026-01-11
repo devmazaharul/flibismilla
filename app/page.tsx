@@ -8,6 +8,7 @@ import PopularDestinations from './components/PopularDestinations';
 import Partners from './components/Partners';
 import Stats from './components/Stats';
 import PackageSection from './components/PackageSection';
+import PromoSection from './components/PromoSection';
 
 
 export default function Home() {
@@ -18,7 +19,7 @@ export default function Home() {
 
             {/* 2. Hero Section */}
             <Hero />
-
+            <PromoSection/>
             {/* 3. Discover Weekly Section */}
            <PackageSection/>
             <PopularDestinations />

@@ -133,7 +133,7 @@ const Hero = () => {
             {/* ================= Background ================= */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="https://flybismillah.com/wp-content/uploads/2024/12/slider-2-2.webp"
+                    src="/asset/others/hero.webp"
                     alt="Travel Background"
                     fill
                     className="object-cover"
