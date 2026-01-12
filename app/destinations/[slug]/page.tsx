@@ -102,7 +102,7 @@ const DestinationDetails = () => {
                              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                                 <FaCamera className="text-rose-600"/> Photo Gallery
                              </h3>
-                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-60">
+                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-100">
                                 {dest.gallery.map((img, idx) => (
                                     <div key={idx} className={`relative rounded-xl overflow-hidden group h-full ${idx === 0 ? 'sm:col-span-2' : 'sm:col-span-1'}`}>
                                         <Image src={img} alt="Gallery" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />

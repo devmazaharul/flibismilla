@@ -39,7 +39,8 @@ const PackageDetails = () => {
     }, [params]);
 
     const handleBook = () => {
-        toast.success('Booking request sent! We will contact you soon.');
+      //only message whatsapp with package info
+      toast.success("please contact via whatsapp to book the package");
     }
 
     if (!isLoading && !pkg) {

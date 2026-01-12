@@ -765,14 +765,14 @@ export const destinations = [
         country: 'United Arab Emirates',
         reviews: 850,
         rating: 4.9,
-         image: '/asset/tour/Burj_Khalifa.jpg.webp',
+         image: '/asset/tour/burj.avif',
         description: 'The world\'s tallest building. Experience breathtaking views from the observation decks on the 124th, 125th, and 148th floors. A marvel of modern engineering and design.',
         bestTime: 'November to March',
         currency: 'Dirham (AED)',
         language: 'Arabic',
         attractions: ['At The Top Sky', 'Dubai Mall', 'Dubai Aquarium', 'Dubai Opera', 'Souk Al Bahar'],
         gallery: [
-           "/asset/tour/dubai-sub2.webp"
+           "/asset/tour/burj.avif"
         ]
     },
     {
@@ -873,15 +873,14 @@ export const destinations = [
         country: 'China',
         reviews: 2500,
         rating: 4.9,
-            image: '/asset/tour/Great-Wall-of-China.webp',
+            image: '/asset/tour/greatwall.avif',
         description: 'One of the greatest wonders of the world. A series of fortifications that stretch thousands of miles, built to protect the Chinese empires. Walking on the wall offers breathtaking views of the surrounding mountains.',
         bestTime: 'April to May & Sept to Oct',
         currency: 'Chinese Yuan (CNY)',
         language: 'Mandarin',
         attractions: ['Mutianyu Section', 'Badaling Section', 'Jinshanling', 'Simatai', 'Juyongguan'],
         gallery: [
-           "/asset/tour/greatwallsub1.webp",
-           "/asset/tour/greatwallsub2.webp"
+           "/asset/tour/Great-Wall-of-China.webp"
         ]
     }
 ];
