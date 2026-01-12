@@ -26,9 +26,9 @@ const HotelCard = ({ data }: HotelProps) => {
 
 
     function handleClick() {
-        //whatapps link with prefilled message
-        const message = `Hello, I am interested in booking a stay at ${data.title}. Could you please provide more information?`;
-        const url =`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+        //whatapps better messgae
+        const message = `Hello, I am interested in booking a hotel stay at ${data.title} located in ${data.location}. Could you please provide me with more information regarding availability and rates? Thank you!`;
+        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
     }
     return (
