@@ -43,9 +43,9 @@ const HotelsPage = () => {
                     </p>
 
                     {/* Search Bar Container */}
-                    <div className="bg-white p-2 rounded-2xl shadow-2xl flex flex-col md:flex-row items-center gap-2 max-w-xl mx-auto mt-6">
+                    <div className="bg-white p-2 rounded-2xl shadow-2xl flex  md:flex-row items-center gap-2 max-w-xl mx-auto mt-6">
                         {/* Location Input */}
-                        <div className="flex-1 flex items-center px-4 h-12 md:h-14  md:w-auto border-b md:border-b-0 md:border-r border-gray-100">
+                        <div className="flex-1 flex  items-center px-4 h-12 md:h-14  md:w-auto border-b md:border-b-0 md:border-r border-gray-100">
                              <FaMapMarkerAlt className="text-gray-400 mr-3" />
                              <input 
                                 type="text" 
@@ -59,7 +59,7 @@ const HotelsPage = () => {
                      
 
                         {/* Search Button */}
-                        <Button className={`${button.primary} h-12 md:h-14 px-8 rounded-xl font-bold w-full md:w-auto`}>
+                        <Button className={`${button.primary} h-12 md:h-14 px-8 rounded-xl font-bold  md:w-auto`}>
                             Search
                         </Button>
                     </div>
