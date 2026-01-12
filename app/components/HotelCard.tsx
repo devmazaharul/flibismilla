@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FaStar, FaMapMarkerAlt, FaWifi, FaSwimmingPool, FaBed } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { appTheme } from '@/constant/theme/global';
+import { whatsappNumber } from './PromoSection';
 
 interface HotelProps {
     data: {
@@ -23,6 +24,13 @@ interface HotelProps {
 const HotelCard = ({ data }: HotelProps) => {
     const { button } = appTheme;
 
+
+    function handleClick() {
+        //whatapps link with prefilled message
+        const message = `Hello, I am interested in booking a stay at ${data.title}. Could you please provide more information?`;
+        const url =`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+        window.open(url, '_blank');
+    }
     return (
         <div className="group bg-white rounded-2xl border border-gray-200/70 shadow-2xl shadow-gray-100 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
             
@@ -70,11 +78,9 @@ const HotelCard = ({ data }: HotelProps) => {
                 </div>
 
                 <div className="mt-auto">
-                    <Link href={`/hotels/${data.slug}`}>
-                        <Button className={`w-full ${button.primary} font-bold`}>
-                            View Details
+                     <Button onClick={handleClick} className={`w-full ${button.primary} font-bold`}>
+                            Contact Now
                         </Button>
-                    </Link>
                 </div>
             </div>
         </div>

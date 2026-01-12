@@ -7,10 +7,10 @@ import { appTheme } from '@/constant/theme/global';
 import { FaWhatsapp, FaArrowRight } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { promoBanners } from '@/constant/others';
+   export const whatsappNumber = "12139858499"; 
 
 const PromoSection = () => {
     const { layout,button } = appTheme;
-    const whatsappNumber = "12139858499"; 
 
     return (
         <section className="py-20 bg-gray-50">
