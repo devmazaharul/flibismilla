@@ -7,7 +7,7 @@ export const websiteDetails = {
     phone: '+1-213-985-8499',
     email: 'Murad.usa09@gmail.com',
     whatappsLink: 'https://api.whatsapp.com/send/?phone=12139858499',
- whatsappNumber : "12139858499"
+    whatsappNumber: '12139858499',
 };
 // ==================== 1. Header & Navigation ====================
 export const headerData = {
@@ -30,9 +30,11 @@ export const headerData = {
         { label: 'HOME', href: '/', hasDropdown: false, subMenu: null },
         {
             label: 'FLIGHT',
-            href: '/flight',
+            href: '#',
             hasDropdown: true,
             subMenu: [
+                {label:"Flight Search ", href:"/flight/search"},
+
                 { label: 'Domestic Flight Booking', href: '/flight/domestic' },
                 { label: 'International Flight Booking', href: '/flight/international' },
             ],
@@ -40,15 +42,15 @@ export const headerData = {
         { label: 'HOTEL', href: '/hotel', hasDropdown: false, subMenu: null },
         {
             label: 'HAJJ',
-             href: '/packages?type=hajj',
+            href: '/packages?type=hajj',
             hasDropdown: false,
-            subMenu:null,
+            subMenu: null,
         },
         {
             label: 'UMRAH',
             href: '/packages?type=umrah',
             hasDropdown: false,
-            subMenu:null,
+            subMenu: null,
         },
         { label: 'ABOUT', href: '/about', hasDropdown: false },
         { label: 'CONTACT', href: '/contact', hasDropdown: false, subMenu: null },
@@ -66,7 +68,6 @@ export const heroData = {
         { id: 4, label: 'Guests', placeholder: '2 Persons', icon: 'user' },
     ],
 };
-
 
 // ==================== 5. About Us Section ====================
 
@@ -87,13 +88,12 @@ export const aboutData = {
     },
 };
 
-// about page 
+// about page
 export const aboutPageData = {
     hero: {
         title: 'About Us',
         subtitle: 'Your trusted partner for Hajj, Umrah, and Worldwide Travel.',
-        bgImage:
-            '/asset/others/aboutbg.webp',
+        bgImage: '/asset/others/aboutbg.webp',
     },
     intro: {
         title: 'Welcome to our agency',
@@ -169,7 +169,7 @@ export const testimonialsData = [
         role: 'Umrah Pilgrim',
         review: 'Alhamdulillah, the service was exceptional. From visa processing to hotel booking near Haram, everything was perfectly managed by Bismillah Travels.',
         rating: 5,
-        image: '/asset/testimonial/32.webp', 
+        image: '/asset/testimonial/32.webp',
     },
     {
         id: 2,
@@ -177,7 +177,7 @@ export const testimonialsData = [
         role: 'London, UK',
         review: 'I booked a family holiday package to Dubai. The guide was very professional and the hotels were exactly as promised. Highly recommended!',
         rating: 5,
-      image: '/asset/testimonial/44.webp', 
+        image: '/asset/testimonial/44.webp',
     },
     {
         id: 3,
@@ -185,7 +185,7 @@ export const testimonialsData = [
         role: 'Business Traveler',
         review: 'Great experience with flight booking. I got the best deal on urgent tickets. Their support team is available 24/7 which is very helpful.',
         rating: 4,
-       image: '/asset/testimonial/85.webp', 
+        image: '/asset/testimonial/85.webp',
     },
 ];
 
@@ -217,7 +217,7 @@ export const blogsData = [
         author: 'Support',
         excerpt:
             'Want to save money on your next trip? Learn the secrets of booking cheap flights and the best times to fly.',
-     image: '/asset/blog/blog3.webp',
+        image: '/asset/blog/blog3.webp',
     },
 ];
 
@@ -376,7 +376,7 @@ export const packages = [
         slug: 'economy-hajj-package-1d-2025',
         title: 'Bismillah Tours Economy Hajj Package 1D 2025: 13 Nights Package',
         price: '$8,448.00',
-       image: '/asset/hajj/hajj2.webp', // madina
+        image: '/asset/hajj/hajj2.webp', // madina
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure from USA: 30th May | Departure from Saudi Arabia: 12th June.
@@ -448,7 +448,7 @@ export const packages = [
         slug: 'super-deluxe-hajj-package-1b-2025',
         title: 'Bismillah Tours Super Deluxe Hajj Package 1B 2025: (No Azizia)-13 Nights Package',
         price: '$12,198.00',
-         image: '/asset/hajj/hajj4.webp', // Kaaba
+        image: '/asset/hajj/hajj4.webp', // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure: 4th June | Return: 17th June. **The Ultimate Luxury Hajj Experience.**
@@ -483,7 +483,7 @@ export const packages = [
         slug: 'executive-hajj-package-1a-2025',
         title: 'Bismillah Tours Executive Hajj Package 1A 2025: (No Azizia)-13 Nights Package',
         price: '$12,948.00',
-       image: '/asset/hajj/hajj1.webp', // Kaaba
+        image: '/asset/hajj/hajj1.webp', // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure: 4th June | Return: 17th June. **Executive Service for Distinguished Guests.**
@@ -520,7 +520,7 @@ export const packages = [
         slug: 'package-1c-2025-umrah',
         title: 'Package 1C 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-10 Nights Package',
         price: '$2,048.00',
-         image: '/asset/hajj/hajj5.webp', // Kaaba
+        image: '/asset/hajj/hajj5.webp', // Kaaba
         category: 'Umrah',
         location: 'Makkah & Madinah',
         description: `Flexible Departure Dates. **Ideal for Families.**
@@ -554,7 +554,7 @@ export const packages = [
         slug: 'package-1b-2025-umrah',
         title: 'Package 1B 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-07 Nights Package',
         price: '$1,648.00',
-       image: '/asset/hajj/hajj2.webp', // Kaaba
+        image: '/asset/hajj/hajj2.webp', // Kaaba
         category: 'Umrah',
         location: 'Makkah & Madinah',
         description: `Short & Spiritual. **Perfect for a 1-Week Trip.**
@@ -586,7 +586,7 @@ export const packages = [
         slug: 'package-1a-2025-umrah',
         title: 'Package 1A 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-05 Nights Package',
         price: '$1,348.00',
-       image: '/asset/hajj/hajj3.webp', // Kaaba
+        image: '/asset/hajj/hajj3.webp', // Kaaba
         category: 'Umrah',
         location: 'Makkah Only',
         description: `Express Umrah. **Focus on Makkah.**
@@ -682,7 +682,7 @@ export const packages = [
         slug: 'dubai-family-fun',
         title: 'Dubai Family Fun - 5 Days',
         price: '$950.00',
-        image: '/asset/tour/The-Dubai-Fountain.webp', 
+        image: '/asset/tour/The-Dubai-Fountain.webp',
         category: 'Holiday',
         location: 'Dubai, UAE',
         description: `**Day 1: Arrival & Dhow Cruise.**
@@ -713,7 +713,7 @@ export const packages = [
         slug: 'maldives-honeymoon',
         title: 'Maldives Honeymoon Bliss - 4 Days',
         price: '$2,100.00',
-       image: '/asset/tour/Male-maldives.webp', 
+        image: '/asset/tour/Male-maldives.webp',
         category: 'Holiday',
         location: 'Male, Maldives',
         description: `**The Ultimate Romantic Getaway.**
@@ -735,7 +735,6 @@ export const packages = [
             'Honeymoon Cake',
         ],
     },
-   
 ];
 
 // ==================== 4. Popular Destinations ====================
@@ -748,16 +747,19 @@ export const destinations = [
         reviews: 156,
         rating: 4.8,
         image: '/asset/tour/Male-maldives.webp',
-        description: 'Discover the sunny side of life. Malé is the gateway to the Maldives, offering overwater villas, crystal clear turquoise waters, and vibrant coral reefs perfect for diving and snorkeling.',
+        description:
+            'Discover the sunny side of life. Malé is the gateway to the Maldives, offering overwater villas, crystal clear turquoise waters, and vibrant coral reefs perfect for diving and snorkeling.',
         bestTime: 'November to April',
         currency: 'Maldivian Rufiyaa (MVR)',
         language: 'Dhivehi',
-        attractions: ['Grand Friday Mosque', 'Banana Reef', 'Artificial Beach', 'Local Market', 'Maafushi Island'],
-        gallery: [
-          "/asset/tour/mald-sub1.jpg",
-          "/asset/tour/mald-sub2.webp"
-           
-        ]
+        attractions: [
+            'Grand Friday Mosque',
+            'Banana Reef',
+            'Artificial Beach',
+            'Local Market',
+            'Maafushi Island',
+        ],
+        gallery: ['/asset/tour/mald-sub1.jpg', '/asset/tour/mald-sub2.webp'],
     },
     {
         id: 2,
@@ -766,15 +768,20 @@ export const destinations = [
         country: 'United Arab Emirates',
         reviews: 850,
         rating: 4.9,
-         image: '/asset/tour/burj.avif',
-        description: 'The world\'s tallest building. Experience breathtaking views from the observation decks on the 124th, 125th, and 148th floors. A marvel of modern engineering and design.',
+        image: '/asset/tour/burj.avif',
+        description:
+            "The world's tallest building. Experience breathtaking views from the observation decks on the 124th, 125th, and 148th floors. A marvel of modern engineering and design.",
         bestTime: 'November to March',
         currency: 'Dirham (AED)',
         language: 'Arabic',
-        attractions: ['At The Top Sky', 'Dubai Mall', 'Dubai Aquarium', 'Dubai Opera', 'Souk Al Bahar'],
-        gallery: [
-           "/asset/tour/burj.avif"
-        ]
+        attractions: [
+            'At The Top Sky',
+            'Dubai Mall',
+            'Dubai Aquarium',
+            'Dubai Opera',
+            'Souk Al Bahar',
+        ],
+        gallery: ['/asset/tour/burj.avif'],
     },
     {
         id: 3,
@@ -783,17 +790,14 @@ export const destinations = [
         country: 'Saudi Arabia',
         reviews: 1200,
         rating: 5.0,
-         image: '/asset/tour/Al-Kaaba-saudi-arabia.webp',
-        description: 'The holiest city in Islam. Millions of pilgrims travel here for Hajj and Umrah to visit the Masjid al-Haram and the Holy Kaaba. A place of peace and spiritual reflection.',
+        image: '/asset/tour/Al-Kaaba-saudi-arabia.webp',
+        description:
+            'The holiest city in Islam. Millions of pilgrims travel here for Hajj and Umrah to visit the Masjid al-Haram and the Holy Kaaba. A place of peace and spiritual reflection.',
         bestTime: 'November to February (Umrah)',
         currency: 'Saudi Riyal (SAR)',
         language: 'Arabic',
         attractions: ['Masjid Al-Haram', 'Jabal al-Nour', 'Abraj Al-Bait', 'Mina', 'Mount Arafat'],
-        gallery: [
-            '/asset/hajj/hajj1.webp',
-            '/asset/hajj/hajj3.webp',
-          
-        ]
+        gallery: ['/asset/hajj/hajj1.webp', '/asset/hajj/hajj3.webp'],
     },
     {
         id: 4,
@@ -802,16 +806,20 @@ export const destinations = [
         country: 'Nepal',
         reviews: 180,
         rating: 4.8,
-          image: '/asset/tour/Sagarmatha-National-Park-Nepal.webp',
-        description: 'Home to Mount Everest, the highest peak in the world. This protected area in the Himalayas offers dramatic mountains, glaciers, and deep valleys. A paradise for trekkers.',
+        image: '/asset/tour/Sagarmatha-National-Park-Nepal.webp',
+        description:
+            'Home to Mount Everest, the highest peak in the world. This protected area in the Himalayas offers dramatic mountains, glaciers, and deep valleys. A paradise for trekkers.',
         bestTime: 'Oct-Nov & Mar-May',
         currency: 'Nepalese Rupee (NPR)',
         language: 'Nepali',
-        attractions: ['Mount Everest', 'Namche Bazaar', 'Tengboche Monastery', 'Kala Patthar', 'Gokyo Lakes'],
-        gallery: [
-          "/asset/tour/sug-sub1.webp",
-          "/asset/tour/sug-sub2b.webp",
-        ]
+        attractions: [
+            'Mount Everest',
+            'Namche Bazaar',
+            'Tengboche Monastery',
+            'Kala Patthar',
+            'Gokyo Lakes',
+        ],
+        gallery: ['/asset/tour/sug-sub1.webp', '/asset/tour/sug-sub2b.webp'],
     },
     {
         id: 5,
@@ -821,16 +829,19 @@ export const destinations = [
         reviews: 420,
         rating: 4.7,
         image: '/asset/tour/Senso-ji-Japan.webp',
-        description: 'Tokyo\'s oldest and most significant ancient Buddhist temple. Located in Asakusa, it is dedicated to Kannon, the bodhisattva of compassion. The vibrant Nakamise shopping street leads to it.',
+        description:
+            "Tokyo's oldest and most significant ancient Buddhist temple. Located in Asakusa, it is dedicated to Kannon, the bodhisattva of compassion. The vibrant Nakamise shopping street leads to it.",
         bestTime: 'March to May (Cherry Blossom)',
         currency: 'Japanese Yen (JPY)',
         language: 'Japanese',
-        attractions: ['Kaminarimon Gate', 'Nakamise Shopping Street', 'Asakusa Shrine', 'Five-story Pagoda', 'Tokyo Skytree'],
-        gallery: [
-           
-           "/asset/tour/Senso-ji-sub1.webp"
-          
-        ]
+        attractions: [
+            'Kaminarimon Gate',
+            'Nakamise Shopping Street',
+            'Asakusa Shrine',
+            'Five-story Pagoda',
+            'Tokyo Skytree',
+        ],
+        gallery: ['/asset/tour/Senso-ji-sub1.webp'],
     },
     {
         id: 6,
@@ -839,15 +850,20 @@ export const destinations = [
         country: 'United Arab Emirates',
         reviews: 600,
         rating: 4.8,
-            image: '/asset/tour/The-Dubai-Fountain.webp',
-        description: 'The world\'s largest choreographed fountain system. Set on the huge Burj Khalifa Lake, the fountain shoots water up to 500 ft in the air accompanied by music and light shows.',
+        image: '/asset/tour/The-Dubai-Fountain.webp',
+        description:
+            "The world's largest choreographed fountain system. Set on the huge Burj Khalifa Lake, the fountain shoots water up to 500 ft in the air accompanied by music and light shows.",
         bestTime: 'Year-round (Evening)',
         currency: 'Dirham (AED)',
         language: 'Arabic',
-        attractions: ['Fountain Show', 'Burj Park', 'Dubai Opera', 'Souk Al Bahar', 'Dubai Mall Boardwalk'],
-        gallery: [
-            "/asset/tour/duabisub1.webp"
-        ]
+        attractions: [
+            'Fountain Show',
+            'Burj Park',
+            'Dubai Opera',
+            'Souk Al Bahar',
+            'Dubai Mall Boardwalk',
+        ],
+        gallery: ['/asset/tour/duabisub1.webp'],
     },
     {
         id: 8,
@@ -856,16 +872,20 @@ export const destinations = [
         country: 'Japan',
         reviews: 310,
         rating: 4.8,
-            image: '/asset/tour/Himeji-Castle-Japan1.webp',
-        description: 'Also known as the "White Heron Castle" due to its elegant, white appearance. Himeji Castle is the finest surviving example of early 17th-century Japanese castle architecture and a UNESCO World Heritage Site.',
+        image: '/asset/tour/Himeji-Castle-Japan1.webp',
+        description:
+            'Also known as the "White Heron Castle" due to its elegant, white appearance. Himeji Castle is the finest surviving example of early 17th-century Japanese castle architecture and a UNESCO World Heritage Site.',
         bestTime: 'March to May (Cherry Blossoms) & Sept to Nov',
         currency: 'Japanese Yen (JPY)',
         language: 'Japanese',
-        attractions: ['Main Keep (Tenshu)', 'Koko-en Garden', 'Hyakken Roka', 'Senhime Peony Garden', 'Nishi-No-Maru'],
-        gallery: [
-            '/asset/tour/himeji1.webp',
-            '/asset/tour/himeji2sub.webp',
-        ]
+        attractions: [
+            'Main Keep (Tenshu)',
+            'Koko-en Garden',
+            'Hyakken Roka',
+            'Senhime Peony Garden',
+            'Nishi-No-Maru',
+        ],
+        gallery: ['/asset/tour/himeji1.webp', '/asset/tour/himeji2sub.webp'],
     },
     {
         id: 9,
@@ -874,14 +894,19 @@ export const destinations = [
         country: 'China',
         reviews: 2500,
         rating: 4.9,
-            image: '/asset/tour/greatwall.avif',
-        description: 'One of the greatest wonders of the world. A series of fortifications that stretch thousands of miles, built to protect the Chinese empires. Walking on the wall offers breathtaking views of the surrounding mountains.',
+        image: '/asset/tour/greatwall.avif',
+        description:
+            'One of the greatest wonders of the world. A series of fortifications that stretch thousands of miles, built to protect the Chinese empires. Walking on the wall offers breathtaking views of the surrounding mountains.',
         bestTime: 'April to May & Sept to Oct',
         currency: 'Chinese Yuan (CNY)',
         language: 'Mandarin',
-        attractions: ['Mutianyu Section', 'Badaling Section', 'Jinshanling', 'Simatai', 'Juyongguan'],
-        gallery: [
-           "/asset/tour/Great-Wall-of-China.webp"
-        ]
-    }
+        attractions: [
+            'Mutianyu Section',
+            'Badaling Section',
+            'Jinshanling',
+            'Simatai',
+            'Juyongguan',
+        ],
+        gallery: ['/asset/tour/Great-Wall-of-China.webp'],
+    },
 ];

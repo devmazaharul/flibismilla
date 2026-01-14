@@ -105,7 +105,6 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
 
     return (
         <div className="w-full max-w-6xl mx-auto">
-            {/* === 2. Main Search Form === */}
             <form
                 onSubmit={handleSubmit(onSubmit)}
                 className=" p-3 rounded-3xl   flex flex-col lg:flex-row gap-3 items-center w-full"
@@ -228,17 +227,39 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
                     </div>
 
                     {/* DATE */}
-                    <div className="md:col-span-4 relative">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg">
-                            <FaCalendarAlt />
-                        </div>
-                        <input
-                            {...register('date')}
-                            type="date"
-                            min={new Date().toISOString().split('T')[0]}
-                            className="w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border border-transparent hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none cursor-pointer transition-all text-lg"
-                        />
-                    </div>
+                  <div className="md:col-span-4 relative w-full">
+    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg z-10">
+        <FaCalendarAlt />
+    </div>
+
+    <input
+        {...register('date')}
+        type="date"
+        min={new Date().toISOString().split('T')[0]}
+        className="
+            w-full
+            h-16
+            pl-14
+            pr-4
+            bg-gray-50
+            rounded-2xl
+            border border-transparent
+            hover:border-rose-200
+            focus:bg-white
+            focus:border-rose-500
+            focus:ring-4
+            focus:ring-rose-500/10
+            font-bold
+            text-gray-800
+            outline-none
+            cursor-pointer
+            transition-all
+            text-lg
+            appearance-none
+        "
+    />
+</div>
+
                 </div>
 
                 {/* SEARCH BUTTON */}

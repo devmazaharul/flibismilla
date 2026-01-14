@@ -126,7 +126,7 @@ const Hero = () => {
         }
 
         router.push(
-            `/flight?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`,
+            `/flight/search?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`,
         );
     };
 
