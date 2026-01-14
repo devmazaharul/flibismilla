@@ -100,7 +100,7 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
     };
 
     const onSubmit: SubmitHandler<Inputs> = (data) => {
-        router.push(`/flight?from=${data.from}&to=${data.to}&date=${data.date}`);
+        router.push(`/flight/search?from=${data.from}&to=${data.to}&date=${data.date}`);
     };
 
     return (
