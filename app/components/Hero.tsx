@@ -115,7 +115,7 @@ const Hero = () => {
     const onSubmit: SubmitHandler<SearchInputs> = (data) => {
         // Basic Validation
         if (!data.from || !data.to) {
-            toast.error("Please select or type valid airport codes.");
+            toast.error('Please select or type valid airport codes.');
             return;
         }
 
@@ -124,8 +124,10 @@ const Hero = () => {
             setError('to', { type: 'manual', message: 'Same as origin' });
             return;
         }
-        
-        router.push(`/flight/search?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`);
+
+        router.push(
+            `/flight?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`,
+        );
     };
 
     return (
@@ -143,7 +145,9 @@ const Hero = () => {
             </div>
 
             {/* ================= Main Content ================= */}
-            <div className={`relative z-10 w-full ${layout.container} flex flex-col items-center text-center mt-10`}>
+            <div
+                className={`relative z-10 w-full ${layout.container} flex flex-col items-center text-center mt-10`}
+            >
                 <span className={`${typography.subtitle} text-white mb-2 animate-fade-in-up`}>
                     {heroData.subtitle}
                 </span>
@@ -180,8 +184,8 @@ const Hero = () => {
                                 setFromQuery(val);
                                 setShowFromDropdown(true);
                                 // 🟢 Update: Set value immediately to allow custom input
-                                setValue('from', val.toUpperCase()); 
-                                if(val) clearErrors('from');
+                                setValue('from', val.toUpperCase());
+                                if (val) clearErrors('from');
                             }}
                             onFocus={() => setShowFromDropdown(true)}
                             placeholder="City or Airport (e.g. DAC)"
@@ -265,7 +269,7 @@ const Hero = () => {
                                 setShowToDropdown(true);
                                 // 🟢 Update: Set value immediately to allow custom input
                                 setValue('to', val.toUpperCase());
-                                if(val) clearErrors('to');
+                                if (val) clearErrors('to');
                             }}
                             onFocus={() => setShowToDropdown(true)}
                             placeholder="City or Airport (e.g. JFK)"

@@ -1,12 +1,9 @@
 'use client';
-
 import { useState } from 'react';
 import Image from 'next/image';
-
-
 import { appTheme } from '@/constant/theme/global';
 import { Button } from '@/components/ui/button';
-import { FaSearch, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
+import {  FaMapMarkerAlt } from 'react-icons/fa';
 import { hotels } from '@/constant/others';
 import HotelCard from '../components/HotelCard';
 

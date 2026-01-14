@@ -1,13 +1,11 @@
 'use client';
-
 import { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-
 import { appTheme } from '@/constant/theme/global';
 import { Button } from '@/components/ui/button';
 import { FaPlane, FaArrowRight, FaFilter, FaLuggageCart } from 'react-icons/fa';
 import { flightResultsForAnyType } from '@/constant/flight';
+import { toast } from 'sonner';
 
 interface FlightTemplateProps {
     type: 'domestic' | 'international';
@@ -18,7 +16,7 @@ interface FlightTemplateProps {
 
 const FlightTemplate = ({ type, title, subtitle, bgImage }: FlightTemplateProps) => {
     const { layout, button } = appTheme;
-    const [sortBy, setSortBy] = useState<'price' | 'duration'>('price');
+    const [sortBy] = useState<'price' | 'duration'>('price');
 
     // 1. Filter by Type
     const baseFlights = flightResultsForAnyType.filter((f) => f.type === type);
@@ -29,6 +27,13 @@ const FlightTemplate = ({ type, title, subtitle, bgImage }: FlightTemplateProps)
         // Simple duration sort logic (mock) - in real app convert '1h 30m' to minutes
         return parseInt(a.duration) - parseInt(b.duration);
     });
+
+
+    function handleClick() {
+        //featue upcoming
+        toast.error("Feature coming soon!");
+   
+    }
 
     return (
         <main className="bg-gray-50 min-h-screen pb-20">
@@ -54,35 +59,13 @@ const FlightTemplate = ({ type, title, subtitle, bgImage }: FlightTemplateProps)
 
             {/* ================= 2. Filter & Sort Bar ================= */}
             <div className={`${layout.container} -mt-8 relative z-20 mb-10`}>
-                <div className="bg-white rounded-xl shadow-2xl shadow-gray-100 border border-gray-200/80 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="bg-white rounded-xl shadow-2xl shadow-gray-100 border border-gray-200/80 p-4 flex flex-col md:flex-row justify-between items-center gap-4 w-fit">
                     <div className="flex items-center gap-2 text-gray-600">
                         <FaFilter className="text-rose-600" />
                         <span className="font-bold">{sortedFlights.length} Flights Found</span>
                     </div>
 
-                    {/* Sort Buttons */}
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button
-                            onClick={() => setSortBy('price')}
-                            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
-                                sortBy === 'price'
-                                    ? 'bg-white text-rose-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Cheapest
-                        </button>
-                        <button
-                            onClick={() => setSortBy('duration')}
-                            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
-                                sortBy === 'duration'
-                                    ? 'bg-white text-rose-600 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Fastest
-                        </button>
-                    </div>
+                
                 </div>
             </div>
 
@@ -173,17 +156,14 @@ const FlightTemplate = ({ type, title, subtitle, bgImage }: FlightTemplateProps)
                                     <p className="text-xs text-gray-400 font-medium">per person</p>
                                 </div>
 
-                                <Link
-                                    href={`/flights/book/${flight.id}`}
-                                    className="w-full lg:w-auto"
-                                >
-                                    <Button
+                               
+                                    <Button onClick={handleClick}
                                         className={`${button.primary} w-full lg:w-40 h-12 shadow-lg shadow-rose-500/20 group-hover:shadow-rose-500/40 transition-all mt-2`}
                                     >
-                                        Select{' '}
+                                     Book
                                         <FaArrowRight className="ml-2 text-xs group-hover:translate-x-1 transition-transform" />
                                     </Button>
-                                </Link>
+                              
 
                                 <div className="hidden lg:flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase mt-2">
                                     <FaLuggageCart /> 20KG Baggage

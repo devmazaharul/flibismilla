@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FaStar, FaMapMarkerAlt, FaWifi, FaSwimmingPool, FaBed } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { appTheme } from '@/constant/theme/global';
-import { whatsappNumber } from './PromoSection';
+import { websiteDetails } from '@/constant/data';
 
 interface HotelProps {
     data: {
@@ -28,7 +28,7 @@ const HotelCard = ({ data }: HotelProps) => {
     function handleClick() {
         //whatapps better messgae
         const message = `Hello, I am interested in booking a hotel stay at ${data.title} located in ${data.location}. Could you please provide me with more information regarding availability and rates? Thank you!`;
-        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        const url = `https://wa.me/${websiteDetails.whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
     }
     return (

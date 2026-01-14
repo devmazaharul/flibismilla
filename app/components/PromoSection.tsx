@@ -7,7 +7,7 @@ import { appTheme } from '@/constant/theme/global';
 import { FaWhatsapp, FaArrowRight } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { promoBanners } from '@/constant/others';
-   export const whatsappNumber = "12139858499"; 
+import { websiteDetails } from '@/constant/data';
 
 const PromoSection = () => {
     const { layout,button } = appTheme;
@@ -72,7 +72,7 @@ const PromoSection = () => {
                                 {/* WhatsApp Button (Slide Up Effect) */}
                                 <div className="overflow-hidden h-0 group-hover:h-auto transition-all duration-500">
                                     <Link 
-                                        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(banner.whatsappMessage)}`}
+                                        href={`https://wa.me/${websiteDetails.whatsappNumber}?text=${encodeURIComponent(banner.whatsappMessage)}`}
                                         target="_blank"
                                     >
                                         <Button className="bg-green-500 hover:bg-green-600 text-white font-bold w-full md:w-auto h-12 rounded-xl flex items-center gap-2 shadow-lg shadow-green-500/30 animate-pulse-slow">

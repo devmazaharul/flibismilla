@@ -1,84 +1,5 @@
-//dummy flight search results
-export const flightResults = [
-    {
-        id: 1,
-        airline: 'Emirates',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Emirates_logo.svg',
-        flightNumber: 'EK-585',
-        fromCode: 'DAC',
-        fromCity: 'Dhaka',
-        toCode: 'JFK',
-        toCity: 'New York',
-        departureTime: '10:00 AM',
-        arrivalTime: '04:00 PM',
-        duration: '20h 30m',
-        price: 1250,
-        stops: 1,
-        stopInfo: 'Via Dubai (DXB) • 2h 15m Layover',
-        legs: [
-            { from: 'DAC', to: 'DXB', duration: '5h 30m', airline: 'Emirates' },
-            { from: 'DXB', to: 'JFK', duration: '14h 00m', airline: 'Emirates' },
-        ],
-    },
-    {
-        id: 2,
-        airline: 'Qatar Airways',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c2/Qatar_Airways_Logo.png', // Use valid URL
-        flightNumber: 'QR-640',
-        fromCode: 'DAC',
-        fromCity: 'Dhaka',
-        toCode: 'JFK',
-        toCity: 'New York',
-        departureTime: '08:00 PM',
-        arrivalTime: '02:00 PM', // Next day
-        duration: '22h 00m',
-        price: 1180,
-        stops: 1,
-        stopInfo: 'Via Doha (DOH) • 3h 00m Layover',
-        legs: [
-            { from: 'DAC', to: 'DOH', duration: '6h 00m', airline: 'Qatar Airways' },
-            { from: 'DOH', to: 'JFK', duration: '13h 00m', airline: 'Qatar Airways' },
-        ],
-    },
-    {
-        id: 3,
-        airline: 'Biman Bangladesh',
-        logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e7/Biman_Bangladesh_Airlines_logo.svg/1200px-Biman_Bangladesh_Airlines_logo.svg.png',
-        flightNumber: 'BG-301',
-        fromCode: 'DAC',
-        fromCity: 'Dhaka',
-        toCode: 'LHR',
-        toCity: 'London',
-        departureTime: '11:30 AM',
-        arrivalTime: '05:00 PM',
-        duration: '11h 30m',
-        price: 950,
-        stops: 0, // Direct Flight
-        stopInfo: 'Non-stop',
-        legs: [],
-    },
-    {
-        id: 4,
-        airline: 'Turkish Airlines',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Turkish_Airlines_logo_2019_compact.svg/2560px-Turkish_Airlines_logo_2019_compact.svg.png',
-        flightNumber: 'TK-713',
-        fromCode: 'DAC',
-        fromCity: 'Dhaka',
-        toCode: 'YYZ',
-        toCity: 'Toronto',
-        departureTime: '06:00 AM',
-        arrivalTime: '09:00 PM',
-        duration: '26h 15m',
-        price: 1450,
-        stops: 2,
-        stopInfo: '2 Stops (IST, LHR)',
-        legs: [
-            { from: 'DAC', to: 'IST', duration: '9h 00m', airline: 'Turkish' },
-            { from: 'IST', to: 'LHR', duration: '4h 00m', airline: 'Turkish' },
-            { from: 'LHR', to: 'YYZ', duration: '8h 00m', airline: 'Air Canada' },
-        ],
-    },
-];
+import { getAirlineLogo } from "@/validation/response";
+
 
 
 // Popular airport suggestions for flight search
@@ -448,7 +369,7 @@ export const flightResultsForAnyType = [
     id: 1,
     type: 'domestic', // New Field
     airline: "Biman Bangladesh",
-    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJ2A-8b37sTBV34-D9YP-WPq-Lfme3vL7l2Q&s",
+    logo: getAirlineLogo("BG"),
     flightNumber: "BG-411",
     fromCode: "DAC",
     fromCity: "Dhaka",
@@ -465,7 +386,7 @@ export const flightResultsForAnyType = [
     id: 2,
     type: 'domestic',
     airline: "US-Bangla Airlines",
-    logo: "https://cdn.usbair.com/website/public/images/home_page/homepage_logo.png.svg",
+    logo: getAirlineLogo("BS"),
     flightNumber: "BS-143",
     fromCode: "DAC",
     fromCity: "Dhaka",
@@ -483,9 +404,9 @@ export const flightResultsForAnyType = [
   {
     id: 3,
     type: 'international', // New Field
-    airline: "Emirates",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Emirates_logo.svg",
-    flightNumber: "EK-585",
+    airline: "Kuwait International",
+    logo: getAirlineLogo("KU"),
+    flightNumber: "KU-585",
     fromCode: "DAC",
     fromCity: "Dhaka",
     toCode: "JFK",
@@ -501,7 +422,7 @@ export const flightResultsForAnyType = [
     id: 4,
     type: 'international',
     airline: "Qatar Airways",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/c/c2/Qatar_Airways_Logo.png",
+    logo: getAirlineLogo("QR"),
     flightNumber: "QR-640",
     fromCode: "DAC",
     fromCity: "Dhaka",
@@ -515,3 +436,114 @@ export const flightResultsForAnyType = [
     stopInfo: "Via Doha"
   }
 ];
+
+// --- Airport Database ---
+export const airportDatabase: Record<string, { city: string; airport: string }> = {
+    // --- Bangladesh (Domestic & Intl) ---
+    DAC: { city: 'Dhaka', airport: 'Hazrat Shahjalal Intl' },
+    CGP: { city: 'Chittagong', airport: 'Shah Amanat Intl' },
+    ZYL: { city: 'Sylhet', airport: 'Osmani Intl' },
+    CXB: { city: 'Cox\'s Bazar', airport: 'Cox\'s Bazar Airport' },
+    JSR: { city: 'Jashore', airport: 'Jashore Airport' },
+    RJH: { city: 'Rajshahi', airport: 'Shah Makhdum Airport' },
+    SPD: { city: 'Saidpur', airport: 'Saidpur Airport' },
+    BZL: { city: 'Barishal', airport: 'Barishal Airport' },
+
+    // --- India ---
+    CCU: { city: 'Kolkata', airport: 'Netaji Subhash Chandra Bose' },
+    DEL: { city: 'New Delhi', airport: 'Indira Gandhi Intl' },
+    BOM: { city: 'Mumbai', airport: 'Chhatrapati Shivaji Maharaj' },
+    MAA: { city: 'Chennai', airport: 'Chennai Intl' },
+    BLR: { city: 'Bengaluru', airport: 'Kempegowda Intl' },
+    HYD: { city: 'Hyderabad', airport: 'Rajiv Gandhi Intl' },
+
+    // --- Middle East ---
+    DXB: { city: 'Dubai', airport: 'Dubai Intl' },
+    DOH: { city: 'Doha', airport: 'Hamad Intl' },
+    AUH: { city: 'Abu Dhabi', airport: 'Zayed Intl' },
+    SHJ: { city: 'Sharjah', airport: 'Sharjah Intl' },
+    JED: { city: 'Jeddah', airport: 'King Abdulaziz Intl' },
+    RUH: { city: 'Riyadh', airport: 'King Khalid Intl' },
+    MED: { city: 'Medina', airport: 'Prince Mohammad Bin Abdulaziz' },
+    DMM: { city: 'Dammam', airport: 'King Fahd Intl' },
+    KWI: { city: 'Kuwait City', airport: 'Kuwait Intl' },
+    MCT: { city: 'Muscat', airport: 'Muscat Intl' },
+    BAH: { city: 'Bahrain', airport: 'Bahrain Intl' },
+    IST: { city: 'Istanbul', airport: 'Istanbul Airport' },
+    SAW: { city: 'Istanbul', airport: 'Sabiha Gokcen Intl' },
+
+    // --- Southeast Asia ---
+    SIN: { city: 'Singapore', airport: 'Changi Airport' },
+    KUL: { city: 'Kuala Lumpur', airport: 'Kuala Lumpur Intl' },
+    BKK: { city: 'Bangkok', airport: 'Suvarnabhumi Airport' },
+    DMK: { city: 'Bangkok', airport: 'Don Mueang Intl' },
+    HKT: { city: 'Phuket', airport: 'Phuket Intl' },
+    CGK: { city: 'Jakarta', airport: 'Soekarno-Hatta Intl' },
+    DPS: { city: 'Bali', airport: 'Ngurah Rai Intl' },
+    MNL: { city: 'Manila', airport: 'Ninoy Aquino Intl' },
+    HAN: { city: 'Hanoi', airport: 'Noi Bai Intl' },
+    SGN: { city: 'Ho Chi Minh', airport: 'Tan Son Nhat Intl' },
+
+    // --- East Asia (China, Japan, Korea) ---
+    HKG: { city: 'Hong Kong', airport: 'Hong Kong Intl' },
+    PEK: { city: 'Beijing', airport: 'Beijing Capital Intl' },
+    PVG: { city: 'Shanghai', airport: 'Pudong Intl' },
+    CAN: { city: 'Guangzhou', airport: 'Baiyun Intl' },
+    NRT: { city: 'Tokyo', airport: 'Narita Intl' },
+    HND: { city: 'Tokyo', airport: 'Haneda Airport' },
+    KIX: { city: 'Osaka', airport: 'Kansai Intl' },
+    ICN: { city: 'Seoul', airport: 'Incheon Intl' },
+    TPE: { city: 'Taipei', airport: 'Taoyuan Intl' },
+
+    // --- Europe ---
+    LHR: { city: 'London', airport: 'Heathrow Airport' },
+    LGW: { city: 'London', airport: 'Gatwick Airport' },
+    STN: { city: 'London', airport: 'Stansted Airport' },
+    CDG: { city: 'Paris', airport: 'Charles de Gaulle' },
+    ORY: { city: 'Paris', airport: 'Orly Airport' },
+    FRA: { city: 'Frankfurt', airport: 'Frankfurt Airport' },
+    MUC: { city: 'Munich', airport: 'Munich Airport' },
+    AMS: { city: 'Amsterdam', airport: 'Schiphol Airport' },
+    ZRH: { city: 'Zurich', airport: 'Zurich Airport' },
+    FCO: { city: 'Rome', airport: 'Leonardo da Vinci-Fiumicino' },
+    MXP: { city: 'Milan', airport: 'Malpensa Airport' },
+    MAD: { city: 'Madrid', airport: 'Adolfo Suarez Barajas' },
+    BCN: { city: 'Barcelona', airport: 'El Prat Airport' },
+    LIS: { city: 'Lisbon', airport: 'Humberto Delgado' },
+    VIE: { city: 'Vienna', airport: 'Vienna Intl' },
+    BRU: { city: 'Brussels', airport: 'Brussels Airport' },
+    CPH: { city: 'Copenhagen', airport: 'Copenhagen Airport' },
+    ARN: { city: 'Stockholm', airport: 'Arlanda Airport' },
+    OSL: { city: 'Oslo', airport: 'Gardermoen Airport' },
+    SVO: { city: 'Moscow', airport: 'Sheremetyevo Intl' },
+
+    // --- North America (USA & Canada) ---
+    JFK: { city: 'New York', airport: 'John F. Kennedy Intl' },
+    EWR: { city: 'New York', airport: 'Newark Liberty Intl' },
+    LGA: { city: 'New York', airport: 'LaGuardia Airport' },
+    IAD: { city: 'Washington DC', airport: 'Dulles Intl' },
+    LAX: { city: 'Los Angeles', airport: 'Los Angeles Intl' },
+    SFO: { city: 'San Francisco', airport: 'San Francisco Intl' },
+    ORD: { city: 'Chicago', airport: 'O\'Hare Intl' },
+    ATL: { city: 'Atlanta', airport: 'Hartsfield-Jackson' },
+    MIA: { city: 'Miami', airport: 'Miami Intl' },
+    DFW: { city: 'Dallas', airport: 'Dallas/Fort Worth Intl' },
+    SEA: { city: 'Seattle', airport: 'Tacoma Intl' },
+    YYZ: { city: 'Toronto', airport: 'Pearson Intl' },
+    YVR: { city: 'Vancouver', airport: 'Vancouver Intl' },
+    YUL: { city: 'Montreal', airport: 'Pierre Elliott Trudeau' },
+
+    // --- Australia & New Zealand ---
+    SYD: { city: 'Sydney', airport: 'Kingsford Smith' },
+    MEL: { city: 'Melbourne', airport: 'Tullamarine Airport' },
+    BNE: { city: 'Brisbane', airport: 'Brisbane Airport' },
+    PER: { city: 'Perth', airport: 'Perth Airport' },
+    AKL: { city: 'Auckland', airport: 'Auckland Airport' },
+
+    // --- Africa ---
+    CAI: { city: 'Cairo', airport: 'Cairo Intl' },
+    JNB: { city: 'Johannesburg', airport: 'O.R. Tambo Intl' },
+    CPT: { city: 'Cape Town', airport: 'Cape Town Intl' },
+    CMN: { city: 'Casablanca', airport: 'Mohammed V Intl' },
+    ADD: { city: 'Addis Ababa', airport: 'Bole Intl' },
+};
