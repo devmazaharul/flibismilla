@@ -62,7 +62,7 @@ const page = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-gray-700">Phone</label>
-                <input {...register("phone")} className={inputStyle(!!errors.phone)} placeholder="+880234..." />
+                <input {...register("phone")} className={inputStyle(!!errors.phone)} placeholder="01234..." />
                 {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
               </div>
             </div>

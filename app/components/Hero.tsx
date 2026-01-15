@@ -126,7 +126,9 @@ const Hero = () => {
         }
 
         router.push(
-            `/flight/search?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${data.date}`,
+            `/flight/search?from=${data.from.toUpperCase()}&to=${data.to.toUpperCase()}&date=${
+                data.date
+            }`,
         );
     };
 
@@ -171,7 +173,7 @@ const Hero = () => {
                         ref={fromRef}
                     >
                         <div className="flex items-center gap-2 mb-1 text-gray-400 text-sm">
-                            <FaPlaneDeparture className="text-blue-500" />
+                            <FaPlaneDeparture className="text-rose-500" />
                             <label className="font-bold uppercase text-xs tracking-wider text-gray-500">
                                 From
                             </label>
@@ -255,7 +257,7 @@ const Hero = () => {
                         ref={toRef}
                     >
                         <div className="flex items-center gap-2 mb-1 text-gray-400 text-sm">
-                            <FaPlaneArrival className="text-green-500" />
+                            <FaPlaneArrival className="text-rose-500" />
                             <label className="font-bold uppercase text-xs tracking-wider text-gray-500">
                                 To
                             </label>
@@ -323,7 +325,7 @@ const Hero = () => {
                     {/* Input 3: Date */}
                     <div className="md:col-span-3 border-b md:border-b-0 md:border-r-0 px-4 py-2 relative">
                         <div className="flex items-center gap-2 mb-1 text-gray-400 text-sm">
-                            <FaCalendarAlt className="text-orange-500" />
+                            <FaCalendarAlt className="text-red-500" />
                             <label className="font-bold uppercase text-xs tracking-wider text-gray-500">
                                 Journey Date
                             </label>
@@ -335,7 +337,7 @@ const Hero = () => {
                             className="w-full font-bold text-lg outline-none bg-transparent cursor-pointer text-gray-800"
                         />
                         {errors.date && (
-                            <span className="text-[10px] text-red-500 absolute bottom-0 left-4">
+                            <span className="text-[10px] text-rose-500 absolute bottom-0 left-4">
                                 Required
                             </span>
                         )}

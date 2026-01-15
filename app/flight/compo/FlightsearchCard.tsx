@@ -8,18 +8,31 @@ import {
 } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { airportSuggestions } from '@/constant/flight';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
-// Form Types
-type Inputs = {
-    from: string;
-    to: string;
-    date: string;
-};
+// 🟢 1. Zod Schema Definition
+const flightSearchSchema = z.object({
+    from: z.string().min(3, "Select valid origin"),
+    to: z.string().min(3, "Select valid destination"),
+    date: z.string().refine((val) => {
+        const selectedDate = new Date(val);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to midnight
+        return selectedDate >= today;
+    }, { message: "Past date not allowed" }),
+}).refine((data) => data.from !== data.to, {
+    message: "Same as origin",
+    path: ["to"], // Error will appear on 'to' field
+});
+
+// Type inference from Zod schema
+type SearchInputs = z.infer<typeof flightSearchSchema>;
 
 const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
     const router = useRouter();
     
-    // States
+    // States for UI Logic
     const [fromQuery, setFromQuery] = useState('');
     const [toQuery, setToQuery] = useState('');
     const [showFromDropdown, setShowFromDropdown] = useState(false);
@@ -29,25 +42,26 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
     const fromRef = useRef<HTMLDivElement>(null);
     const toRef = useRef<HTMLDivElement>(null);
 
-    // 🟢 Today's Date Calculation (Local Timezone Safe)
-    const getTodayDate = () => {
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
+    // Today's Date String
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    const todayStr = getTodayDate();
-
-    const { register, handleSubmit, setValue, watch } = useForm<Inputs>({
-        defaultValues: initialValues || { from: '', to: '', date: todayStr } // 🟢 Set Default Date
+    // 🟢 2. React Hook Form with Zod Resolver
+    const { 
+        register, 
+        handleSubmit, 
+        setValue, 
+        watch, 
+        formState: { errors },
+        clearErrors
+    } = useForm<SearchInputs>({
+        resolver: zodResolver(flightSearchSchema),
+        defaultValues: initialValues || { from: '', to: '', date: todayStr }
     });
 
     const selectedFrom = watch('from');
     const selectedTo = watch('to');
 
-    // Initialize values
+    // Initialize values from props
     useEffect(() => {
         if (initialValues?.from) {
             setFromQuery(initialValues.from); 
@@ -74,16 +88,15 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
     }, []);
 
     // Filter Logic
-    const filterAirports = (query: string) => {
-        return airportSuggestions.filter((item) =>
-            item.city.toLowerCase().includes(query.toLowerCase()) ||
-            item.code.toLowerCase().includes(query.toLowerCase()) ||
-            item.country.toLowerCase().includes(query.toLowerCase())
-        );
-    };
+    const filteredFrom = airportSuggestions.filter((item) =>
+        item.city.toLowerCase().includes(fromQuery.toLowerCase()) ||
+        item.code.toLowerCase().includes(fromQuery.toLowerCase())
+    ).sort((a,b) => a.city.localeCompare(b.city));
 
-    const filteredFrom = filterAirports(fromQuery);
-    const filteredTo = filterAirports(toQuery);
+    const filteredTo = airportSuggestions.filter((item) =>
+        item.city.toLowerCase().includes(toQuery.toLowerCase()) ||
+        item.code.toLowerCase().includes(toQuery.toLowerCase())
+    ).sort((a,b) => a.city.localeCompare(b.city));
 
     // Handlers
     const handleSelect = (type: 'from' | 'to', airport: typeof airportSuggestions[0]) => {
@@ -92,11 +105,11 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
 
         if (type === 'from') {
             setFromQuery(displayValue);
-            setValue('from', codeValue);
+            setValue('from', codeValue, { shouldValidate: true }); // Validate on selection
             setShowFromDropdown(false);
         } else {
             setToQuery(displayValue);
-            setValue('to', codeValue);
+            setValue('to', codeValue, { shouldValidate: true });
             setShowToDropdown(false);
         }
     };
@@ -104,49 +117,58 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
     const handleInput = (type: 'from' | 'to', val: string) => {
         if (type === 'from') {
             setFromQuery(val);
-            setValue('from', val.toUpperCase());
+            setValue('from', val.toUpperCase()); // Raw value for form
         } else {
             setToQuery(val);
             setValue('to', val.toUpperCase());
         }
     };
 
-    const onSubmit: SubmitHandler<Inputs> = (data) => {
+    const onSubmit: SubmitHandler<SearchInputs> = (data) => {
         router.push(`/flight/search?from=${data.from}&to=${data.to}&date=${data.date}`);
     };
 
     return (
         <div className="w-full max-w-6xl mx-auto">
-            <form onSubmit={handleSubmit(onSubmit)} className="p-3 rounded-3xl flex flex-col lg:flex-row gap-3 items-center w-full">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-3 rounded-3xl flex flex-col lg:flex-row gap-3 items-start w-full">
+                
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3 w-full">
                     
-                    {/* FROM */}
+                    {/* === FROM INPUT === */}
                     <div className="md:col-span-4 relative" ref={fromRef}>
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg">
-                            <FaPlaneDeparture />
+                        <div className="relative">
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg">
+                                <FaPlaneDeparture />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="From (City or Code)"
+                                value={fromQuery}
+                                onChange={(e) => { 
+                                    handleInput('from', e.target.value); 
+                                    setShowFromDropdown(true); 
+                                    clearErrors('from');
+                                }}
+                                onFocus={() => setShowFromDropdown(true)}
+                                className={`w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border ${errors.from ? 'border-red-500 bg-red-50' : 'border-transparent'} hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none transition-all uppercase placeholder:normal-case truncate text-lg`}
+                                autoComplete="off"
+                            />
+                            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white px-1 rounded">Origin</span>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="From (City or Code)"
-                            value={fromQuery}
-                            onChange={(e) => { handleInput('from', e.target.value); setShowFromDropdown(true); }}
-                            onFocus={() => setShowFromDropdown(true)}
-                            className="w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border border-transparent hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none transition-all uppercase placeholder:normal-case truncate text-lg"
-                            autoComplete="off"
-                        />
-                        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white px-1 rounded">Origin</span>
-                        <input type="hidden" {...register('from')} />
+                        
+                        {/* Error Message */}
+                        {errors.from && <span className="text-xs text-red-500 font-bold ml-4 mt-1 block">{errors.from.message}</span>}
 
                         {/* From Dropdown */}
                         {showFromDropdown && filteredFrom.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-xl border border-gray-100 max-h-60 overflow-y-auto z-50 mt-2 p-1 animate-in fade-in zoom-in-95 duration-200">
-                                {filteredFrom.sort((a,b)=>a.city.localeCompare(b.city)).map((airport, i) => {
+                                {filteredFrom.map((airport, i) => {
                                     const isDisabled = selectedTo === airport.code;
                                     return (
                                         <div key={i} onClick={() => !isDisabled && handleSelect('from', airport)} className={`px-4 py-3 flex justify-between items-center rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-rose-50'}`}>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-800">{airport.city},{airport.country}</p>
-                                                <p className="text-[10px] text-left text-gray-500">{airport.name}</p>
+                                            <div className='text-left'>
+                                                <p className="text-sm font-bold text-gray-800">{airport.city}, {airport.country}</p>
+                                                <p className="text-[10px] text-gray-500">{airport.name}</p>
                                             </div>
                                             <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">{airport.code}</span>
                                         </div>
@@ -156,33 +178,41 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
                         )}
                     </div>
 
-                    {/* TO */}
+                    {/* === TO INPUT === */}
                     <div className="md:col-span-4 relative" ref={toRef}>
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg">
-                            <FaPlaneArrival />
+                        <div className="relative">
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg">
+                                <FaPlaneArrival />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="To (City or Code)"
+                                value={toQuery}
+                                onChange={(e) => { 
+                                    handleInput('to', e.target.value); 
+                                    setShowToDropdown(true); 
+                                    clearErrors('to');
+                                }}
+                                onFocus={() => setShowToDropdown(true)}
+                                className={`w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border ${errors.to ? 'border-red-500 bg-red-50' : 'border-transparent'} hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none transition-all uppercase placeholder:normal-case truncate text-lg`}
+                                autoComplete="off"
+                            />
+                            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white px-1 rounded">Dest</span>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="To (City or Code)"
-                            value={toQuery}
-                            onChange={(e) => { handleInput('to', e.target.value); setShowToDropdown(true); }}
-                            onFocus={() => setShowToDropdown(true)}
-                            className="w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border border-transparent hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none transition-all uppercase placeholder:normal-case truncate text-lg"
-                            autoComplete="off"
-                        />
-                        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white px-1 rounded">Dest</span>
-                        <input type="hidden" {...register('to')} />
+
+                        {/* Error Message */}
+                        {errors.to && <span className="text-xs text-red-500 font-bold ml-4 mt-1 block">{errors.to.message}</span>}
 
                         {/* To Dropdown */}
                         {showToDropdown && filteredTo.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-xl border border-gray-100 max-h-60 overflow-y-auto z-50 mt-2 p-1 animate-in fade-in zoom-in-95 duration-200">
-                                {filteredTo.sort((a,b)=>a.city.localeCompare(b.city)).map((airport, i) => {
+                                {filteredTo.map((airport, i) => {
                                     const isDisabled = selectedFrom === airport.code;
                                     return (
                                         <div key={i} onClick={() => !isDisabled && handleSelect('to', airport)} className={`px-4 py-3 flex justify-between items-center rounded-lg transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-rose-50'}`}>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-800">{airport.city},{airport.country}</p>
-                                                <p className="text-[10px] text-left text-gray-500">{airport.name}</p>
+                                            <div className='text-left'>
+                                                <p className="text-sm font-bold text-gray-800">{airport.city}, {airport.country}</p>
+                                                <p className="text-[10px] text-gray-500">{airport.name}</p>
                                             </div>
                                             <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">{airport.code}</span>
                                         </div>
@@ -192,17 +222,20 @@ const FlightSearchCompact = ({ initialValues }: { initialValues?: any }) => {
                         )}
                     </div>
 
-                    {/* DATE */}
+                    {/* === DATE INPUT === */}
                     <div className="md:col-span-4 relative">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg z-10 pointer-events-none">
-                            <FaCalendarAlt />
+                        <div className="relative">
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-rose-500 text-lg z-10 pointer-events-none">
+                                <FaCalendarAlt />
+                            </div>
+                            <input 
+                                {...register('date')} 
+                                type="date" 
+                                min={todayStr} 
+                                className={`w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border ${errors.date ? 'border-red-500 bg-red-50' : 'border-transparent'} hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none cursor-pointer transition-all text-lg appearance-none`} 
+                            />
                         </div>
-                        <input 
-                            {...register('date', { required: true })} 
-                            type="date" 
-                            min={todayStr} // 🟢 Disable Past Dates
-                            className="w-full h-16 pl-14 pr-4 bg-gray-50 rounded-2xl border border-transparent hover:border-rose-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 font-bold text-gray-800 outline-none cursor-pointer transition-all text-lg appearance-none" // appearance-none for iOS
-                        />
+                        {errors.date && <span className="text-xs text-red-500 font-bold ml-4 mt-1 block">{errors.date.message}</span>}
                     </div>
                 </div>
 
