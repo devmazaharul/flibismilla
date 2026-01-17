@@ -126,7 +126,7 @@ const Navbar = () => {
 
             {/* ================= 2. Main Navigation ================= */}
             <nav
-                className={`sticky top-0 z-50 w-full ${colors.navbar.bg} border-none ${colors.navbar.border} shadow-2xl shadow-gray-100 border border-gray-200/50 transition-all`}
+                className={`sticky top-0 z-50 w-full ${colors.navbar.bg} border-none ${colors.navbar.border}  border border-gray-200/50 transition-all`}
             >
                 <div className={`${layout.container} h-20 flex justify-between items-center`}>
                     {/* Logo */}

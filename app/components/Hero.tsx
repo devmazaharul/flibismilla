@@ -137,7 +137,7 @@ const Hero = () => {
             {/* ================= Background ================= */}
             <div className="absolute inset-0 z-0">
                 <Image
-                    src="/asset/others/hero.webp"
+                    src="/asset/others/herro.avif"
                     alt="Travel Background"
                     fill
                     className="object-cover"

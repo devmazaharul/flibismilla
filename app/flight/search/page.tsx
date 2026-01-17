@@ -18,7 +18,7 @@ import {
     FaChevronUp,
 } from 'react-icons/fa';
 import { formatDuration, formatTime, getAirlineLogo } from '@/validation/response';
-import { airportDatabase } from '@/constant/flight';
+import { airportDatabase, TICKET_PRICE_COMMISION } from '@/constant/flight';
 import { websiteDetails } from '@/constant/data';
 import FlightSearchCompact from '../compo/FlightsearchCard';
 
@@ -70,7 +70,30 @@ const FlightSearchPage = () => {
                     `/api/search?origin=${fromParam}&dest=${toParam}&date=${dateParam}`,
                 );
                 if (res.data.success) {
-                    setFlights(res.data.data);
+                   
+                    //update price with commission
+                    const flightsWithCommission = res.data.data.map((flight: any) => {
+                        const basePrice = parseFloat(flight.price.total);
+                        let totalPriceWithCommission = 0;
+                        if (TICKET_PRICE_COMMISION.type === 'percentage') {
+                            totalPriceWithCommission = parseFloat(
+                                (basePrice * (1 + TICKET_PRICE_COMMISION.amount / 100)).toFixed(2),
+                            );
+                        } else {
+                            totalPriceWithCommission = parseFloat(
+                                (basePrice + TICKET_PRICE_COMMISION.amount).toFixed(2),
+                            );
+                        }
+                        return {
+                            ...flight,
+                            price: {
+                                ...flight.price,
+                                total: totalPriceWithCommission.toString(),
+                            },
+                        };
+                    });
+
+                    setFlights(flightsWithCommission);
                     setDictionaries(res.data.dictionaries);
                 } else {
                     setError(res.data.error || 'No flights found.');
@@ -175,11 +198,24 @@ const FlightSearchPage = () => {
 
     return (
         <main className="min-h-screen bg-gray-50 pb-20">
-            {/* Sticky Header */}
-            <div className=" border-b border-gray-200/80 bg-gray-800  top-0 z-30 shadow-2xl shadow-gray-100 ">
-                <div className={`${layout.container} py-4`}>
-                    <FlightSearchCompact
-                        initialValues={{ from: fromParam, to: toParam, date: dateParam }}
+     {/* Sticky Header with Background Image */}
+            <div className="relative border-b border-gray-200/80 top-0 z-20 shadow-2xl shadow-gray-100">
+                
+                {/* 1. Background Image Layer (Absolute) */}
+                <div className="absolute inset-0 z-0 overflow-hidden">
+                    <img 
+                        src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+                        alt="Flight Background" 
+                        className="w-full h-full object-cover"
+                    />
+                    {/* 2. Gray Overlay (Opacity 20%) */}
+                    <div className="absolute inset-0 bg-gray-900/20 backdrop-blur-[1px]"></div>
+                </div>
+
+                {/* 3. Content Layer */}
+                <div className={`${layout.container} relative z-20 py-4`}>
+                    <FlightSearchCompact 
+                        initialValues={{ from: fromParam, to: toParam, date: dateParam }} 
                     />
                 </div>
             </div>
@@ -442,6 +478,7 @@ const FlightCard = ({ flight, dictionaries }: { flight: any; dictionaries: any }
     const stops = segments.length - 1;
     const price = flight.price.total;
     const currency = flight.price.currency;
+
 
     //  Using Helper safely
     const originDetails = getAirportDetails(firstSegment.departure.iataCode);

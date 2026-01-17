@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         departureDate: date,
         adults: '1',
         currencyCode: 'USD',
-        max: '10' // Limit results for speed
+        max: '150' // Limit results for speed
     });
 
     // 5. Success Response

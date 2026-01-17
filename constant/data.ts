@@ -231,6 +231,7 @@ export const footerData = {
         title: 'CONTACT US',
         info: [
             { icon: 'map', text: 'Los Angeles,California 90057' },
+            { icon: 'map', text: 'Warren, Michigan 48091' },
             { icon: 'phone', text: '+1 213-985-8499' },
             { icon: 'email', text: 'Murad.usa09@gmail.com' },
         ],
@@ -296,7 +297,7 @@ export const contactPageData = {
             {
                 id: 2,
                 city: 'Michigan Office',
-                address: '24146 Blackmar Ave Warren, Michigan 48091',
+                address: 'Warren, Michigan 48091',
                 icon: 'map',
             },
         ],
@@ -314,6 +315,13 @@ export const contactPageData = {
                 value: 'Murad.usa09@gmail.com',
                 link: 'mailto:Murad.usa09@gmail.com',
                 icon: 'email',
+            },
+            {
+                id: 'whatsapp',
+                label: 'Message on WhatsApp',
+                value: '+1 213-985-8499',
+                link: 'https://api.whatsapp.com/send/?phone=12139858499',
+                icon: 'whatsapp',
             },
         ],
     },

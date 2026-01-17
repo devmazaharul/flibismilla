@@ -1,6 +1,13 @@
 import { getAirlineLogo } from "@/validation/response";
 
-
+interface CommistionType{
+    type: "percentage" | "fixed";
+    amount: number;
+}
+export const TICKET_PRICE_COMMISION:CommistionType = {
+    type: "percentage",
+    amount: 15,
+}; // 15% commission on ticket price
 
 // Popular airport suggestions for flight search
 export const airportSuggestions = Object.freeze([
