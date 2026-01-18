@@ -76,3 +76,34 @@ export const newPasswordSchema = z.object({
 
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 export type NewPasswordValues = z.infer<typeof newPasswordSchema>;
+
+
+
+// multi city flight search schema
+export const multiCitySchema = z.object({
+    legs: z.array(
+        z.object({
+            from: z.string().min(3, "Origin is required"),
+            to: z.string().min(3, "Destination is required"),
+            date: z.string().min(1, "Date is required").refine((val) => {
+                const selected = new Date(val);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return selected >= today;
+            }, { message: "Past date not allowed" })
+        })
+    ).min(2, "Minimum 2 flights required")
+});
+
+export type MultiCityInputs = z.infer<typeof multiCitySchema>;
+
+//round trip flight search schema
+export const roundTripSchema = z.object({
+    from: z.string().min(3, "Required"),
+    to: z.string().min(3, "Required"),
+    date: z.string().min(1, "Required"),
+    returnDate: z.string().min(1, "Required"),
+}).refine((data) => new Date(data.returnDate) >= new Date(data.date), {
+    message: "Return date invalid",
+    path: ["returnDate"],
+});
