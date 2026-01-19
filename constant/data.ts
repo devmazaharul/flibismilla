@@ -12,8 +12,8 @@ export const websiteDetails = {
 // ==================== 1. Header & Navigation ====================
 export const headerData = {
     contact: {
-        email: 'Murad.usa09@gmail.com',
-        phones: ['+1 213-985-8499', '+1 213-296-8786', '+1 213-792-0038'],
+        email: 'murad.usa09@gmail.com',
+        phones: ['+1 213-985-8499 (MI)', '+1 213-792-0038 (MI)', '+1 213-296-8786 (CA)'],
     },
     socialLinks: [
         {
@@ -33,7 +33,7 @@ export const headerData = {
             href: '#',
             hasDropdown: true,
             subMenu: [
-                {label:"Flight Search ", href:"/flight/search"},
+                { label: 'Flight Search ', href: '/flight/search' },
 
                 { label: 'Domestic Flight Booking', href: '/flight/domestic' },
                 { label: 'International Flight Booking', href: '/flight/international' },
@@ -234,7 +234,7 @@ export const footerData = {
             { icon: 'map', text: 'Los Angeles,California 90057' },
             { icon: 'map', text: 'Warren, Michigan 48091' },
             { icon: 'phone', text: '+1 213-985-8499' },
-            { icon: 'email', text: 'Murad.usa09@gmail.com' },
+            { icon: 'email', text: 'murad.usa09@gmail.com' },
         ],
     },
     support: {
