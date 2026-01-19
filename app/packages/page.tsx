@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import Packagesclient from './[slug]/Packagesclient';
+import Packagesclient from './Packagesclient';
 
 export default function page() {
     return (

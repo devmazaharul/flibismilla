@@ -30,7 +30,7 @@ const FlightSearchSkleton = () => {
     };
 
     return (
-        <div className="w-full max-w-xl mx-auto py-8">
+        <div className="w-full max-w-xl mx-auto">
             <div className="relative bg-white/50 backdrop-blur-sm rounded-3xl p-9 ">
                 
                 {/* ✈️ Progress Plane Icon (Moving) */}

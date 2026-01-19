@@ -50,7 +50,7 @@ export const metadata: Metadata = {
         siteName: 'Bismillah Travels',
         images: [
             {
-                url: 'https://flybismillah.com/wp-content/uploads/2024/12/6-600x426.webp',
+                url: '/11055f59a68bcbcf257dac2088dfc225.jpg',
                 width: 1200,
                 height: 630,
                 alt: 'Bismillah Travels & Tours Homepage',
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
         card: 'summary_large_image',
         title: 'Bismillah Travels & Tours',
         description: 'Best deals on Hajj, Umrah and International Flights.',
-        images: ['https://flybismillah.com/wp-content/uploads/2024/12/6-600x426.webp'],
+        images: ['/11055f59a68bcbcf257dac2088dfc225.jpg'],
     },
     robots: {
         index: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react'; // 🟢 useRef added
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { appTheme } from '@/constant/theme/global';
@@ -17,7 +17,6 @@ import { TICKET_PRICE_COMMISION } from '@/constant/flight';
 import FlightSearchCompactNew from './compo/FlightSearchCompactNew';
 import FlightCard from './compo/FlightCard';
 import { FlightSearchSkleton } from './compo/FlightSearchSkeleton';
-
 
 const getDurationInMinutes = (duration: string) => {
     const match = duration.match(/PT(\d+H)?(\d+M)?/);
@@ -53,6 +52,9 @@ const FlightCardSkeleton = () => (
 const SearchContent = () => {
     const { layout } = appTheme;
     const searchParams = useSearchParams();
+    
+    // 🟢 1. Create a Ref for the results section
+    const resultsRef = useRef<HTMLDivElement>(null);
 
     const initialFormValues = useMemo(() => {
         const type = (searchParams.get('type') || 'oneway') as 'oneway' | 'multi' | 'round';
@@ -97,6 +99,20 @@ const SearchContent = () => {
     const [sortBy, setSortBy] = useState('cheapest'); 
     const [selectedStops, setSelectedStops] = useState<number[]>([]);
     const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
+
+    // 🟢 2. Auto Scroll Effect
+    useEffect(() => {
+        // যদি লোডিং শেষ হয় এবং রেজাল্ট থাকে (অথবা এরর থাকে)
+        if (!isLoading && isSearching && (flights.length > 0 || error)) {
+            // মোবাইল ডিভাইসে একটু স্মুথলি স্ক্রল হবে
+            setTimeout(() => {
+                resultsRef.current?.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 100); // 100ms delay to ensure DOM is ready
+        }
+    }, [isLoading, flights.length, error, isSearching]);
 
     useEffect(() => {
         if (!isSearching) return;
@@ -205,7 +221,7 @@ const SearchContent = () => {
     };
 
     // ============================================
-    // 🟢 VIEW 1: LANDING PAGE (NO SEARCH)
+    // 🟢 VIEW 1: LANDING PAGE
     // ============================================
     if (!isSearching) {
         return (
@@ -243,18 +259,18 @@ const SearchContent = () => {
     return (
         <main className="min-h-screen bg-gray-50/50 pb-24">
             
-            <div className="relative z-40 bg-gray-900 pb-12 pt-28 lg:pt-32 rounded-b-[3rem] shadow-xl overflow-visible">
-                 <div className="absolute inset-0 opacity-40 overflow-hidden rounded-b-[3rem]">
+            <div className="relative z-40 bg-gray-900 pb-6 pt-20 lg:pt-24 rounded-b-[2rem] shadow-xl overflow-visible transition-all duration-500">
+                 <div className="absolute inset-0 opacity-40 overflow-hidden rounded-b-[2rem]">
                     <img src="/asset/others/flimg.avif" className="w-full h-full object-cover" alt="header" />
                  </div>
-                 <div className={`${layout.container} relative `}>
-                    <div className="bg-white rounded-3xl shadow-xl p-4 md:p-6 relative">
+                 <div className={`${layout.container} relative`}>
+                    <div className="bg-white rounded-2xl shadow-xl p-2 md:p-4 relative">
                         <FlightSearchCompactNew initialValues={initialFormValues} />
                     </div>
                  </div>
             </div>
 
-            <div className={`${layout.container} mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-50`}>
+            <div className={`${layout.container} mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-50`}>
                 
                 {/* Filters Sidebar */}
                 <aside className={`fixed inset-0 z-50 bg-black/50 lg:static lg:bg-transparent lg:z-auto lg:col-span-3 transition-opacity duration-300 ${showFilters ? 'opacity-100 visible' : 'opacity-0 invisible lg:opacity-100 lg:visible'}`}>
@@ -273,6 +289,7 @@ const SearchContent = () => {
                             <button onClick={resetFilters} className="text-xs font-bold text-rose-600 hover:text-rose-700 underline">Reset All</button>
                         </div>
 
+                        {/* Filter Sections */}
                         <div className="mb-8 border-b border-gray-100 pb-8">
                             <label className="text-sm font-bold text-gray-700 mb-3 block flex items-center gap-2">
                                 <FaPlane className="text-rose-500" /> Stops
@@ -321,14 +338,16 @@ const SearchContent = () => {
                 {/* Main Results Section */}
                 <div className="lg:col-span-9">
                     
-                    {/* 🟢 Header / Loader */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-2xl shadow-gray-100 border border-gray-100 min-h-[90px]">
+                    {/* Header / Loader */}
+                    {/* 🟢 3. Attach the Ref to this container to scroll here */}
+                    <div 
+                        ref={resultsRef} 
+                        className="scroll-mt-28 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-2xl shadow-gray-100 border border-gray-100 min-h-[90px]"
+                    >
                         <div className="w-full sm:w-auto flex-1">
                             {isLoading ? (
-                                /* 🟢 Show Premium Plane Animation (Left to Right) */
                                 <FlightSearchSkleton />
                             ) : (
-                                /* Show Results Count */
                                 <>
                                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                         {`Found ${filteredFlights.length} Flights`}
@@ -352,7 +371,6 @@ const SearchContent = () => {
                     </div>
 
                     <div className="space-y-6">
-                        {/* 🟢 Skeleton Cards for list view */}
                         {isLoading && Array.from({ length: 3 }).map((_, i) => <FlightCardSkeleton key={i} />)}
                         
                         {!isLoading && error && (
