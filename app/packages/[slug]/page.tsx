@@ -86,6 +86,7 @@ const PackageDetails = () => {
         setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
+  // 🟢 Updated handleSubmit to call API
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -103,15 +104,38 @@ const PackageDetails = () => {
                 children: formData.children
             },
             notes: formData.message,
-            submittedAt: new Date().toISOString()
         };
 
-        console.log("🟢 Booking Data Collected:", bookingPayload);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            // 🟢 Call the API Route
+            const response = await fetch('/api/booking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bookingPayload),
+            });
 
-        setIsSubmitting(false);
-        setIsModalOpen(false);
-        toast.success("Booking Request Sent! We will contact you shortly.");
+            const result = await response.json();
+
+            if (result.success) {
+                toast.success("Booking Request Sent Successfully! ✅");
+                setIsModalOpen(false);
+                // Reset form (Optional)
+                setFormData({
+                    name: '', email: '', phone: '', travelDate: '', returnDate: '',
+                    adults: 1, children: 0, message: ''
+                });
+            } else {
+                toast.error("Failed to send request. Try again.");
+            }
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Something went wrong!");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleShare = () => {
