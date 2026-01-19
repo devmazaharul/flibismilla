@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, useRef } from 'react'; // 🟢 useRef added
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { appTheme } from '@/constant/theme/global';
@@ -18,6 +18,9 @@ import FlightSearchCompactNew from './compo/FlightSearchCompactNew';
 import FlightCard from './compo/FlightCard';
 import { FlightSearchSkleton } from './compo/FlightSearchSkeleton';
 
+// ==========================================
+// 🟢 1. Helper Functions & Skeleton
+// ==========================================
 const getDurationInMinutes = (duration: string) => {
     const match = duration.match(/PT(\d+H)?(\d+M)?/);
     if (!match) return 0;
@@ -47,13 +50,12 @@ const FlightCardSkeleton = () => (
 );
 
 // ==========================================
-// 🟢 3. Main Search Content Component
+// 🟢 2. Main Search Content Component
 // ==========================================
 const SearchContent = () => {
     const { layout } = appTheme;
     const searchParams = useSearchParams();
     
-    // 🟢 1. Create a Ref for the results section
     const resultsRef = useRef<HTMLDivElement>(null);
 
     const initialFormValues = useMemo(() => {
@@ -94,26 +96,24 @@ const SearchContent = () => {
     const [error, setError] = useState('');
     
     const [showFilters, setShowFilters] = useState(false);
-    
     const [priceRange, setPriceRange] = useState(10000); 
     const [sortBy, setSortBy] = useState('cheapest'); 
     const [selectedStops, setSelectedStops] = useState<number[]>([]);
     const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
 
-    // 🟢 2. Auto Scroll Effect
+    // Auto Scroll Effect
     useEffect(() => {
-        // যদি লোডিং শেষ হয় এবং রেজাল্ট থাকে (অথবা এরর থাকে)
         if (!isLoading && isSearching && (flights.length > 0 || error)) {
-            // মোবাইল ডিভাইসে একটু স্মুথলি স্ক্রল হবে
             setTimeout(() => {
                 resultsRef.current?.scrollIntoView({ 
                     behavior: 'smooth', 
                     block: 'start' 
                 });
-            }, 100); // 100ms delay to ensure DOM is ready
+            }, 100);
         }
     }, [isLoading, flights.length, error, isSearching]);
 
+    // Data Fetching
     useEffect(() => {
         if (!isSearching) return;
 
@@ -235,7 +235,7 @@ const SearchContent = () => {
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
                 </div>
 
-                <div className="relative z-50 w-full max-w-6xl animate-in fade-in zoom-in-95 duration-500 mt-20">
+                <div className="relative z-40 w-full max-w-6xl animate-in fade-in zoom-in-95 duration-500 mt-20">
                     <div className="text-center mb-10">
                         <h1 className="text-4xl md:text-6xl font-black text-white mb-4 drop-shadow-2xl">
                             Start Your <span className="text-rose-500">Journey</span>
@@ -259,20 +259,22 @@ const SearchContent = () => {
     return (
         <main className="min-h-screen bg-gray-50/50 pb-24">
             
-            <div className="relative z-40 bg-gray-900 pb-6 pt-20 lg:pt-24 rounded-b-[2rem] shadow-xl overflow-visible transition-all duration-500">
+            {/* 🟢 FIXED: Reduced Z-Index to z-30 (Enough for Search Form, but allows Nav to overlap) */}
+            <div className="relative z-30 bg-gray-900 pb-6 pt-20 lg:pt-24 rounded-b-[2rem] shadow-xl overflow-visible transition-all duration-500">
                  <div className="absolute inset-0 opacity-40 overflow-hidden rounded-b-[2rem]">
                     <img src="/asset/others/flimg.avif" className="w-full h-full object-cover" alt="header" />
                  </div>
-                 <div className={`${layout.container} relative`}>
-                    <div className="bg-white rounded-2xl shadow-xl p-2 md:p-4 relative">
+                 <div className={`${layout.container} relative z-40`}>
+                    <div className="bg-white rounded-2xl shadow-xl p-2 md:p-4 relative z-50">
                         <FlightSearchCompactNew initialValues={initialFormValues} />
                     </div>
                  </div>
             </div>
 
-            <div className={`${layout.container} mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-50`}>
+            {/* 🟢 FIXED: Results Container Z-Index to 0 */}
+            <div className={`${layout.container} mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 relative `}>
                 
-                {/* Filters Sidebar */}
+                {/* Filters Sidebar - Z-Index 100 is fine for modal style */}
                 <aside className={`fixed inset-0 z-50 bg-black/50 lg:static lg:bg-transparent lg:z-auto lg:col-span-3 transition-opacity duration-300 ${showFilters ? 'opacity-100 visible' : 'opacity-0 invisible lg:opacity-100 lg:visible'}`}>
                     <div 
                         className={`bg-white h-full lg:h-fit lg:rounded-3xl lg:border border-gray-200 p-6 w-80 lg:w-full ml-auto lg:ml-0 overflow-y-auto lg:sticky lg:top-28 transition-transform duration-300 shadow-xl lg:shadow-none ${showFilters ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
@@ -289,7 +291,6 @@ const SearchContent = () => {
                             <button onClick={resetFilters} className="text-xs font-bold text-rose-600 hover:text-rose-700 underline">Reset All</button>
                         </div>
 
-                        {/* Filter Sections */}
                         <div className="mb-8 border-b border-gray-100 pb-8">
                             <label className="text-sm font-bold text-gray-700 mb-3 block flex items-center gap-2">
                                 <FaPlane className="text-rose-500" /> Stops
@@ -335,11 +336,10 @@ const SearchContent = () => {
                     </div>
                 </aside>
 
-                {/* Main Results Section */}
+                {/* Main Results List */}
                 <div className="lg:col-span-9">
                     
                     {/* Header / Loader */}
-                    {/* 🟢 3. Attach the Ref to this container to scroll here */}
                     <div 
                         ref={resultsRef} 
                         className="scroll-mt-28 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-2xl shadow-gray-100 border border-gray-100 min-h-[90px]"
@@ -360,7 +360,6 @@ const SearchContent = () => {
                             )}
                         </div>
                         
-                        {/* Sort & Mobile Filter Buttons */}
                         <div className="flex gap-3 w-full sm:w-auto self-start sm:self-center">
                             <button onClick={() => setShowFilters(true)} className="lg:hidden flex-1 flex items-center justify-center gap-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold"><FaSlidersH /> Filter</button>
                             <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
@@ -401,7 +400,7 @@ const SearchContent = () => {
 };
 
 // ==========================================
-// 🟢 4. Page Wrapper
+// 🟢 3. Page Wrapper
 // ==========================================
 const FlightSearchPage = () => {
     return (

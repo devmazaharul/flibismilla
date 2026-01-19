@@ -23,7 +23,7 @@ const FlightSearchCompactNew = ({ initialValues }: { initialValues?: any }) => {
 
     return (
 
-        <div className="w-full relative z-50"> 
+        <div className="w-full relative z-0"> 
             
             {/* Tab Navigation */}
             <div className="flex justify-center mb-6">
@@ -47,7 +47,7 @@ const FlightSearchCompactNew = ({ initialValues }: { initialValues?: any }) => {
 
             {/* Form Container */}
 
-            <div className="relative z-40">
+            <div className="relative z-0">
                 {activeTab === 'oneway' && <OneWayForm initialValues={initialValues} />}
                 {activeTab === 'round' && <RoundTripForm initialValues={initialValues} />}
                 {activeTab === 'multi' && <MultiCityForm initialValues={initialValues} />}
