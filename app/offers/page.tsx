@@ -26,7 +26,7 @@ const OffersPage = () => {
             {/* ================= 1. Hero / Header ================= */}
             <div className="relative bg-gray-900 h-[35vh] min-h-[300px] flex flex-col items-center justify-center text-center px-4">
                 <Image
-                    src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1000"
+                    src="/asset/blog/blog1.webp" 
                     alt="Offers Hero"
                     fill
                     className="object-cover opacity-30"

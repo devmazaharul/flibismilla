@@ -78,7 +78,7 @@ const Navbar = () => {
     };
 
     return (
-        <header className="w-full relative z-50">
+        <header className="w-full relative z-[100]">
             {/* ================= 1. Top Bar ================= */}
             <div
                 className={`${colors.topBar.bg} ${colors.topBar.text} text-xs py-2.5 hidden md:block border-b border-gray-800`}

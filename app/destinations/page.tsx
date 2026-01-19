@@ -24,7 +24,7 @@ const page = () => {
             {/* ================= 1. Hero Section ================= */}
             <div className="relative h-[40vh] min-h-[350px] flex items-center justify-center bg-gray-900 px-4">
                 <Image
-                    src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000"
+                    src="/asset/others/des.jpg"
                     alt="World Map"
                     fill
                     className="object-cover opacity-50"

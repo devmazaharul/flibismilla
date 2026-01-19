@@ -53,6 +53,7 @@ export const headerData = {
             subMenu: null,
         },
         { label: 'ABOUT', href: '/about', hasDropdown: false },
+        { label: 'VISA Process', href: '/visa-process', hasDropdown: false },
         { label: 'CONTACT', href: '/contact', hasDropdown: false, subMenu: null },
     ],
 };

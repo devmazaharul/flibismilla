@@ -122,7 +122,7 @@ const Footer = () => {
                     <div className="w-30 h-30  flex items-center justify-center text-gray-500 text-sm">
                         <Image
                             src={
-                                'https://flybismillah.com/wp-content/uploads/2024/12/New-Project.webp'
+                                "/siteqrwebp.webp"
                             }
                             width={600}
                             height={600}

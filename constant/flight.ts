@@ -367,6 +367,15 @@ export const airportSuggestions = Object.freeze([
     { code: 'KLV', city: 'Karlovy Vary', name: 'Karlovy Vary Airport', country: 'Czech Republic' },
 ]);
 
+export const MULTI_TRIP_MAX_FLIGHT=5
+export const   TRAVALERS_MAX_QUANTITY={
+    maxAdults: 9,
+    maxChildren: 8,
+    maxInfants: 5
+    
+
+}
+
 
 // flight result int-dom
 

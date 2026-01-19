@@ -85,7 +85,7 @@ const PromoSection = () => {
                             </div>
 
                             {/* 4. Top Right Tag */}
-                            <div className="absolute top-6 right-6 z-20">
+                            <div className="absolute top-6 right-6 ">
                                 <span className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
                                     {banner.isLarge ? 'Best Seller' : 'Hot Deal'}
                                 </span>

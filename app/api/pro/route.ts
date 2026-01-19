@@ -1,122 +1,118 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Amadeus from 'amadeus';
 
-// 1. Initialize Amadeus
+// Amadeus Configuration
 const amadeus = new Amadeus({
-  clientId: process.env.AMADEUS_CLIENT_ID || '',
-  clientSecret: process.env.AMADEUS_CLIENT_SECRET || '',
+    clientId: process.env.AMADEUS_API_KEY,
+    clientSecret: process.env.AMADEUS_API_SECRET,
 });
 
-export async function GET(request: NextRequest) {
-  try {
-    // 2. Extract Query Params
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'oneway'; // oneway | round | multi
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
     
-    // Common Params
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
-    const date = searchParams.get('date');
-    const returnDate = searchParams.get('return'); // Frontend sends 'return'
-    const legsStr = searchParams.get('legs');      // Frontend sends 'legs' JSON for Multi
+    // --- 1. Extract Common Parameters ---
+    const type = searchParams.get('type') || 'oneway';
+    const adults = parseInt(searchParams.get('adults') || '1');
+    const children = parseInt(searchParams.get('children') || '0');
+    const infants = parseInt(searchParams.get('infants') || '0');
+    const travelClass = searchParams.get('travelClass') || 'ECONOMY';
+    const currency = 'USD'; // আপনার ডিফল্ট কারেন্সি
 
-    // 3. Validation: API Keys Check
-    if (!process.env.AMADEUS_CLIENT_ID || !process.env.AMADEUS_CLIENT_SECRET) {
-        return NextResponse.json({ success: false, error: 'Server Config Error: API Keys Missing' }, { status: 500 });
-    }
+    try {
+        let response;
 
-    let response;
+        // --- 2. Multi-City Logic (Complex Search via POST) ---
+        if (type === 'multi') {
+            const legsParam = searchParams.get('legs');
+            if (!legsParam) throw new Error("Missing flight legs for multi-city search");
+            
+            const legs = JSON.parse(legsParam);
 
-    // ============================================
-    // CASE A: MULTI CITY (Complex Search)
-    // ============================================
-    if (type === 'multi') {
-        if (!legsStr) {
-            return NextResponse.json({ success: false, error: 'Missing flight legs for multi-city' }, { status: 400 });
-        }
-
-        const legs = JSON.parse(legsStr);
-        
-        // Construct Amadeus POST Payload
-        const originDestinations = legs.map((leg: any, index: number) => ({
-            id: (index + 1).toString(),
-            originLocationCode: leg.from.toUpperCase(),
-            destinationLocationCode: leg.to.toUpperCase(),
-            departureDateTimeRange: {
-                date: leg.date
-            }
-        }));
-
-        const requestBody = {
-            currencyCode: "USD",
-            originDestinations: originDestinations,
-            travelers: [
-                {
-                    id: "1",
-                    travelerType: "ADULT"
+            // Construct OriginDestinations for POST request
+            const originDestinations = legs.map((leg: any, index: number) => ({
+                id: (index + 1).toString(),
+                originLocationCode: leg.from,
+                destinationLocationCode: leg.to,
+                departureDateTimeRange: {
+                    date: leg.date
                 }
-            ],
-            sources: ["GDS"]
-        };
+            }));
 
-        // Call Amadeus POST endpoint
-        response = await amadeus.shopping.flightOffersSearch.post(JSON.stringify(requestBody));
-    } 
-    
-    // ============================================
-    // CASE B: ONE WAY / ROUND TRIP (Simple Search)
-    // ============================================
-    else {
-        if (!from || !to || !date) {
-            return NextResponse.json({ success: false, error: 'Missing origin, destination or date' }, { status: 400 });
+            // Construct Travelers array
+            const travelers = [];
+            let travelerId = 1;
+            for (let i = 0; i < adults; i++) travelers.push({ id: (travelerId++).toString(), travelerType: 'ADULT' });
+            for (let i = 0; i < children; i++) travelers.push({ id: (travelerId++).toString(), travelerType: 'CHILD' });
+            for (let i = 0; i < infants; i++) travelers.push({ id: (travelerId++).toString(), travelerType: 'SEATED_INFANT' });
+
+            // Call Amadeus POST
+            response = await amadeus.shopping.flightOffersSearch.post(JSON.stringify({
+                currencyCode: currency,
+                originDestinations: originDestinations,
+                travelers: travelers,
+                sources: ["GDS"],
+                searchCriteria: {
+                    flightFilters: {
+                        cabinRestrictions: [{
+                            cabin: travelClass,
+                            coverage: "MOST_SEGMENTS",
+                            originDestinationIds: originDestinations.map((od:any) => od.id)
+                        }]
+                    }
+                }
+            }));
+
+        } 
+        
+        // --- 3. OneWay / Round Trip Logic (Simple Search via GET) ---
+        else {
+            const from = searchParams.get('from');
+            const to = searchParams.get('to');
+            const date = searchParams.get('date');
+            const returnDate = searchParams.get('return');
+
+            if (!from || !to || !date) throw new Error("Missing required params");
+
+            const params: any = {
+                originLocationCode: from,
+                destinationLocationCode: to,
+                departureDate: date,
+                adults: adults,
+                children: children,
+                infants: infants,
+                travelClass: travelClass,
+                currencyCode: currency,
+                max: 20
+            };
+
+            if (type === 'round' && returnDate) {
+                params.returnDate = returnDate;
+            }
+
+            response = await amadeus.shopping.flightOffersSearch.get(params);
         }
 
-        const params: any = {
-            originLocationCode: from.toUpperCase(),
-            destinationLocationCode: to.toUpperCase(),
-            departureDate: date,
-            adults: '1',
-            currencyCode: 'USD',
-            max: '10'
-        };
+        // --- 4. Return Data ---
+        return NextResponse.json({ 
+            success: true, 
+            data: response.data, 
+            dictionaries: response.result.dictionaries 
+        });
 
-        // Add Return Date if Round Trip
-        if (type === 'round' && returnDate) {
-            params.returnDate = returnDate;
+    } catch (error: any) {
+        console.error("Flight Search Error:", error);
+        
+        // Handle Amadeus Errors gracefully
+        let errorMessage = "Failed to fetch flights";
+        if (error.response) {
+            errorMessage = error.response.result?.errors?.[0]?.detail || error.response.body;
+        } else if (error.message) {
+            errorMessage = error.message;
         }
 
-        // Call Amadeus GET endpoint
-        response = await amadeus.shopping.flightOffersSearch.get(params);
+        return NextResponse.json(
+            { success: false, error: errorMessage },
+            { status: 500 }
+        );
     }
-
-    // 4. Success Response
-    return NextResponse.json({
-        success: true,
-        count: response.result.meta.count,
-        data: response.result.data,
-        dictionaries: response.result.dictionaries
-    });
-
-  } catch (error: any) {
-    // 5. Error Handling
-    console.error("❌ Amadeus Error:", error.response ? error.response.body : error);
-
-    let errorMessage = 'Failed to fetch flight data.';
-    let statusCode = 500;
-
-    if (error.response) {
-        try {
-            const parsedError = JSON.parse(error.response.body);
-            errorMessage = parsedError.errors?.[0]?.detail || parsedError.errors?.[0]?.title || 'API Error';
-            statusCode = error.response.statusCode;
-        } catch (e) {
-            errorMessage = 'Unknown Amadeus Error';
-        }
-    }
-
-    return NextResponse.json(
-        { success: false, error: errorMessage },
-        { status: statusCode }
-    );
-  }
 }

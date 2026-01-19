@@ -7,7 +7,7 @@ const DomesticFlightsPage = () => {
             type="domestic"
             title="Domestic Flights"
             subtitle="Explore Bangladesh"
-            bgImage="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1000" // Bangladesh Image
+            bgImage="/asset/blog/blog1.webp" 
         />
     );
 };
