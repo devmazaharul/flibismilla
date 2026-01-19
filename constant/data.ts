@@ -348,7 +348,7 @@ export const packages = [
         slug: 'economy-hajj-package-1e-2025',
         title: 'Bismillah Tours Economy Hajj Package 1E 2025: 13 Nights Package',
         price: '$7,148.00',
-        image: '/asset/hajj/hajj1.webp', // Kaaba
+        image: "/11055f59a68bcbcf257dac2088dfc225.jpg", // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure from USA: 28th May | Departure from Saudi Arabia: 10th June.
@@ -492,7 +492,7 @@ export const packages = [
         slug: 'executive-hajj-package-1a-2025',
         title: 'Bismillah Tours Executive Hajj Package 1A 2025: (No Azizia)-13 Nights Package',
         price: '$12,948.00',
-        image: '/asset/hajj/hajj1.webp', // Kaaba
+        image: '/makka.jpg', // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure: 4th June | Return: 17th June. **Executive Service for Distinguished Guests.**
@@ -529,7 +529,7 @@ export const packages = [
         slug: 'package-1c-2025-umrah',
         title: 'Package 1C 2025: (15th Apr/31st Dec) & (01st Jan/11th Mar)-10 Nights Package',
         price: '$2,048.00',
-        image: '/asset/hajj/hajj5.webp', // Kaaba
+        image: '/madina_makka.jpg', // Kaaba
         category: 'Umrah',
         location: 'Makkah & Madinah',
         description: `Flexible Departure Dates. **Ideal for Families.**

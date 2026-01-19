@@ -1,7 +1,6 @@
 'use client';
-import Image from 'next/image';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { notFound, useParams } from 'next/navigation';
 import { destinations, packages } from '@/constant/data'; 
 import { appTheme } from '@/constant/theme/global';
 import { Button } from '@/components/ui/button';
@@ -12,59 +11,71 @@ import {
     FaMoneyBillWave, 
     FaLanguage, 
     FaCamera,
-    FaArrowRight,
-    FaArrowLeft
+    FaArrowLeft,
+    FaSuitcaseRolling
 } from 'react-icons/fa';
 import PackageCard from '@/app/components/PackageCard';
+import Image from 'next/image';
 
 const DestinationDetails = () => {
-    const {  layout } = appTheme;
+    const { layout } = appTheme;
     const params = useParams();
+    const router = useRouter();
 
-    // 1. Find Destination Data
     const dest = destinations.find((d) => d.slug === params?.slug);
+    if (!dest) return null;
 
-    if (!dest) return notFound();
-
-    // 2. Find Related Packages (Smart Filter)
     const relatedPackages = packages.filter(pkg => 
         pkg.location.toLowerCase().includes(dest.country.toLowerCase()) || 
         pkg.location.toLowerCase().includes(dest.name.split(',')[0].toLowerCase())
     );
 
-    return (
-        <main className="bg-white min-h-screen pb-20">
-            
-            {/* ================= 1. Hero Section ================= */}
-            <div className="relative h-[50vh] min-h-[400px] w-full">
-                <Image
-                    src={dest.image}
-                    alt={dest.name}
-                    fill
-                    className="object-cover"
-                    priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                
-                {/* Back Button */}
-                <div className="absolute top-6 left-4 md:left-10 z-20">
-                    <Link href="/" className="flex items-center gap-2 text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-full hover:bg-rose-600 transition">
-                        <FaArrowLeft /> Back to Home
-                    </Link>
-                </div>
 
-                {/* Hero Content */}
-                <div className={`${layout.container} absolute bottom-10 left-0 right-0 text-white`}>
-                    <div className="max-w-3xl">
-                        <div className="flex items-center gap-2 mb-2">
-                             <FaMapMarkerAlt className="text-rose-400" />
-                             <span className="uppercase tracking-widest text-sm font-bold">{dest.country}</span>
+    function hadnleClick(){
+        router.push("/contact")
+    }
+
+    return (
+        <main className="bg-[#F8F9FB] min-h-screen pb-20">
+            
+            {/* ================= 1. Minimalist Header (No Background Image) ================= */}
+            <div className="bg-white border-b border-gray-200/60 pt-28 pb-12 shadow-2xl shadow-gray-100">
+                <div className={`${layout.container}`}>
+                    {/* Breadcrumb & Back */}
+                    <div className="mb-8">
+                        <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-rose-600 font-bold text-sm transition-all group">
+                            <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" /> 
+                            Explore Destinations
+                        </Link>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                        <div className="max-w-3xl">
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-rose-100 shadow-sm">
+                                    {dest.country}
+                                </span>
+                                <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold border border-yellow-100">
+                                    <FaStar /> {dest.rating}
+                                    <span className="text-yellow-600/60 font-medium">({dest.reviews} Reviews)</span>
+                                </div>
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 leading-tight">
+                                Explore <span className="text-rose-600">{dest.name.split(',')[0]}</span>
+                            </h1>
+                            <div className="flex flex-wrap gap-4 text-gray-500 font-bold text-sm">
+                                <span className="flex items-center gap-2"><FaMapMarkerAlt className="text-rose-500" /> {dest.name}</span>
+                                <span className="flex items-center gap-2"><FaSuitcaseRolling className="text-blue-500" /> Best Destination</span>
+                            </div>
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-extrabold mb-4">{dest.name}</h1>
-                        <div className="flex items-center gap-2">
-                             <FaStar className="text-yellow-400" />
-                             <span className="font-bold">{dest.rating}</span>
-                             <span className="text-gray-300">({dest.reviews} Reviews)</span>
+
+                        {/* Quick Action Card (Header Right) */}
+                        <div className="w-full lg:w-72 bg-rose-600 rounded-3xl p-6 text-white shadow-xl shadow-rose-200 animate-in zoom-in-95 duration-500">
+                            <p className="text-rose-100 text-xs font-bold uppercase mb-2">Ready to visit?</p>
+                            <h3 className="text-lg font-bold mb-4">Plan your perfect trip to {dest.name.split(',')[0]}</h3>
+                            <Button onClick={hadnleClick} className="bg-white text-rose-600 hover:bg-gray-50 font-black w-full h-12 rounded-xl transition-all active:scale-95">
+                                Get Custom Quote
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -72,134 +83,99 @@ const DestinationDetails = () => {
 
             {/* ================= 2. Main Content Grid ================= */}
             <div className={`${layout.container} mt-12`}>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     
-                    {/* LEFT COLUMN: Info (66%) */}
-                    <div className="lg:col-span-2 space-y-10">
+                    {/* LEFT COLUMN: Info (8 Columns) */}
+                    <div className="lg:col-span-8 space-y-12">
                         
-                        {/* About */}
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">About {dest.name.split(',')[0]}</h2>
-                            <p className="text-gray-600 text-lg leading-relaxed">
+                        {/* Summary Facts */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {[
+                                { label: 'Best Time', val: dest.bestTime, icon: <FaCalendarAlt />, color: 'blue' },
+                                { label: 'Currency', val: dest.currency, icon: <FaMoneyBillWave />, color: 'green' },
+                                { label: 'Language', val: dest.language, icon: <FaLanguage />, color: 'orange' }
+                            ].map((fact, i) => (
+                                <div key={i} className="bg-white p-5 rounded-2xl border border-gray-200/70 shadow-2xl shadow-gray-100 flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-xl bg-${fact.color}-50 text-${fact.color}-500 flex items-center justify-center text-xl`}>
+                                        {fact.icon}
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{fact.label}</p>
+                                        <p className="font-bold text-gray-800 text-sm">{fact.val}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Description */}
+                        <div className="bg-white p-8 rounded-3xl border border-gray-200/60 shadow-2xl shadow-gray-100">
+                            <h2 className="text-2xl font-black text-gray-900 mb-6">About the Place</h2>
+                            <p className="text-gray-600 text-lg leading-relaxed whitespace-pre-line">
                                 {dest.description}
                             </p>
                         </div>
 
-                        {/* Top Attractions Grid */}
+                        {/* Top Attractions */}
                         <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Top Attractions</h3>
-                            <div className="flex flex-wrap gap-3">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-6">Popular Attractions</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {dest.attractions.map((attr, idx) => (
-                                    <span key={idx} className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-default">
-                                        📍 {attr}
-                                    </span>
+                                    <div key={idx} className="bg-white border border-gray-200/70 p-4 rounded-2xl flex items-center gap-3 shadow-2xl shadow-gray-100 hover:border-rose-500 transition-colors">
+                                        <span className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                                        <span className="font-bold text-gray-700 text-sm">{attr}</span>
+                                    </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Photo Gallery */}
+                        {/* Gallery */}
                         <div>
-                             <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <FaCamera className="text-rose-600"/> Photo Gallery
+                             <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                <FaCamera className="text-rose-600"/> Sightseeing Gallery
                              </h3>
-                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-100">
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 {dest.gallery.map((img, idx) => (
-                                    <div key={idx} className={`relative rounded-xl overflow-hidden group h-full ${idx === 0 ? 'sm:col-span-2' : 'sm:col-span-1'}`}>
-                                        <Image src={img} alt="Gallery" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                    <div key={idx} className={`relative rounded-2xl overflow-hidden group aspect-square shadow-md ${idx === 0 ? 'col-span-2 row-span-2 aspect-auto h-[410px]' : ''}`}>
+                                        <Image src={img} alt="Gallery" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                                     </div>
                                 ))}
                              </div>
                         </div>
-
                     </div>
 
-                    {/* RIGHT COLUMN: Quick Facts Sidebar (33%) */}
-                    <div className="lg:col-span-1">
-                        <div className="sticky top-24 space-y-8">
-                            
-                            {/* Facts Card */}
-                            <div className="bg-white p-6 rounded-3xl border border-gray-200/70 shadow-2xl shadow-gray-200/50">
-                                <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-3">Quick Facts</h3>
-                                
-                                <div className="space-y-5">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                                            <FaCalendarAlt />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-400 font-bold uppercase">Best Time to Visit</p>
-                                            <p className="font-bold text-gray-800">{dest.bestTime}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-500">
-                                            <FaMoneyBillWave />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-400 font-bold uppercase">Currency</p>
-                                            <p className="font-bold text-gray-800">{dest.currency}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
-                                            <FaLanguage />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-400 font-bold uppercase">Language</p>
-                                            <p className="font-bold text-gray-800">{dest.language}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* RIGHT COLUMN: Featured Packages (4 Columns) */}
+                    <div className="lg:col-span-4">
+                        <div className="sticky top-24 space-y-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-xl font-black text-gray-900">Best Packages</h3>
+                                <Link href="/packages" className="text-rose-600 text-xs font-bold hover:underline">View All</Link>
                             </div>
 
-                            {/* CTA Card */}
-                            <div className="bg-rose-600 text-white p-8 rounded-3xl text-center relative overflow-hidden">
-                                <div className="relative z-10">
-                                    <h3 className="text-2xl font-bold mb-2">Plan your trip to {dest.name.split(',')[0]}!</h3>
-                                    <p className="text-rose-100 mb-6 text-sm">We have exclusive packages with flights and hotels included.</p>
-                                    <Link href="/contact">
-                                        <Button className="bg-white text-rose-600 hover:bg-gray-100 font-bold w-full h-12">
-                                            Get Custom Quote
-                                        </Button>
-                                    </Link>
+                            {relatedPackages.length > 0 ? (
+                                <div className="space-y-6">
+                                    {relatedPackages.slice(0, 3).map((pkg) => (
+                                        <PackageCard key={pkg.id} data={pkg} />
+                                    ))}
                                 </div>
-                                {/* Decor Circle */}
-                                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full"></div>
-                                <div className="absolute top-10 -left-10 w-20 h-20 bg-white/10 rounded-full"></div>
-                            </div>
+                            ) : (
+                                <div className="bg-white p-8 rounded-3xl border border-dashed border-gray-300 text-center">
+                                    <p className="text-gray-400 text-sm font-bold">No packages found for this location.</p>
+                                </div>
+                            )}
 
+                            {/* Help Desk */}
+                            <div className="bg-gray-900 text-white p-8 rounded-[2.5rem] text-center shadow-xl">
+                                <h4 className="font-bold mb-2">Need a custom plan?</h4>
+                                <p className="text-gray-400 text-xs mb-6">Talk to our experts for a personalized itinerary.</p>
+                                <Button onClick={hadnleClick} className="bg-rose-600 hover:bg-rose-700 text-white w-full rounded-xl font-bold h-12">
+                                    Contact Support
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
                 </div>
             </div>
-
-            {/* ================= 3. Related Packages Section ================= */}
-            {relatedPackages.length > 0 && (
-                <div className="bg-gray-50 py-16 mt-16 border-t border-gray-200">
-                    <div className={layout.container}>
-                        <div className="flex justify-between items-end mb-8">
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-900">Available Packages</h2>
-                                <p className="text-gray-500">Handpicked tours for {dest.name}</p>
-                            </div>
-                            <Link href="/packages">
-                                <Button variant="link" className="text-rose-600 font-bold">
-                                    View All <FaArrowRight className="ml-2"/>
-                                </Button>
-                            </Link>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {relatedPackages.slice(0, 3).map((pkg) => (
-                                <PackageCard key={pkg.id} data={pkg} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
 
         </main>
     );

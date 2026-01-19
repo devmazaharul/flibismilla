@@ -9,6 +9,7 @@ import { FaCheckCircle, FaStar } from 'react-icons/fa';
 const sliderImages = [
     '/asset/others/hajj_umrah.avif',
     '/asset/others/utt.avif',
+    "/11055f59a68bcbcf257dac2088dfc225.jpg",
     '/asset/others/flimg.avif',
 ];
 
