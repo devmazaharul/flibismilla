@@ -76,7 +76,7 @@ const OneWayForm = ({ initialValues }: { initialValues?: any }) => {
             </div>
 
             {/* --- 2. Date & Travelers --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full lg:w-[45%]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full ">
                 
                 {/* Date Input */}
                 <div className="relative w-full">
@@ -87,6 +87,7 @@ const OneWayForm = ({ initialValues }: { initialValues?: any }) => {
                         type="date" 
                         min={today} 
                         {...register('date')} 
+                        
                         className="w-full h-16 pl-12 pr-4 bg-gray-50 rounded-2xl border border-transparent hover:border-rose-200 focus:ring-2 focus:ring-rose-500/20 font-bold text-gray-800 outline-none transition-all cursor-pointer" 
                     />
                     {errors.date && (

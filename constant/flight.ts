@@ -6,7 +6,7 @@ interface CommistionType{
 }
 export const TICKET_PRICE_COMMISION:CommistionType = {
     type: "percentage",
-    amount: 5,
+    amount: 0,
 }; // 15% commission on ticket price
 
 // Popular airport suggestions for flight search

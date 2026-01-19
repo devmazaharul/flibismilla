@@ -128,10 +128,10 @@ const Navbar = () => {
             <nav
                 className={`sticky top-0 z-50 w-full ${colors.navbar.bg} border-none ${colors.navbar.border}  border border-gray-200/50 transition-all`}
             >
-                <div className={`${layout.container} h-20 flex justify-between items-center`}>
+                <div className={`${layout.container} h-22 flex justify-between items-center`}>
                     {/* Logo */}
-                    <Link href="/" className="group flex items-center gap-2">
-                        <Image height={200} width={200} alt="logo" src={'/logo1.jpeg'} />
+                    <Link href="/" className="group  left-0 flex items-center gap-2">
+                        <Image height={200} width={200} alt="logo" src={'/logo2.jpg'} />
                     </Link>
 
                     {/* Desktop Menu */}
