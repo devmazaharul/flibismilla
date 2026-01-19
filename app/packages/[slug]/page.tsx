@@ -37,6 +37,9 @@ const PackageDetails = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // 🟢 Get Today's Date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
     // Form State
     const [formData, setFormData] = useState({
         name: '',
@@ -83,10 +86,17 @@ const PackageDetails = () => {
             }
         }
 
+       if (name === 'message') {
+            if (value.length > 200) {
+                toast.error("Message cannot exceed 200 characters");
+                finalValue = value.slice(0, 200);
+            }
+        }
+
         setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
-  // 🟢 Updated handleSubmit to call API
+  // Updated handleSubmit to call API
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -107,7 +117,7 @@ const PackageDetails = () => {
         };
 
         try {
-            // 🟢 Call the API Route
+            // Call the API Route
             const response = await fetch('/api/booking', {
                 method: 'POST',
                 headers: {
@@ -121,7 +131,7 @@ const PackageDetails = () => {
             if (result.success) {
                 toast.success("Booking Request Sent Successfully! ✅");
                 setIsModalOpen(false);
-                // Reset form (Optional)
+                // Reset form
                 setFormData({
                     name: '', email: '', phone: '', travelDate: '', returnDate: '',
                     adults: 1, children: 0, message: ''
@@ -131,7 +141,6 @@ const PackageDetails = () => {
             }
 
         } catch (error) {
-            console.error(error);
             toast.error("Something went wrong!");
         } finally {
             setIsSubmitting(false);
@@ -161,7 +170,7 @@ const PackageDetails = () => {
         <main className="bg-white min-h-screen pb-20 relative">
             
             {/* ================= 1. Top Navigation ================= */}
-            <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md">
+            <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md ">
                 <div className={`${layout.container} py-4 flex justify-between items-center`}>
                     <Link
                         href="/packages"
@@ -180,7 +189,7 @@ const PackageDetails = () => {
                 </div>
             </div>
 
-            {/* ================= 2. 🟢 NEW Hero Section (Cinematic Banner Style) ================= */}
+            {/* ================= 2. NEW Hero Section (Cinematic Banner Style) ================= */}
             <div className={`${layout.container} mt-6`}>
                 <div className="relative w-full h-[400px] md:h-[500px] rounded-[2.5rem] overflow-hidden shadow-2xl group">
                     {/* Image */}
@@ -193,7 +202,7 @@ const PackageDetails = () => {
                         priority
                     />
                     
-                    {/* Gradient Overlay (Makes text readable & Image look clear) */}
+                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
                     {/* Content Over Image */}
@@ -407,7 +416,7 @@ const PackageDetails = () => {
                                             required
                                             value={formData.phone}
                                             onChange={handleInputChange}
-                                            placeholder="012XXX..."
+                                            placeholder="+880 1XXX..."
                                             className="w-full h-12 px-4 rounded-xl bg-gray-50 border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm font-medium transition-all"
                                         />
                                     </div>
@@ -427,7 +436,6 @@ const PackageDetails = () => {
                                     </div>
                                 </div>
 
-                                {/* Dates */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
@@ -437,6 +445,7 @@ const PackageDetails = () => {
                                             type="date" 
                                             name="travelDate"
                                             required
+                                            min={today} 
                                             value={formData.travelDate}
                                             onChange={handleInputChange}
                                             className="w-full h-12 px-4 rounded-xl bg-gray-50 border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm font-medium transition-all text-gray-600"
@@ -449,6 +458,7 @@ const PackageDetails = () => {
                                         <input 
                                             type="date" 
                                             name="returnDate"
+                                            min={formData.travelDate || today} 
                                             value={formData.returnDate}
                                             onChange={handleInputChange}
                                             className="w-full h-12 px-4 rounded-xl bg-gray-50 border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm font-medium transition-all text-gray-600"
@@ -456,7 +466,7 @@ const PackageDetails = () => {
                                     </div>
                                 </div>
 
-                                {/* 🟢 Guests (With Limits) */}
+                                {/* Guests */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-gray-700">Adults (Max 10)</label>
@@ -489,6 +499,7 @@ const PackageDetails = () => {
                                     <label className="text-xs font-bold text-gray-700">Additional Message</label>
                                     <textarea 
                                         name="message"
+                                        required
                                         rows={3}
                                         value={formData.message}
                                         onChange={handleInputChange}

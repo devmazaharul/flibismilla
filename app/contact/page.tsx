@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 
 const ContactPage = () => {
     const { colors, layout, typography, button } = appTheme;
-    const [isSubmitting] = useState(false);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // React Hook Form Setup
     const {
@@ -25,25 +26,37 @@ const ContactPage = () => {
         resolver: zodResolver(contactFormSchema),
     });
 
-    // Form Submit Handler
+
     const onSubmit = async (data: ContactFormValues) => {
+        setIsSubmitting(true);
+
         try {
-            const message = `*___ New Form Submission ___*
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: data.name,
+                    email: data.email,
+                    phone: data.phone,
+                    subject: data.subject,
+                    message: data.message,
+                }),
+            });
 
-*Name:* ${data.name}
-*Contact:* ${data.phone}
-*Email:* ${data.email}
+            const result = await response.json();
 
-*Subject:* ${data.subject}
-*Message:* ${data.message}`;
-
-            const whatsappNumber = '12139858499';
-            const whatsappURL = `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
-
-            //open whatsapp link
-            window.open(whatsappURL, '_blank');
-        } catch (error) {
-            toast.error('Failed to send message. Please try again later.');
+            if (result.success) {
+                toast.success('Message sent successfully! 🚀');
+                reset(); // Form clear
+            } else {
+                toast.error('Failed to send message. Please try again.');
+            }
+        } catch (error){
+            toast.error('Something went wrong. Please try again later.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -225,7 +238,9 @@ const ContactPage = () => {
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (
-                                'Sending...'
+                                <span className="flex items-center gap-2">
+                                    Sending...
+                                </span>
                             ) : (
                                 <span className="flex items-center gap-2">
                                     Send Message <FaPaperPlane className="text-sm" />

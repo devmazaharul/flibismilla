@@ -101,18 +101,21 @@ const SearchContent = () => {
     const [selectedStops, setSelectedStops] = useState<number[]>([]);
     const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
 
-    // Auto Scroll Effect
-    useEffect(() => {
-        if (!isLoading && isSearching && (flights.length > 0 || error)) {
-            setTimeout(() => {
-                resultsRef.current?.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start' 
-                });
-            }, 100);
-        }
-    }, [isLoading, flights.length, error, isSearching]);
 
+useEffect(() => {
+    if (isSearching && (isLoading || flights.length > 0 || error)) {
+        setTimeout(() => {
+          
+            const offset = 400; 
+            window.scrollTo({
+                top: offset,
+                behavior: 'smooth'
+            });
+        }, 150);
+    }
+}, [isLoading, isSearching, flights.length, error]);
+
+    
     // Data Fetching
     useEffect(() => {
         if (!isSearching) return;

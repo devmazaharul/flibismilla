@@ -10,14 +10,15 @@ const FlightSearchCompactNew = ({ initialValues }: { initialValues?: any }) => {
     const getInitialTab = () => {
         if (initialValues?.tripType === 'multi') return 'multi';
         if (initialValues?.tripType === 'round') return 'round';
-        return 'oneway';
+        return 'round';
     };
 
     const [activeTab, setActiveTab] = useState<'oneway' | 'round' | 'multi'>(getInitialTab());
 
     const tabs = [
-        { id: 'oneway', label: 'One Way', icon: <FaPlane className="rotate-45" /> },
+        
         { id: 'round', label: 'Round Trip', icon: <FaExchangeAlt /> },
+        { id: 'oneway', label: 'One Way', icon: <FaPlane className="rotate-45" /> },
         { id: 'multi', label: 'Multi City', icon: <FaLayerGroup /> },
     ];
 
