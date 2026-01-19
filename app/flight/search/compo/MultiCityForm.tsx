@@ -90,6 +90,7 @@ const MultiCityForm = ({ initialValues }: { initialValues?: any }) => {
                 <div 
                     key={field.id} 
                     className="flex flex-col lg:flex-row gap-3 items-start bg-gray-50/50 p-3 rounded-2xl border border-gray-100 relative"
+                    // 🟢 FIX: Row Z-Index (Higher rows stay on top of lower rows for dropdowns)
                     style={{ zIndex: 50 - index }}
                 >
                     <div className="bg-gray-200 px-3 py-1 rounded-lg text-xs font-bold text-gray-500 min-w-[80px] text-center mt-4 lg:mt-5">
@@ -98,7 +99,7 @@ const MultiCityForm = ({ initialValues }: { initialValues?: any }) => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
                         
-                        {/* 🟢 FIX 2: Column Z-Index (From > To > Date) */}
+                        {/* 1. Origin Input (Highest Z inside row) */}
                         <div className="w-full relative z-30">
                             <Controller
                                 name={`legs.${index}.from`}
@@ -113,6 +114,7 @@ const MultiCityForm = ({ initialValues }: { initialValues?: any }) => {
                             />
                         </div>
                         
+                        {/* 2. Destination Input (Middle Z inside row) */}
                         <div className="w-full relative z-20">
                             <Controller
                                 name={`legs.${index}.to`}
@@ -128,21 +130,40 @@ const MultiCityForm = ({ initialValues }: { initialValues?: any }) => {
                             />
                         </div>
                         
-                        <div className="relative w-full z-10">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-500 text-lg pointer-events-none"><FaCalendarAlt /></div>
+                        {/* 3. Date Input (Lowest Z inside row) - 🟢 FIXED STYLES */}
+                        <div className="relative w-full z-10 bg-white rounded-2xl border border-transparent hover:border-rose-200 transition-all focus-within:ring-2 focus-within:ring-rose-500/20">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-500 text-lg pointer-events-none z-10">
+                                <FaCalendarAlt />
+                            </div>
+                            
+                            {/* Floating Label */}
+                            <span className="absolute left-12 top-3 text-[10px] text-rose-500 font-bold uppercase tracking-wider pointer-events-none z-10">
+                                Date
+                            </span>
+
                             <Controller
                                 name={`legs.${index}.date`}
                                 control={control}
                                 render={({ field }) => (
                                     <input 
-                                        {...field} type="date" min={todayStr} 
-                                        className={`w-full h-16 pl-12 pr-4 bg-white rounded-2xl border ${errors.legs?.[index]?.date ? 'border-red-500' : 'border-transparent'} font-bold text-gray-800 outline-none focus:ring-2 ring-rose-500/20 cursor-pointer hover:border-rose-200 transition-colors`}
+                                        {...field} 
+                                        type="date" 
+                                        min={todayStr} 
+                                        className={`w-full h-16 pl-12 pr-4 pt-6 pb-2 bg-transparent rounded-2xl font-bold text-gray-800 outline-none cursor-pointer appearance-none block min-w-0 ${errors.legs?.[index]?.date ? 'border-red-500' : ''}`}
+                                        style={{ fontSize: '16px' }} // iOS Zoom Fix
                                     />
                                 )}
                             />
+                            
+                            {errors.legs?.[index]?.date && (
+                                <span className="text-red-500 text-[10px] font-bold absolute bottom-1 left-12">
+                                    {errors.legs[index]?.date?.message}
+                                </span>
+                            )}
                         </div>
                     </div>
 
+                    {/* Delete Button */}
                     {fields.length > 2 && (
                         <button type="button" onClick={() => remove(index)} className="p-4 mt-1 text-red-500 hover:bg-red-100 rounded-xl transition-colors self-start lg:self-center">
                             <FaTrash />
@@ -151,17 +172,18 @@ const MultiCityForm = ({ initialValues }: { initialValues?: any }) => {
                 </div>
             ))}
 
-            {/* Actions */}
+            {/* Actions Bar */}
             <div className="flex flex-col md:flex-row justify-between gap-4 mt-4 pt-4 border-t border-gray-100 relative z-0">
                 <Button type="button" variant="outline" onClick={handleAppend} disabled={fields.length >= 5} className="h-14 border-dashed border-gray-300 text-gray-600 hover:text-rose-600">
                     <FaPlus className="mr-2" /> Add Flight
                 </Button>
                 
+                {/* Traveler Input with High Z-Index */}
                 <div className="w-full md:w-72 relative z-50">
                     <TravelerInput register={register} setValue={setValue} watch={watch} />
                 </div>
 
-                <Button type="submit" className="h-14 px-10 rounded-xl bg-rose-600 hover:bg-rose-700 font-bold text-lg shadow-xl shadow-rose-500/20">
+                <Button type="submit" className="h-14 px-10 rounded-xl bg-rose-700 hover:bg-rose-800 font-bold text-lg shadow-xl ">
                     <FaSearch className="mr-2" /> Search
                 </Button>
             </div>

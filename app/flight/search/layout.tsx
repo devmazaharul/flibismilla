@@ -72,7 +72,7 @@ export default function FlightLayout({ children }: { children: React.ReactNode }
                         name: 'Your Company Name',
                         url: 'https://flybismillah.com',
                         description: 'Best agency for booking cheap flights and holiday packages.',
-                        image: 'https://flybismillah.com/logo1.jpeg',
+                        image: 'https://flybismillah.com/logo.jpg',
                         priceRange: '$$',
                         address: {
                             '@type': 'PostalAddress',
