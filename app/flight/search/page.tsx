@@ -16,6 +16,8 @@ import {
 import { TICKET_PRICE_COMMISION } from '@/constant/flight';
 import FlightSearchCompactNew from './compo/FlightSearchCompactNew';
 import FlightCard from './compo/FlightCard';
+import { FlightSearchSkleton } from './compo/FlightSearchSkeleton';
+
 
 const getDurationInMinutes = (duration: string) => {
     const match = duration.match(/PT(\d+H)?(\d+M)?/);
@@ -25,7 +27,7 @@ const getDurationInMinutes = (duration: string) => {
     return hours * 60 + minutes;
 };
 
-const FlightSkeleton = () => (
+const FlightCardSkeleton = () => (
     <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-lg shadow-gray-100 animate-pulse mb-6">
         <div className="flex flex-col md:flex-row gap-6 items-center">
             <div className="w-16 h-16 bg-gray-200 rounded-2xl"></div>
@@ -45,6 +47,9 @@ const FlightSkeleton = () => (
     </div>
 );
 
+// ==========================================
+// 🟢 3. Main Search Content Component
+// ==========================================
 const SearchContent = () => {
     const { layout } = appTheme;
     const searchParams = useSearchParams();
@@ -200,14 +205,11 @@ const SearchContent = () => {
     };
 
     // ============================================
-    // 🟢 VIEW 1: LANDING PAGE (NO SEARCH) - FIXED Z-INDEX
+    // 🟢 VIEW 1: LANDING PAGE (NO SEARCH)
     // ============================================
     if (!isSearching) {
         return (
-            // 🔴 Removed 'overflow-hidden' from main div so dropdowns can overflow
             <div className="relative min-h-screen flex items-center justify-center p-4">
-                
-                {/* 🟢 Background Image with overflow-hidden (So image doesn't spill) */}
                 <div className="absolute inset-0 z-0 overflow-hidden">
                     <img 
                         src="/asset/others/flimg.avif" 
@@ -217,7 +219,6 @@ const SearchContent = () => {
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"></div>
                 </div>
 
-                {/* 🟢 Content Wrapper with High Z-Index (z-50) */}
                 <div className="relative z-50 w-full max-w-6xl animate-in fade-in zoom-in-95 duration-500 mt-20">
                     <div className="text-center mb-10">
                         <h1 className="text-4xl md:text-6xl font-black text-white mb-4 drop-shadow-2xl">
@@ -242,19 +243,20 @@ const SearchContent = () => {
     return (
         <main className="min-h-screen bg-gray-50/50 pb-24">
             
-            <div className="relative z-50 bg-gray-900 pb-12 pt-28 lg:pt-32 rounded-b-[3rem] shadow-xl overflow-visible">
+            <div className="relative z-40 bg-gray-900 pb-12 pt-28 lg:pt-32 rounded-b-[3rem] shadow-xl overflow-visible">
                  <div className="absolute inset-0 opacity-40 overflow-hidden rounded-b-[3rem]">
                     <img src="/asset/others/flimg.avif" className="w-full h-full object-cover" alt="header" />
                  </div>
-                 <div className={`${layout.container} relative z-50`}>
+                 <div className={`${layout.container} relative `}>
                     <div className="bg-white rounded-3xl shadow-xl p-4 md:p-6 relative">
                         <FlightSearchCompactNew initialValues={initialFormValues} />
                     </div>
                  </div>
             </div>
 
-            <div className={`${layout.container} mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10`}>
+            <div className={`${layout.container} mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-50`}>
                 
+                {/* Filters Sidebar */}
                 <aside className={`fixed inset-0 z-50 bg-black/50 lg:static lg:bg-transparent lg:z-auto lg:col-span-3 transition-opacity duration-300 ${showFilters ? 'opacity-100 visible' : 'opacity-0 invisible lg:opacity-100 lg:visible'}`}>
                     <div 
                         className={`bg-white h-full lg:h-fit lg:rounded-3xl lg:border border-gray-200 p-6 w-80 lg:w-full ml-auto lg:ml-0 overflow-y-auto lg:sticky lg:top-28 transition-transform duration-300 shadow-xl lg:shadow-none ${showFilters ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
@@ -316,18 +318,31 @@ const SearchContent = () => {
                     </div>
                 </aside>
 
+                {/* Main Results Section */}
                 <div className="lg:col-span-9">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <div>
-                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                {isLoading ? 'Searching...' : `Found ${filteredFlights.length} Flights`}
-                                {!isLoading && <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full uppercase">{initialFormValues.travelClass.replace(/_/g, ' ')}</span>}
-                            </h2>
-                            <p className="text-xs text-gray-500 mt-1">
-                                {initialFormValues.adults} Adult, {initialFormValues.children} Child, {initialFormValues.infants} Infant • Including taxes
-                            </p>
+                    
+                    {/* 🟢 Header / Loader */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-2xl shadow-gray-100 border border-gray-100 min-h-[90px]">
+                        <div className="w-full sm:w-auto flex-1">
+                            {isLoading ? (
+                                /* 🟢 Show Premium Plane Animation (Left to Right) */
+                                <FlightSearchSkleton />
+                            ) : (
+                                /* Show Results Count */
+                                <>
+                                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                        {`Found ${filteredFlights.length} Flights`}
+                                        <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full uppercase">{initialFormValues.travelClass.replace(/_/g, ' ')}</span>
+                                    </h2>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {initialFormValues.adults} Adult, {initialFormValues.children} Child, {initialFormValues.infants} Infant • Including taxes
+                                    </p>
+                                </>
+                            )}
                         </div>
-                        <div className="flex gap-3 w-full sm:w-auto">
+                        
+                        {/* Sort & Mobile Filter Buttons */}
+                        <div className="flex gap-3 w-full sm:w-auto self-start sm:self-center">
                             <button onClick={() => setShowFilters(true)} className="lg:hidden flex-1 flex items-center justify-center gap-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold"><FaSlidersH /> Filter</button>
                             <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
                                 <button onClick={() => setSortBy('cheapest')} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${sortBy === 'cheapest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}>Cheapest</button>
@@ -337,7 +352,8 @@ const SearchContent = () => {
                     </div>
 
                     <div className="space-y-6">
-                        {isLoading && Array.from({ length: 3 }).map((_, i) => <FlightSkeleton key={i} />)}
+                        {/* 🟢 Skeleton Cards for list view */}
+                        {isLoading && Array.from({ length: 3 }).map((_, i) => <FlightCardSkeleton key={i} />)}
                         
                         {!isLoading && error && (
                             <div className="bg-red-50 border border-red-100 rounded-3xl p-10 text-center animate-in fade-in">
@@ -366,6 +382,9 @@ const SearchContent = () => {
     );
 };
 
+// ==========================================
+// 🟢 4. Page Wrapper
+// ==========================================
 const FlightSearchPage = () => {
     return (
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-rose-600 border-t-transparent rounded-full animate-spin"></div></div>}>

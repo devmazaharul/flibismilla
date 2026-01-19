@@ -65,7 +65,7 @@ const Navbar = () => {
 
     return (
         // 🟢 Change: 'fixed' removed, added 'relative'
-        <header className="w-full relative z-[100] bg-white">
+        <header className="w-full relative  bg-white">
             
             {/* ================= 1. Top Bar (Desktop Only) ================= */}
             <div className={`${colors.topBar.bg} ${colors.topBar.text} text-[10px] sm:text-xs py-2 hidden md:block border-b border-white/10`}>

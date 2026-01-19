@@ -1,32 +1,58 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { appTheme } from '@/constant/theme/global';
 import FlightSearchCompactNew from '../flight/search/compo/FlightSearchCompactNew';
 import { FaCheckCircle, FaStar } from 'react-icons/fa';
 
+const sliderImages = [
+    '/asset/others/hajj_umrah.avif',
+    '/asset/others/utt.avif',
+    '/asset/others/flimg.avif',
+];
+
 const Hero = () => {
     const { layout } = appTheme;
+    const [currentSlide, setCurrentSlide] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev === sliderImages.length - 1 ? 0 : prev + 1));
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <section className="relative w-full min-h-[85vh] flex flex-col justify-center pt-32 pb-20 bg-gray-900">
-
-            {/* Background Layer */}
+            {/* ================= Background Slider Layer ================= */}
             <div className="absolute inset-0 z-0 overflow-hidden">
-                <Image
-                    src="/asset/others/utt.avif"
-                    alt="Luxury Travel"
-                    fill
-                    className="object-cover opacity-60"
-                    priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-transparent to-gray-900/80" />
+                {sliderImages.map((img, index) => (
+                    <div
+                        key={index}
+                        className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                            index === currentSlide ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    >
+                        <Image
+                            src={img}
+                            alt={`Slide ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            priority={index === 0} // First image loads fast
+                        />
+                    </div>
+                ))}
+
+                {/* 🟢 Dark Overlay & Gradients (To make text readable) */}
+                <div className="absolute inset-0 bg-gray-900/50" />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-900/60 via-transparent to-gray-900/60" />
             </div>
 
             {/* ================= Main Content ================= */}
             <div className={`relative z-10 w-full ${layout.container} flex flex-col items-center`}>
-                
                 {/* --- Top Badge --- */}
                 <div className="animate-in fade-in slide-in-from-top-4 duration-700 delay-100">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md shadow-2xl mb-6 hover:bg-white/20 transition-all cursor-default">
@@ -49,17 +75,16 @@ const Hero = () => {
                         </span>
                     </h1>
                     <p className="text-gray-300 text-sm md:text-lg font-medium max-w-2xl mx-auto leading-relaxed opacity-90 drop-shadow-md">
-                        Book your flights with confidence. Exclusive deals on Hajj, Umrah, and international holidays.
+                        Book your flights with confidence. Exclusive deals on Hajj, Umrah, and
+                        international holidays.
                     </p>
                 </div>
 
                 {/* --- Search Form Wrapper --- */}
-                <div className="w-full relative z-50  animate-in slide-in-from-bottom-12 duration-1000 delay-300">
-                    
-            
+                <div className="w-full relative z-50 animate-in slide-in-from-bottom-12 duration-1000 delay-300">
+                    {/* Glow Effect behind form */}
                     <div className="absolute -inset-1 bg-gradient-to-r from-rose-500 via-orange-500 to-rose-500 rounded-[2.5rem] blur-xl opacity-30 transition duration-1000"></div>
-                    
-        
+
                     <div className="relative transform transition-transform hover:-translate-y-1 duration-500 text-left text-gray-900">
                         <FlightSearchCompactNew />
                     </div>
@@ -69,9 +94,16 @@ const Hero = () => {
                 <div className="mt-10 relative z-10 flex flex-wrap justify-center gap-6 md:gap-12 text-gray-400 text-xs font-semibold animate-in fade-in duration-1000 delay-500 opacity-80">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-3">
-                            {[1,2,3].map(i => (
-                                <div key={i} className="w-8 h-8 rounded-full border-2 border-gray-900 bg-gray-700 overflow-hidden">
-                                    <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" className="w-full h-full object-cover" />
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="w-8 h-8 rounded-full border-2 border-gray-900 bg-gray-700 overflow-hidden"
+                                >
+                                    <img
+                                        src={`https://i.pravatar.cc/100?img=${i + 10}`}
+                                        alt="User"
+                                        className="w-full h-full object-cover"
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -93,7 +125,22 @@ const Hero = () => {
                         <span>4.9/5 Average Rating</span>
                     </div>
                 </div>
+            </div>
 
+            {/* ================= 🟢 Slider Navigation Dots (Bottom) ================= */}
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-3">
+                {sliderImages.map((_, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => setCurrentSlide(idx)}
+                        className={`w-3 h-3 rounded-full transition-all duration-300  ${
+                            currentSlide === idx
+                                ? 'bg-rose-500 scale-125 w-8'
+                                : 'bg-white/80 hover:bg-white'
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                    />
+                ))}
             </div>
         </section>
     );

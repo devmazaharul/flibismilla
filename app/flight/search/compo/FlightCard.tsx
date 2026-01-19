@@ -31,7 +31,6 @@ const FlightCard = ({ flight, dictionaries }: { flight: any; dictionaries: any }
     const mainAirlineName = dictionaries?.carriers?.[validatingCarrier] || validatingCarrier;
 
     const getAirportData = (code: string) => {
-   
         const localData = airportDatabase[code];
         if (localData) {
             return {
@@ -54,31 +53,65 @@ const FlightCard = ({ flight, dictionaries }: { flight: any; dictionaries: any }
         }
     };
 
+  
     function handleBooking() {
-        const firstItinerary = flight.itineraries[0];
-        const firstSegment = firstItinerary.segments[0];
-        const lastSegment = firstItinerary.segments[firstItinerary.segments.length - 1];
-
-        const originData = getAirportData(firstSegment.departure.iataCode);
-        const destData = getAirportData(lastSegment.arrival.iataCode);
-        const cabinClass = getCabinClass(firstSegment.id);
-
         const adults = searchParams.get('adults') || '1';
         const children = searchParams.get('children') || '0';
         const infants = searchParams.get('infants') || '0';
+        const tripTypeParam = searchParams.get('type') || 'oneway';
 
-        const message = ` *Booking Inquiry*
-        
+    
+        let tripTypeLabel = 'One Way';
+        if (tripTypeParam === 'round') tripTypeLabel = 'Round Trip';
+        else if (tripTypeParam === 'multi') tripTypeLabel = 'Multi City';
+
+        // Get Cabin Class from first segment
+        const firstSegId = flight.itineraries[0].segments[0].id;
+        const cabinClass = getCabinClass(firstSegId);
+
+        // Generate Journey Details dynamically
+        let itineraryDetails = '';
+
+        flight.itineraries.forEach((itinerary: any, index: number) => {
+            const segments = itinerary.segments;
+            const firstSeg = segments[0];
+            const lastSeg = segments[segments.length - 1];
+
+            const origin = getAirportData(firstSeg.departure.iataCode);
+            const dest = getAirportData(lastSeg.arrival.iataCode);
+            const date = new Date(firstSeg.departure.at).toDateString();
+
+            // Determine Label (Outbound/Return/Flight X)
+            let label = `Flight ${index + 1}`;
+            if (tripTypeParam === 'round') {
+                label = index === 0 ? 'Outbound' : 'Return';
+            } else if (tripTypeParam === 'oneway') {
+                label = 'Journey';
+            } else {
+                label = `Flight ${index + 1}`;
+            }
+
+            itineraryDetails += `
+*${label}:* ${origin.city} (${firstSeg.departure.iataCode}) ➝ ${dest.city} (${lastSeg.arrival.iataCode})
+*Date:* ${date}
+`;
+        });
+
+
+        const message = `*Flight Booking Inquiry*
+
+*Trip Type:* ${tripTypeLabel}
 *Airline:* ${mainAirlineName}
 *Class:* ${cabinClass}
-*Travelers:* ${adults} Adult(s), ${children} Child(ren), ${infants} Infant(s)
-*Price:* ${price}
+*Travelers:* ${adults} Adult, ${children} Child, ${infants} Infant
+*Total Price:* ${price}
 
-*Journey:*
-${originData.city} (${firstSegment.departure.iataCode}) ➝ ${destData.city} (${lastSegment.arrival.iataCode})
-*Date:* ${new Date(firstSegment.departure.at).toDateString()}
+*-----------------------------*
+*ITINERARY DETAILS:*
+${itineraryDetails}
+*-----------------------------*
 
-Please assist with this booking.`;
+I would like to proceed with this booking. Please assist.`;
 
         const whatsappURL = `https://wa.me/${websiteDetails.whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappURL, '_blank');
@@ -128,6 +161,14 @@ Please assist with this booking.`;
                                         <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded w-fit mt-1">
                                             {airlineCode}-{firstSeg.number}
                                         </span>
+                                        {/* Trip Label Badge */}
+                                        {flight.itineraries.length > 1 && (
+                                          <i>
+                                              <small className="text-[8px] font-bold text-gray-600 mt-1 uppercase tracking-wider">
+                                                {idx === 0 ? 'Outbound' : idx === 1 && flight.itineraries.length === 2 ? 'Return' : `Flight ${idx + 1}`}
+                                            </small>
+                                          </i>
+                                        )}
                                     </div>
                                 </div>
 
