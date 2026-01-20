@@ -16,16 +16,13 @@ const FlightSearchCompactNew = ({ initialValues }: { initialValues?: any }) => {
     const [activeTab, setActiveTab] = useState<'oneway' | 'round' | 'multi'>(getInitialTab());
 
     const tabs = [
-        
-        { id: 'round', label: 'Round Trip', icon: <FaExchangeAlt /> },
         { id: 'oneway', label: 'One Way', icon: <FaPlane className="rotate-45" /> },
+        { id: 'round', label: 'Round Trip', icon: <FaExchangeAlt /> },
         { id: 'multi', label: 'Multi City', icon: <FaLayerGroup /> },
     ];
 
     return (
-
-        <div className="w-full relative z-0"> 
-            
+        <div className="w-full relative z-0">
             {/* Tab Navigation */}
             <div className="flex justify-center mb-6">
                 <div className="bg-gray-100/80 backdrop-blur-md p-1.5 rounded-2xl inline-flex gap-2 border border-gray-200/50 shadow-inner">

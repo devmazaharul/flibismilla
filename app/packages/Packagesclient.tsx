@@ -89,23 +89,25 @@ const Packagesclient = () => {
                 {/* Content */}
                 <div className="relative z-10 max-w-3xl w-full space-y-6">
                     <h1 className={`${typography.h1} text-white`}>Explore Our Packages</h1>
-                    <p className="text-gray-200 text-lg">
+                    <p className="text-gray-200 text-sm md:text-lg">
                         Find the perfect spiritual journey or holiday getaway tailored just for you.
                     </p>
 
-                    {/* Search Bar */}
-                    <div className="bg-white p-2 rounded-full shadow-xl flex items-center max-w-lg mx-auto">
-                        <div className="pl-4 text-gray-400">
-                            <FaSearch />
+                    {/* 🟢 Search Bar (Responsive Update) */}
+                    <div className="bg-white p-1.5 md:p-2 rounded-full shadow-xl flex items-center w-full max-w-lg mx-auto transition-all">
+                        <div className="pl-3 md:pl-4 text-gray-400 shrink-0">
+                            <FaSearch className="text-sm md:text-base" />
                         </div>
+                        
                         <input
                             type="text"
-                            placeholder="Search by destination or package name..."
-                            className="flex-1 px-4 py-3 outline-none text-gray-700 font-medium bg-transparent"
+                            placeholder="Search by destination..."
+                            className="flex-1 w-full min-w-0 px-2 md:px-4 py-2 md:py-3 outline-none text-gray-700 font-medium bg-transparent text-sm md:text-base placeholder:text-xs md:placeholder:text-base truncate"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                        <Button className={`${button.primary} rounded-full px-6 h-12`}>
+                        
+                        <Button className={`${button.primary} rounded-full px-4 md:px-6 h-10 md:h-12 text-sm md:text-base shrink-0`}>
                             Search
                         </Button>
                     </div>
@@ -116,7 +118,7 @@ const Packagesclient = () => {
             <div className="sticky top-0 z-30 bg-white border-b border-gray-200/70 shadow-2xl shadow-gray-100">
                 <div className={layout.container}>
                     <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-hide">
-                        <span className="text-sm font-bold text-gray-400 mr-2 flex items-center gap-1">
+                        <span className="text-sm font-bold text-gray-400 mr-2 flex items-center gap-1 shrink-0">
                             <FaFilter /> Filter:
                         </span>
                         {categories.map((cat) => (
@@ -140,10 +142,10 @@ const Packagesclient = () => {
             <div className={`${layout.container} mt-10`}>
                 {/* Result Count */}
                 <div className="mb-6 flex justify-between items-end">
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">
                         {activeCategory === 'all' ? 'All Packages' : `${displayCategory} Packages`}
                     </h2>
-                    <p className="text-gray-500 font-medium">
+                    <p className="text-gray-500 font-medium text-sm md:text-base">
                         Showing {filteredPackages.length} results
                     </p>
                 </div>
