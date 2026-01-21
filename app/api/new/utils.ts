@@ -1,12 +1,17 @@
+import {  TICKET_PRICE_COMMISION_AMOUNT_PERCENT } from "@/constant/flight";
+
 export const MAX_RESULT_LIMIT=100
 
-export const calculateMarkup = (amountStr: string | null | undefined, currency: string) => {
+export const calculateMarkup = (
+  amountStr: string | null | undefined,
+  currency: string,
+) => {
   const basePrice = parseFloat(amountStr || '0');
-  
-  // --- 3. MARKUP LOGIC ---
-  const COMMISSION_PERCENTAGE = 0.00; // 0% Commission for now
 
-  const markupAmount = basePrice * COMMISSION_PERCENTAGE;
+  // convert percent to decimal (5% -> 0.05)
+  const commissionRate = TICKET_PRICE_COMMISION_AMOUNT_PERCENT / 100;
+
+  const markupAmount = basePrice * commissionRate;
   const finalPrice = Math.ceil(basePrice + markupAmount);
 
   return {
@@ -16,6 +21,7 @@ export const calculateMarkup = (amountStr: string | null | undefined, currency: 
     finalPrice,
   };
 };
+
 
 // --- 4. HELPER: Time Duration Parser ---
 export const formatDuration = (isoDuration: string | null | undefined) => {

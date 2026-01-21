@@ -7,7 +7,7 @@ import PassengerSelector from './PassengerSelector';
 import { z } from 'zod';
 import { AirportInput } from './AirportInput';
 
-// 🟢 Schema Definition
+// Schema Definition
 const flightLegSchema = z.object({
     origin: z.string().min(1, "Origin is required"),
     destination: z.string().min(1, "Destination is required"),
@@ -51,7 +51,7 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
     const [passengers, setPassengers] = useState({ adults: 1, children: 0, infants: 0 });
     const [cabinClass, setCabinClass] = useState('economy');
 
-    // 🟢 Populate from URL
+    // Populate from URL
     useEffect(() => {
         const flightsParam = searchParams.get('flights');
         if (flightsParam) {
@@ -68,14 +68,12 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
         const newFlights = [...flights];
         newFlights[index] = { ...newFlights[index], [field]: value };
         
-        // Auto-fill next origin if destination changes
         if (field === 'destination' && index < flights.length - 1) {
             newFlights[index + 1].origin = value;
         }
         
         setFlights(newFlights);
         
-        // Clear specific error
         setErrors(prev => {
             const newErrors = { ...prev };
             delete newErrors[`flights.${index}.${field}`];
@@ -86,7 +84,6 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
     const addFlight = () => {
         if (flights.length < 5) {
             const lastDest = flights[flights.length - 1].destination;
-            // Default date to the last flight's date or today
             const lastDate = flights[flights.length - 1].date || today;
             setFlights([...flights, { origin: lastDest, destination: '', date: lastDate }]);
         }
@@ -117,14 +114,10 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
 
         const params = new URLSearchParams();
         params.set('type', 'multi_city');
-        // Serialize flights array for URL
         params.set('flights', JSON.stringify(flights));
-        
-        // 🟢 FIX: Send detailed passenger counts
         params.set('adt', passengers.adults.toString());
         params.set('chd', passengers.children.toString());
         params.set('inf', passengers.infants.toString());
-        
         params.set('class', cabinClass);
         
         if(onSearch) onSearch(params);
@@ -135,7 +128,12 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
             <div className="flex flex-col gap-6">
                 
                 {flights.map((flight, index) => (
-                    <div key={index} className="flex flex-col xl:flex-row gap-4 items-center animate-in slide-in-from-top-2 p-2 rounded-2xl hover:bg-slate-50/50 transition-colors">
+                    <div 
+                        key={index} 
+                        className="flex flex-col xl:flex-row gap-4 items-center animate-in slide-in-from-top-2 p-2 rounded-2xl hover:bg-slate-50/50 transition-colors relative"
+                        // 🟢 FIX 1: Dynamic Z-Index ensures top rows float OVER bottom rows
+                        style={{ zIndex: 50 - index }} 
+                    >
                         
                         {/* Index Badge */}
                         <div className="hidden xl:flex w-8 h-8 shrink-0 bg-slate-900 text-white rounded-full items-center justify-center text-xs font-bold shadow-md">
@@ -144,7 +142,8 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
 
                         {/* Location Inputs */}
                         <div className="flex flex-col md:flex-row w-full flex-1 items-center gap-3 relative">
-                            <div className="w-full relative z-20">
+                            {/* From Input */}
+                            <div className="w-full relative z-30">
                                 <AirportInput 
                                     label="From" 
                                     codeValue={flight.origin} 
@@ -154,7 +153,9 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
                                     hasError={!!errors[`flights.${index}.origin`]}
                                 />
                             </div>
-                            <div className="w-full relative z-10">
+                            
+                            {/* To Input */}
+                            <div className="w-full relative z-20">
                                 <AirportInput 
                                     label="To" 
                                     codeValue={flight.destination} 
@@ -167,7 +168,7 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
                         </div>
 
                         {/* Date Input */}
-                        <div className={`w-full xl:w-[220px] group relative h-[56px] bg-white border rounded-xl px-4 flex flex-col justify-center transition-all ${errors[`flights.${index}.date`] ? 'border-red-500 ring-1 ring-red-500/20 bg-red-50' : 'border-slate-300 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'}`}>
+                        <div className={`w-full xl:w-[220px] group relative z-10 h-[56px] bg-white border rounded-xl px-4 flex flex-col justify-center transition-all ${errors[`flights.${index}.date`] ? 'border-red-500 ring-1 ring-red-500/20 bg-red-50' : 'border-slate-300 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'}`}>
                             <div className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${errors[`flights.${index}.date`] ? 'bg-red-100 text-red-500' : 'group-focus-within:bg-rose-50 group-focus-within:text-rose-600'}`}>
                                 <Calendar className="w-4 h-4 text-rose-500" />
                             </div>
@@ -175,7 +176,6 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
                                 <label className={`text-[10px] font-bold uppercase tracking-widest block leading-tight ${errors[`flights.${index}.date`] ? 'text-red-400' : 'text-slate-400'}`}>Date</label>
                                 <input 
                                     type="date" 
-                                    // 🟢 Min date logic: Should be at least today, or previous flight's date if available
                                     min={index > 0 ? (flights[index - 1].date || today) : today}
                                     value={flight.date} 
                                     onChange={(e) => handleFlightChange(index, 'date', e.target.value)} 
@@ -186,26 +186,27 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
 
                         {/* Remove Button */}
                         {index > 1 && (
-                            <button type="button" onClick={() => removeFlight(index)} className="w-full xl:w-auto h-[56px] xl:h-14 xl:w-14 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all flex items-center justify-center shrink-0 shadow-sm cursor-pointer">
-                                <Trash2 className="w-5 h-5" />
+                            <button type="button" onClick={() => removeFlight(index)} className="w-full xl:w-auto h-[56px] xl:h-14 xl:w-14 rounded-xl text-red-500 transition-all flex items-center justify-center shrink-0 cursor-pointer hover:bg-red-50">
+                                <Trash2 className="w-5 h-5 hover:text-red-600" />
                             </button>
                         )}
                     </div>
                 ))}
 
                 {/* Controls Row */}
-                <div className="flex flex-col md:flex-row gap-4 mt-2 pt-4 border-t border-slate-100">
+                <div className="flex flex-col md:flex-row gap-4 mt-2 pt-4 border-t border-slate-100 relative z-10">
                     <button type="button" onClick={addFlight} className="w-full md:flex-1 h-[56px] border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold flex items-center cursor-pointer justify-center gap-2 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-all">
                         <Plus className="w-4 h-4" /> Add Flight
                     </button>
                     
-                    <div className="w-full md:w-[280px] relative z-10">
+                    {/* 🟢 FIX 2: Increased Z-Index for Passenger Selector Wrapper */}
+                    <div className="w-full md:w-[280px] relative z-50">
                         <div className="h-[56px] hover:border-rose-400 transition-all">
                             <PassengerSelector onChange={(data: any) => { setPassengers(data.passengers); setCabinClass(data.cabinClass); }} />
                         </div>
                     </div>
 
-                    <button type="submit" className="w-full md:flex-1 h-[56px] bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 shadow-lg shadow-rose-200">
+                    <button type="submit" className="w-full md:flex-1 h-[56px] bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 shadow-lg shadow-rose-200 relative z-10">
                         <Search className="w-5 h-5" /> Search Flights
                     </button>
                 </div>
@@ -213,7 +214,7 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
 
             {/* Error Message */}
             {Object.keys(errors).length > 0 && (
-                <div className="absolute -bottom-12 left-0 right-0 mx-auto w-fit bg-red-50 border border-red-100 text-red-600 px-6 py-3 rounded-full text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-2 shadow-lg">
+                <div className="absolute -bottom-12 left-0 right-0 mx-auto w-fit bg-red-50 border border-red-100 text-red-600 px-6 py-3 rounded-full text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-2 shadow-lg z-50">
                     <AlertCircle className="w-4 h-4" />
                     Please fix the highlighted errors before searching.
                 </div>

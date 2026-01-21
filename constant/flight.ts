@@ -4,6 +4,7 @@ interface CommistionType{
     type: "percentage" | "fixed";
     amount: number;
 }
+export const TICKET_PRICE_COMMISION_AMOUNT_PERCENT=0; // 0% commission on ticket price
 export const TICKET_PRICE_COMMISION:CommistionType = {
     type: "percentage",
     amount: 0,

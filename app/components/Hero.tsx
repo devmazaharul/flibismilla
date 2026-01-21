@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { appTheme } from '@/constant/theme/global';
 import FlightSearchCompactNew from '../flight/search/compo/FlightSearchCompactNew';
 import { FaCheckCircle, FaStar } from 'react-icons/fa';
+import FlightSearchForm from '../new/utils/FlightSearchForm';
 
 const sliderImages = [
     '/asset/others/hajj_umrah.avif',
@@ -87,7 +88,7 @@ const Hero = () => {
                     <div className="absolute -inset-1 bg-gradient-to-r from-rose-500 via-orange-500 to-rose-500 rounded-[2.5rem] blur-xl opacity-30 transition duration-1000"></div>
 
                     <div className="relative transform transition-transform hover:-translate-y-1 duration-500 text-left text-gray-900">
-                        <FlightSearchCompactNew />
+                        <FlightSearchForm />
                     </div>
                 </div>
 

@@ -73,7 +73,7 @@ export const AirportInput = ({ label, codeValue, onSelect, placeholder, icon, di
             </div>
             
             <div 
-                className={`flex flex-col justify-center h-[56px] w-full bg-white border  rounded-xl px-11 transition-all duration-300 cursor-text 
+                className={`flex flex-col justify-center h-[56px] w-full bg-white border  rounded-xl px-10 transition-all duration-300 cursor-text 
                 ${hasError 
                     ? 'border-red-500 ring-1 ring-red-500/20' 
                     : 'border-slate-200 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'

@@ -60,7 +60,7 @@ const Blog = () => {
 
                 {/* Title */}
                 <h3 className={`${typography.h3} text-xl mb-3 line-clamp-2 group-hover:text-rose-600 transition-colors`}>
-                  <Link href={`/blog/${blog.id}`}>
+                  <Link href={`#`}>
                     {blog.title}
                   </Link>
                 </h3>
@@ -73,7 +73,7 @@ const Blog = () => {
                 {/* Read More Link */}
                 <div className="pt-4 border-t border-gray-100">
                   <Link 
-                    href={`/blog/${blog.id}`} 
+                    href={`#`} 
                     className="inline-flex items-center gap-2 font-bold text-gray-800 hover:text-rose-600 transition-colors group/link"
                   >
                     Read More 

@@ -8,7 +8,6 @@ import { airportSuggestions } from '@/constant/flight';
 import { z } from 'zod';
 import { AirportInput } from './AirportInput';
 
-const AIRPORTS = airportSuggestions;
 
 const oneWaySchema = z
     .object({
@@ -61,8 +60,8 @@ export default function OneWayForm({ onSearch }: { onSearch: (params: URLSearchP
         } else {
             setFormData((prev) => ({
                 ...prev,
-                origin: 'DAC',
-                destination: 'DXB',
+                origin: '',
+                destination: '',
                 date: prev.date || today,
             }));
         }
@@ -181,7 +180,7 @@ export default function OneWayForm({ onSearch }: { onSearch: (params: URLSearchP
                     </div>
                 </div>
 
-                <div className="w-full xl:w-[20%] relative z-10">
+                <div className="w-full xl:w-[20%] relative ">
                     <div className="h-[56px]  hover:border-rose-400 transition-all">
                         <PassengerSelector onChange={handlePaxChange} />
                     </div>

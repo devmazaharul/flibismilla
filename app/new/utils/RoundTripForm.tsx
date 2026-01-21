@@ -212,7 +212,7 @@ export default function RoundTripForm({ onSearch }: { onSearch: (params: URLSear
                 </div>
 
                 {/* Travelers */}
-                <div className="w-full xl:w-[20%] relative z-10">
+                <div className="w-full xl:w-[20%] relative ">
                     <div className="h-[56px] hover:border-rose-400 transition-all">
                         <PassengerSelector onChange={handlePaxChange} />
                     </div>
