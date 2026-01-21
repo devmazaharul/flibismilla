@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FaExclamationTriangle, FaRedoAlt } from "react-icons/fa";
 import { appTheme } from "@/constant/theme/global";
 
 export default function Error({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -15,9 +13,7 @@ export default function Error({
 }) {
   const { colors, typography } = appTheme;
 
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+ 
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 bg-gray-50">

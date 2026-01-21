@@ -35,7 +35,6 @@ const ResetPasswordContent = () => {
         setPageState("valid");
         
       } catch (error) {
-        console.error("Token verification failed", error);
         setPageState("invalid");
       }
     };
@@ -57,8 +56,7 @@ const ResetPasswordContent = () => {
   const onSubmit = async (data: NewPasswordValues) => {
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("New Password Set:", data, "Token:", token);
-    
+
     setLoading(false);
     setPageState("success");
     

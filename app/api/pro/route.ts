@@ -100,8 +100,7 @@ export async function GET(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("Flight Search Error:", error);
-        
+    
         // Handle Amadeus Errors gracefully
         let errorMessage = "Failed to fetch flights";
         if (error.response) {

@@ -20,7 +20,7 @@ const page = () => {
   const onSubmit = async (data: RegisterFormValues) => {
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Register Data:", data);
+
     setLoading(false);
     alert("Account Created Successfully!");
   };

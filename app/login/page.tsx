@@ -22,7 +22,6 @@ const LoginPage = () => {
     setLoading(true);
     // Simulate API Call
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Login Data:", data);
     setLoading(false);
     alert("Login Successful!");
   };

@@ -26,7 +26,6 @@ const ForgotPasswordPage = () => {
     setLoading(true);
     // Simulate API Call
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Reset Request for:", data.email);
     setLoading(false);
     setIsSent(true); // Show success state
   };
