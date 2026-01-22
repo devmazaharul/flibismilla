@@ -33,8 +33,8 @@ export const headerData = {
             href: '#',
             hasDropdown: true,
             subMenu: [
-                 { label: 'Flight Search New ', href: '/new' },
-                { label: 'Flight Search ', href: '/flight/search' },
+                 { label: 'Flight Search ', href: '/new' },
+               // { label: 'Flight Search ', href: '/flight/search' },
 
                 { label: 'Domestic Flight Booking', href: '/flight/domestic' },
                 { label: 'International Flight Booking', href: '/flight/international' },
