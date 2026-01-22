@@ -89,7 +89,7 @@ export const searchSchema = z.object({
 
 export type SearchInputs = z.infer<typeof searchSchema>;
 
-// 🟢 3. Round Trip Flight Search Schema
+
 // We extend searchSchema to inherit from, to, date, adults, children, etc.
 export const roundTripSchema = searchSchema
     .extend({
@@ -102,7 +102,7 @@ export const roundTripSchema = searchSchema
 
 export type RoundTripInputs = z.infer<typeof roundTripSchema>;
 
-// 🟢 4. Multi City Flight Search Schema
+//  4. Multi City Flight Search Schema
 export const multiCitySchema = z.object({
     legs: z
         .array(

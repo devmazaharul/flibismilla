@@ -10,7 +10,6 @@ const duffel = new Duffel({
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-
     // 1. Validation
     const validation = searchSchema.safeParse(body);
     if (!validation.success) {
@@ -151,8 +150,6 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("❌ Duffel API Error:", error);
-    
     // Better Error Message for Frontend
     const message = error.errors?.[0]?.message || error.message || "Failed to fetch flights. Please try again.";
     

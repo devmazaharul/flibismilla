@@ -1,6 +1,6 @@
 import {  TICKET_PRICE_COMMISION_AMOUNT_PERCENT } from "@/constant/flight";
 
-export const MAX_RESULT_LIMIT=100
+export const MAX_RESULT_LIMIT=500
 
 export const calculateMarkup = (
   amountStr: string | null | undefined,

@@ -2,21 +2,19 @@
 
 import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Plane, AlertCircle, Check, Filter, X, SlidersHorizontal } from 'lucide-react';
-
-import { FlightResultCard } from './utils/FlightResultCard';
-
+import { Plane, AlertCircle, Check, Filter, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import FlightSearchForm from './utils/FlightSearchForm';
 import { FlightSearchSkleton } from './utils/FlightSearchSkeleton';
+import { FlightResultCard } from './utils/FlightResultCard';
 
 // --- Interfaces ---
 interface FlightOffer {
     id: string;
     token: string;
     carrier: { name: string; logo: string | null; code: string };
-    itinerary: any[];
+    itinerary: any[]; 
     price: { currency: string; basePrice: number; markup: number; finalPrice: number };
-    conditions: { refundable: boolean; changeable: boolean; baggage: string };
+    conditions: { refundable: boolean; baggage: string };
 }
 
 // --- MAIN PAGE LOGIC ---
@@ -30,11 +28,11 @@ function SearchPageContent() {
     const [error, setError] = useState('');
     const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-    // Sort & Filter States
-    const [sortBy, setSortBy] = useState<'price' | 'duration' | 'best'>('best');
-    const [priceRange, setPriceRange] = useState<number[]>([0, 10000]);
+    // Sort State
+    const [sortBy, setSortBy] = useState<'best' | 'price_asc' | 'price_desc' | 'duration'>('best');
+    
     const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
-    const [maxPriceLimit, setMaxPriceLimit] = useState(10000);
+    const [selectedStops, setSelectedStops] = useState<string[]>([]);
 
     useEffect(() => {
         const fetchFlights = async () => {
@@ -79,10 +77,7 @@ function SearchPageContent() {
 
                 if (!data.success) throw new Error(data.error || 'No flights found');
                 setRawResults(data.data);
-
-                const maxPrice = Math.max(...data.data.map((f: any) => f.price.finalPrice));
-                setMaxPriceLimit(maxPrice);
-                setPriceRange([0, maxPrice]);
+                
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -92,74 +87,116 @@ function SearchPageContent() {
         fetchFlights();
     }, [searchParams]);
 
-    // 🟢 Filter & Sort Logic
+    // Filter & Sort Logic
     const filteredResults = useMemo(() => {
         let res = [...rawResults];
 
-        // Filter by Price
-        res = res.filter((f) => f.price.finalPrice <= priceRange[1]);
+        // 1. Filter by Stops 
+        if (selectedStops.length > 0) {
+            res = res.filter((f) => {
+                const stops = f.itinerary[0].stops; 
+                if (selectedStops.includes('direct') && stops === 0) return true;
+                if (selectedStops.includes('1_stop') && stops === 1) return true;
+                if (selectedStops.includes('2_stop') && stops === 2) return true;
+                if (selectedStops.includes('2plus_stop') && stops > 2) return true;
+                return false;
+            });
+        }
 
-        // Filter by Airlines
+        // 2. Filter by Airlines
         if (selectedAirlines.length > 0)
             res = res.filter((f) => selectedAirlines.includes(f.carrier.name));
 
-        // Sorting
-        if (sortBy === 'price') res.sort((a, b) => a.price.finalPrice - b.price.finalPrice);
-        else if (sortBy === 'duration')
-            res.sort((a, b) =>
-                a.itinerary[0].totalDuration.localeCompare(b.itinerary[0].totalDuration),
-            );
+        // 3. Sorting Logic
+        if (sortBy === 'price_asc') {
+            res.sort((a, b) => a.price.finalPrice - b.price.finalPrice);
+        } else if (sortBy === 'price_desc') {
+            res.sort((a, b) => b.price.finalPrice - a.price.finalPrice);
+        } else if (sortBy === 'duration') {
+            res.sort((a, b) => a.itinerary[0].totalDuration.localeCompare(b.itinerary[0].totalDuration));
+        }
 
         return res;
-    }, [rawResults, priceRange, selectedAirlines, sortBy]);
+    }, [rawResults, selectedAirlines, selectedStops, sortBy]);
 
-    // 🟢 Airline Counts Logic
-    const airlineCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
+    // Counts Logic
+    const { airlineCounts, stopCounts } = useMemo(() => {
+        const aCounts: Record<string, number> = {};
+        const sCounts: Record<string, number> = { direct: 0, '1_stop': 0, '2_stop': 0, '2plus_stop': 0 };
+
         rawResults.forEach((f) => {
             const name = f.carrier.name;
-            counts[name] = (counts[name] || 0) + 1;
+            aCounts[name] = (aCounts[name] || 0) + 1;
+
+            const stops = f.itinerary[0].stops;
+            if (stops === 0) sCounts['direct']++;
+            else if (stops === 1) sCounts['1_stop']++;
+            else if (stops === 2) sCounts['2_stop']++;
+            else sCounts['2plus_stop']++;
         });
-        return counts;
+        return { airlineCounts: aCounts, stopCounts: sCounts };
     }, [rawResults]);
 
     const uniqueAirlines = useMemo(() => Object.keys(airlineCounts), [airlineCounts]);
 
+    // Toggle Handlers
     const toggleAirline = (airline: string) => {
         setSelectedAirlines((prev) =>
             prev.includes(airline) ? prev.filter((a) => a !== airline) : [...prev, airline],
         );
     };
 
-    // 🟢 Custom Slider Styling Logic
-    const sliderPercentage = maxPriceLimit > 0 ? (priceRange[1] / maxPriceLimit) * 100 : 0;
+    const toggleStop = (stopType: string) => {
+        setSelectedStops((prev) =>
+            prev.includes(stopType) ? prev.filter((s) => s !== stopType) : [...prev, stopType],
+        );
+    };
 
+    // Filter Content Component
     const FilterContent = () => (
-        <>
-            {/* Price Filter */}
-            <div className="mb-8">
-                <div className="flex justify-between items-center mb-3">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        Max Price
-                    </label>
-                    <span className="text-sm font-bold text-slate-700">
-                        {priceRange[1].toLocaleString()} USD
-                    </span>
+        <div className="space-y-8">
+            
+            {/* Stops Filter (Side by Side) */}
+            <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">
+                    Stops
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                    {[
+                        { id: 'direct', label: 'Direct' },
+                        { id: '1_stop', label: '1 Stop' },
+                        { id: '2_stop', label: '2 Stops' },
+                        { id: '2plus_stop', label: '2+ Stops' },
+                    ].map((stop) => (
+                        <label
+                            key={stop.id}
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 text-center relative
+                                ${selectedStops.includes(stop.id) 
+                                    ? 'border-rose-600 bg-rose-50 text-rose-700' 
+                                    : 'border-slate-100 bg-white hover:border-slate-300 text-slate-600'
+                                }`}
+                        >
+                            <span className="text-sm font-bold">{stop.label}</span>
+                            <span className="text-[10px] font-medium opacity-60 mt-1">
+                                {stopCounts[stop.id as keyof typeof stopCounts]} flights
+                            </span>
+                            <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={selectedStops.includes(stop.id)}
+                                onChange={() => toggleStop(stop.id)}
+                            />
+                            {selectedStops.includes(stop.id) && (
+                                <div className="absolute top-1 right-1">
+                                    <Check className="w-3 h-3 text-rose-600" />
+                                </div>
+                            )}
+                        </label>
+                    ))}
                 </div>
-
-                <input
-                    type="range"
-                    min={0}
-                    max={maxPriceLimit}
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
-                    className="range-slider "
-                    style={{
-                        background: `linear-gradient(to right, #e11d48 ${sliderPercentage}%, #e2e8f0 ${sliderPercentage}%)`,
-                    }}
-                />
             </div>
 
+            {/* Airlines Filter */}
             <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">
                     Airlines
@@ -195,7 +232,7 @@ function SearchPageContent() {
                     ))}
                 </div>
             </div>
-        </>
+        </div>
     );
 
     return (
@@ -231,13 +268,25 @@ function SearchPageContent() {
                 </div>
             )}
 
-            {/* Hero */}
-            <div className="bg-slate-900 pb-32 pt-10 px-4 relative">
+            {/* 🟢 Hero Section with Image & Overlay */}
+            <div className="relative pb-32 pt-10 px-4">
+                {/* Background Image Layer */}
+                <div className="absolute inset-0 z-0 overflow-hidden">
+                    <img 
+                        src="/e0b.jpg" 
+                        alt="Flight Background" 
+                        className="w-full h-full object-cover"
+                    />
+                    {/* Dark Overlay (Opacity Control) */}
+                    <div className="absolute inset-0 bg-slate-900/80"></div>
+                </div>
+
+                {/* Content Layer */}
                 <div className="max-w-7xl mx-auto relative z-10 text-center">
                     <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-2">
                         Find Your Flight
                     </h1>
-                    <p className="text-slate-400 text-sm md:text-base">
+                    <p className="text-slate-300 text-sm md:text-base">
                         Compare prices from hundreds of airlines.
                     </p>
                 </div>
@@ -259,9 +308,10 @@ function SearchPageContent() {
                 ) : (
                     (loading || rawResults.length > 0 || searchParams.get('type')) && (
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+                            
                             {/* Desktop Sidebar Filters */}
-                            <div className="hidden lg:block lg:col-span-1 bg-white rounded-[1.5rem] p-6 shadow-2xl shadow-gray-100 border border-gray-200/80 sticky top-4">
-                                <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+                            <div className="hidden lg:block lg:col-span-1 bg-white rounded-[1.5rem] p-6 shadow-2xl shadow-gray-100 border border-gray-200/80 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
+                                <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100 sticky top-0 bg-white z-10">
                                     <Filter className="w-5 h-5 text-rose-600" />
                                     <h3 className="font-black text-slate-800 text-lg">Filters</h3>
                                 </div>
@@ -290,48 +340,37 @@ function SearchPageContent() {
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
-                                                    <span>
-                                                        {parseInt(searchParams.get('adt') || '1')}{' '}
-                                                        Adult,
-                                                    </span>
-                                                    {parseInt(searchParams.get('chd') || '0') >
-                                                        0 && (
-                                                        <span>
-                                                            {searchParams.get('chd')} Child,
-                                                        </span>
-                                                    )}
-                                                    {parseInt(searchParams.get('inf') || '0') >
-                                                        0 && (
-                                                        <span>
-                                                            {searchParams.get('inf')} Infant
-                                                        </span>
-                                                    )}
+                                                    <span>{parseInt(searchParams.get('adt') || '1')} Adult,</span>
+                                                    {parseInt(searchParams.get('chd') || '0') > 0 && <span>{searchParams.get('chd')} Child,</span>}
+                                                    {parseInt(searchParams.get('inf') || '0') > 0 && <span>{searchParams.get('inf')} Infant</span>}
                                                     <span className="text-slate-300">•</span>
                                                     <span>Including taxes</span>
                                                 </p>
                                             </div>
 
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mt-4 md:mt-0">
                                                 <button
                                                     onClick={() => setShowMobileFilter(true)}
-                                                    className="lg:hidden p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 transition-colors"
+                                                    className="lg:hidden p-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                                                 >
                                                     <SlidersHorizontal className="w-5 h-5" />
                                                 </button>
-                                                <div className="bg-slate-100 p-1.5 rounded-xl flex items-center">
-                                                    {[
-                                                        { id: 'best', label: 'Best' },
-                                                        { id: 'price', label: 'Cheapest' },
-                                                        { id: 'duration', label: 'Fastest' },
-                                                    ].map((opt) => (
-                                                        <button
-                                                            key={opt.id}
-                                                            onClick={() => setSortBy(opt.id as any)}
-                                                            className={`px-4 md:px-6 py-2 cursor-pointer rounded-lg text-sm font-bold transition-all duration-200 ${sortBy === opt.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}`}
-                                                        >
-                                                            {opt.label}
-                                                        </button>
-                                                    ))}
+                                                
+                                                {/* Dropdown Sorting */}
+                                                <div className="relative group">
+                                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                        <ChevronDown className="w-4 h-4 text-slate-500" />
+                                                    </div>
+                                                    <select
+                                                        value={sortBy}
+                                                        onChange={(e) => setSortBy(e.target.value as any)}
+                                                        className="appearance-none bg-white border border-slate-200 text-slate-700 py-3 pl-4 pr-10 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent shadow-2xl shadow-gray-100 cursor-pointer hover:border-slate-300 transition-all min-w-[180px]"
+                                                    >
+                                                        <option value="best">Best Match</option>
+                                                        <option value="price_asc">Cheapest (Low to High)</option>
+                                                        <option value="price_desc">Price (High to Low)</option>
+                                                        <option value="duration">Fastest</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>

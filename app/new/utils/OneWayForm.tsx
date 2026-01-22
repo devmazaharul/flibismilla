@@ -60,8 +60,8 @@ export default function OneWayForm({ onSearch }: { onSearch: (params: URLSearchP
         } else {
             setFormData((prev) => ({
                 ...prev,
-                origin: '',
-                destination: '',
+                origin: 'DAC',
+                destination: 'DXB',
                 date: prev.date || today,
             }));
         }

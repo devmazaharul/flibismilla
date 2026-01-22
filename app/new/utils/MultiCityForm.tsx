@@ -186,8 +186,8 @@ export default function MultiCityForm({ onSearch }: { onSearch: (params: URLSear
 
                         {/* Remove Button */}
                         {index > 1 && (
-                            <button type="button" onClick={() => removeFlight(index)} className="w-full xl:w-auto h-[56px] xl:h-14 xl:w-14 rounded-xl text-red-500 transition-all flex items-center justify-center shrink-0 cursor-pointer hover:bg-red-50">
-                                <Trash2 className="w-5 h-5 hover:text-red-600" />
+                            <button type="button" onClick={() => removeFlight(index)} className="w-full xl:w-auto h-[56px] xl:h-14 xl:w-14 rounded-xl  transition-all flex items-center justify-center shrink-0 cursor-pointer ">
+                                <Trash2 className="w-5 h-5 text-red-400 hover:text-red-600" />
                             </button>
                         )}
                     </div>
