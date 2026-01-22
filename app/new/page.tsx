@@ -14,7 +14,9 @@ interface FlightOffer {
     carrier: { name: string; logo: string | null; code: string };
     itinerary: any[]; 
     price: { currency: string; basePrice: number; markup: number; finalPrice: number };
-    conditions: { refundable: boolean; baggage: string };
+    conditions: { refundable: boolean; changeable: boolean; baggage: string };
+    baggage: string;
+    cabinClass: string;
 }
 
 // --- MAIN PAGE LOGIC ---
@@ -77,7 +79,7 @@ function SearchPageContent() {
 
                 if (!data.success) throw new Error(data.error || 'No flights found');
                 setRawResults(data.data);
-                
+                console.log(data.data)
             } catch (err: any) {
                 setError(err.message);
             } finally {

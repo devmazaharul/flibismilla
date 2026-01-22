@@ -2,27 +2,26 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Plane, ArrowRight, Clock, ChevronDown, Info } from 'lucide-react';
+import { Plane, ArrowRight, Clock, ChevronDown, Info, Briefcase, Armchair } from 'lucide-react'; // Added icons
 import { format, parseISO } from 'date-fns';
 import { websiteDetails } from '@/constant/data';
 import BookingModal from './BookingModal';
 
-// --- Interfaces ---
 interface FlightOffer {
     id: string;
     token: string;
     carrier: { name: string; logo: string | null; code: string };
     itinerary: any[];
     price: { currency: string; basePrice: number; markup: number; finalPrice: number };
-    conditions: { refundable: boolean; baggage: string };
+    baggage: string;
+    cabinClass: string;
+    conditions: { refundable: boolean; changeable: boolean };
 }
 
-// --- Helpers ---
 const formatDuration = (iso: string) => iso?.replace('PT', '').replace('H', 'h ').replace('M', 'm').toLowerCase() || '';
 const formatTime = (iso: string) => format(parseISO(iso), 'HH:mm');
 const formatDate = (iso: string) => format(parseISO(iso), 'dd MMM, yyyy');
 
-// --- Smart Path Component ---
 const SmartFlightPath = ({ duration, stops }: { duration: string; stops: number }) => (
     <div className="flex flex-col items-center justify-center w-full px-2 min-w-[80px] md:min-w-[120px]">
         <div className="flex justify-between w-full mb-1.5">
@@ -51,43 +50,39 @@ const SmartFlightPath = ({ duration, stops }: { duration: string; stops: number 
     </div>
 );
 
-// 🟢 Main Card Component
 export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false); // 🟢 Modal State inside card
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const searchParams = useSearchParams();
 
-// 🟢 WhatsApp Handler inside Card (Clean Text)
     const handleBookingProcess = (userData: { name: string; phone: string; gender: string; dob: string; passport: string }) => {
         
-        // 1. Get Search Params
         const tripType = searchParams.get('type') || 'One Way';
-        const cabinClass = searchParams.get('class') || 'Economy';
         const adults = searchParams.get('adt') || '1';
         const children = searchParams.get('chd') || '0';
         const infants = searchParams.get('inf') || '0';
 
-        // 2. Build Itinerary Text
         let itineraryText = '';
         flight.itinerary.forEach((leg: any, index: number) => {
-            
             const directionTitle = tripType === 'round_trip' 
                 ? (index === 0 ? "OUTBOUND" : "INBOUND") 
-                : `FLIGHT LEG ${index + 1}`;
+                : `LEG ${index + 1}`;
+
+            const layoverTxt = leg.layoverInfo ? `(Layover: ${leg.layoverInfo})` : '';
 
             itineraryText += `
 *${directionTitle}*
-*${leg.mainDeparture.code}* ➝ *${leg.mainArrival.code}*
-Date: ${formatDate(leg.mainDeparture.time)}
-Time: ${formatTime(leg.mainDeparture.time)} - ${formatTime(leg.mainArrival.time)}
-Flight: ${leg.mainAirline} (${leg.segments[0].airlineCode}${leg.segments[0].flightNumber})
-Duration: ${leg.totalDuration}
------------------------------`;
+*Route:* ${leg.mainDeparture.code} ➝ ${leg.mainArrival.code}
+*Date:* ${formatDate(leg.mainDeparture.time)}
+*Time:* ${formatTime(leg.mainDeparture.time)} - ${formatTime(leg.mainArrival.time)}
+*Flight:* ${leg.mainAirline} (${leg.segments[0].airlineCode}${leg.segments[0].flightNumber})
+*Duration:* ${leg.totalDuration} ${layoverTxt}
+`;
         });
 
-        // 3. Construct Message (Plain Text with Bold)
+        // 🟢 WhatsApp Message with BOLD Titles
         const message = `
-*New Booking Request!*
+*NEW BOOKING REQUEST*
 
 *PASSENGER INFO*
 *Name:* ${userData.name}
@@ -96,29 +91,28 @@ Duration: ${leg.totalDuration}
 *Passport:* ${userData.passport || 'N/A'}
 *Phone:* ${userData.phone}
 
-*TRIP DETAILS*
+*FLIGHT DETAILS*
 *Type:* ${tripType.replace('_', ' ').toUpperCase()}
-*Class:* ${cabinClass.toUpperCase()}
+*Class:* ${flight.cabinClass.toUpperCase()}
+*Baggage:* ${flight.baggage}
+*Refundable:* ${flight.conditions.refundable ? 'Yes' : 'No'}
 
 ${itineraryText}
-
 *PASSENGERS*
 Adults: ${adults} | Children: ${children} | Infants: ${infants}
 
 *TOTAL PRICE:* ${flight.price.finalPrice.toLocaleString()} ${flight.price.currency}
 
-*Token ID:* ${flight.id}
-        `;
+*OFFER ID:* ${flight.id}`;
 
-        // 4. Send to WhatsApp
         const url = `https://api.whatsapp.com/send?phone=${websiteDetails.whatsappNumber}&text=${encodeURIComponent(message.trim())}`;
         window.open(url, '_blank');
         
-        setIsModalOpen(false); // Close modal after submit
+        setIsModalOpen(false);
     };
+
     return (
         <>
-            {/* Render Modal Here */}
             <BookingModal 
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)} 
@@ -160,11 +154,21 @@ Adults: ${adults} | Children: ${children} | Infants: ${infants}
                         ))}
                         
                         <div className="flex flex-wrap gap-2 mt-[-10px]">
+                            {/* Refundable Badge */}
                             {flight.conditions.refundable && (
-                                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wide border border-emerald-100">Refundable</span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wide border border-emerald-100">
+                                    Refundable
+                                </span>
                             )}
-                            <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wide border border-slate-100 flex items-center gap-1">
-                                <Info className="w-3 h-3" /> {flight.conditions.baggage || 'Check Baggage'}
+                            
+                            {/* 🟢 Baggage Display */}
+                            <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-wide border border-slate-100 flex items-center gap-1">
+                                <Briefcase className="w-3 h-3" /> {flight.baggage}
+                            </span>
+
+                            {/* 🟢 Cabin Class Display */}
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-bold uppercase tracking-wide border border-rose-100 flex items-center gap-1">
+                                <Armchair className="w-3 h-3" /> {flight.cabinClass}
                             </span>
                         </div>
                     </div>
@@ -175,13 +179,12 @@ Adults: ${adults} | Children: ${children} | Infants: ${infants}
                             <p className="hidden lg:block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Price</p>
                             <div className="flex items-baseline lg:justify-center gap-1 text-slate-900">
                                 <span className="text-2xl lg:text-3xl font-black tracking-tight">
-                                    {flight.price.currency == 'USD' ? '$' : flight.price.currency} {flight.price.finalPrice.toLocaleString()}
+                                    {flight.price.currency == 'USD' ? '$':flight.price.currency}{flight.price.finalPrice.toLocaleString()}
                                 </span>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-2 w-auto lg:w-full">
-                            {/* 🟢 Click Opens Modal */}
                             <button 
                                 onClick={() => setIsModalOpen(true)}
                                 className="px-6 py-2.5 bg-slate-900 hover:bg-rose-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200 hover:shadow-rose-200 cursor-pointer"
@@ -196,7 +199,7 @@ Adults: ${adults} | Children: ${children} | Infants: ${infants}
                     </div>
                 </div>
                 
-                {/* Expanded Details */}
+                {/* Expanded Details Section - Same as before */}
                 {isExpanded && (
                     <div className="bg-slate-50/80 border-t border-slate-200 p-5 animate-in slide-in-from-top-2">
                         {flight.itinerary.map((leg: any, i: number) => (
@@ -235,6 +238,13 @@ Adults: ${adults} | Children: ${children} | Infants: ${infants}
                                                     </div>
                                                 </div>
                                             </div>
+                                            {seg.layoverToNext && (
+                                                <div className="mt-4 mb-2 flex justify-center">
+                                                     <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-3 py-1 rounded-full border border-amber-100">
+                                                        {seg.layoverToNext} Layover
+                                                     </span>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
