@@ -366,6 +366,115 @@ export const airportSuggestions = Object.freeze([
     { code: 'OSR', city: 'Ostrava', name: 'Leoš Janáček Airport', country: 'Czech Republic' },
     { code: 'PED', city: 'Pardubice', name: 'Pardubice Airport', country: 'Czech Republic' },
     { code: 'KLV', city: 'Karlovy Vary', name: 'Karlovy Vary Airport', country: 'Czech Republic' },
+    // --- More Saudi Arabia (Labor & Umrah Routes) ---
+    { code: 'YNB', city: 'Yanbu', name: 'Prince Abdul Mohsin bin Abdulaziz', country: 'Saudi Arabia' },
+    { code: 'TIF', city: 'Taif', name: 'Taif Intl Airport', country: 'Saudi Arabia' },
+    { code: 'ELQ', city: 'Gassim', name: 'Prince Naif bin Abdulaziz', country: 'Saudi Arabia' },
+    { code: 'AHB', city: 'Abha', name: 'Abha Intl Airport', country: 'Saudi Arabia' },
+    { code: 'GIZ', city: 'Jizan', name: 'Jizan Regional Airport', country: 'Saudi Arabia' },
+    { code: 'HAS', city: 'Ha\'il', name: 'Ha\'il Regional Airport', country: 'Saudi Arabia' },
+    { code: 'TUU', city: 'Tabuk', name: 'Prince Sultan bin Abdulaziz', country: 'Saudi Arabia' },
+
+    // --- More UAE & Middle East ---
+    { code: 'RKT', city: 'Ras Al Khaimah', name: 'Ras Al Khaimah Intl Airport', country: 'UAE' },
+    { code: 'AAN', city: 'Al Ain', name: 'Al Ain Intl Airport', country: 'UAE' },
+    { code: 'DWC', city: 'Dubai', name: 'Al Maktoum Intl Airport', country: 'UAE' },
+    { code: 'SLL', city: 'Salalah', name: 'Salalah Airport', country: 'Oman' },
+    { code: 'EBL', city: 'Erbil', name: 'Erbil Intl Airport', country: 'Iraq' },
+    { code: 'NJF', city: 'Najaf', name: 'Al Najaf Intl Airport', country: 'Iraq' },
+
+    // --- More India (Popular for Medical & Tourism) ---
+    { code: 'GOI', city: 'Goa', name: 'Dabolim Airport', country: 'India' },
+    { code: 'GOX', city: 'Goa', name: 'Manohar Intl Airport (Mopa)', country: 'India' },
+    { code: 'COK', city: 'Kochi', name: 'Cochin Intl Airport', country: 'India' },
+    { code: 'CCJ', city: 'Kozhikode', name: 'Calicut Intl Airport', country: 'India' },
+    { code: 'TRV', city: 'Thiruvananthapuram', name: 'Trivandrum Intl Airport', country: 'India' },
+    { code: 'AMD', city: 'Ahmedabad', name: 'Sardar Vallabhbhai Patel Intl', country: 'India' },
+    { code: 'PNQ', city: 'Pune', name: 'Pune Airport', country: 'India' },
+    { code: 'JAI', city: 'Jaipur', name: 'Jaipur Intl Airport', country: 'India' },
+    { code: 'ATQ', city: 'Amritsar', name: 'Sri Guru Ram Dass Jee Intl', country: 'India' },
+    { code: 'IXB', city: 'Bagdogra', name: 'Bagdogra Airport', country: 'India' },
+    { code: 'GAU', city: 'Guwahati', name: 'Lokpriya Gopinath Bordoloi', country: 'India' },
+    { code: 'SXR', city: 'Srinagar', name: 'Sheikh ul-Alam Intl Airport', country: 'India' },
+
+    // --- Central Asia (Emerging Destinations) ---
+    { code: 'TAS', city: 'Tashkent', name: 'Islam Karimov Tashkent Intl', country: 'Uzbekistan' },
+    { code: 'SKD', city: 'Samarkand', name: 'Samarkand Intl Airport', country: 'Uzbekistan' },
+    { code: 'ALA', city: 'Almaty', name: 'Almaty Intl Airport', country: 'Kazakhstan' },
+    { code: 'NQZ', city: 'Astana', name: 'Nursultan Nazarbayev Intl', country: 'Kazakhstan' },
+    { code: 'FRU', city: 'Bishkek', name: 'Manas Intl Airport', country: 'Kyrgyzstan' },
+    { code: 'DYU', city: 'Dushanbe', name: 'Dushanbe Intl Airport', country: 'Tajikistan' },
+
+    // --- More UK & Ireland (Diaspora Hubs) ---
+    { code: 'STN', city: 'London', name: 'Stansted Airport', country: 'UK' },
+    { code: 'LTN', city: 'London', name: 'Luton Airport', country: 'UK' },
+    { code: 'BHX', city: 'Birmingham', name: 'Birmingham Airport', country: 'UK' },
+    { code: 'EDI', city: 'Edinburgh', name: 'Edinburgh Airport', country: 'UK' },
+    { code: 'GLA', city: 'Glasgow', name: 'Glasgow Airport', country: 'UK' },
+    { code: 'NCL', city: 'Newcastle', name: 'Newcastle Intl Airport', country: 'UK' },
+    { code: 'LPL', city: 'Liverpool', name: 'Liverpool John Lennon Airport', country: 'UK' },
+    { code: 'BRS', city: 'Bristol', name: 'Bristol Airport', country: 'UK' },
+    { code: 'ORK', city: 'Cork', name: 'Cork Airport', country: 'Ireland' },
+
+    // --- More Europe (Eastern & Northern) ---
+    { code: 'KRK', city: 'Kraków', name: 'John Paul II Intl Airport', country: 'Poland' },
+    { code: 'GDN', city: 'Gdańsk', name: 'Gdańsk Lech Wałęsa Airport', country: 'Poland' },
+    { code: 'RIX', city: 'Riga', name: 'Riga Intl Airport', country: 'Latvia' },
+    { code: 'VNO', city: 'Vilnius', name: 'Vilnius Intl Airport', country: 'Lithuania' },
+    { code: 'TLL', city: 'Tallinn', name: 'Lennart Meri Tallinn Airport', country: 'Estonia' },
+    { code: 'LED', city: 'St. Petersburg', name: 'Pulkovo Airport', country: 'Russia' },
+    { code: 'DME', city: 'Moscow', name: 'Domodedovo Intl Airport', country: 'Russia' },
+    { code: 'VKO', city: 'Moscow', name: 'Vnukovo Intl Airport', country: 'Russia' },
+    { code: 'KEF', city: 'Reykjavík', name: 'Keflavík Intl Airport', country: 'Iceland' },
+
+    // --- More USA (Important Hubs) ---
+    { code: 'AUS', city: 'Austin', name: 'Austin-Bergstrom Intl', country: 'USA' },
+    { code: 'BNA', city: 'Nashville', name: 'Nashville Intl Airport', country: 'USA' },
+    { code: 'SLC', city: 'Salt Lake City', name: 'Salt Lake City Intl', country: 'USA' },
+    { code: 'PDX', city: 'Portland', name: 'Portland Intl Airport', country: 'USA' },
+    { code: 'RDU', city: 'Raleigh', name: 'Raleigh-Durham Intl', country: 'USA' },
+    { code: 'STL', city: 'St. Louis', name: 'St. Louis Lambert Intl', country: 'USA' },
+    { code: 'HOU', city: 'Houston', name: 'William P. Hobby Airport', country: 'USA' },
+    { code: 'DAL', city: 'Dallas', name: 'Dallas Love Field', country: 'USA' },
+
+    // --- More Southeast & East Asia ---
+    { code: 'CNX', city: 'Chiang Mai', name: 'Chiang Mai Intl Airport', country: 'Thailand' },
+    { code: 'KBV', city: 'Krabi', name: 'Krabi Intl Airport', country: 'Thailand' },
+    { code: 'DAD', city: 'Da Nang', name: 'Da Nang Intl Airport', country: 'Vietnam' },
+    { code: 'PQC', city: 'Phu Quoc', name: 'Phu Quoc Intl Airport', country: 'Vietnam' },
+    { code: 'CEB', city: 'Cebu', name: 'Mactan-Cebu Intl Airport', country: 'Philippines' },
+    { code: 'MPH', city: 'Boracay', name: 'Godofredo P. Ramos Airport', country: 'Philippines' },
+    { code: 'PEN', city: 'Penang', name: 'Penang Intl Airport', country: 'Malaysia' },
+    { code: 'JHB', city: 'Johor Bahru', name: 'Senai Intl Airport', country: 'Malaysia' },
+    { code: 'SZX', city: 'Shenzhen', name: 'Shenzhen Bao\'an Intl', country: 'China' },
+    { code: 'CTU', city: 'Chengdu', name: 'Chengdu Shuangliu Intl', country: 'China' },
+    { code: 'KMG', city: 'Kunming', name: 'Kunming Changshui Intl', country: 'China' },
+    { code: 'FUK', city: 'Fukuoka', name: 'Fukuoka Airport', country: 'Japan' },
+    { code: 'CTS', city: 'Sapporo', name: 'New Chitose Airport', country: 'Japan' },
+    { code: 'PUS', city: 'Busan', name: 'Gimhae Intl Airport', country: 'South Korea' },
+    { code: 'CJU', city: 'Jeju', name: 'Jeju Intl Airport', country: 'South Korea' },
+
+    // --- More Africa (North & West) ---
+    { code: 'TUN', city: 'Tunis', name: 'Tunis–Carthage Intl', country: 'Tunisia' },
+    { code: 'ALG', city: 'Algiers', name: 'Houari Boumediene Airport', country: 'Algeria' },
+    { code: 'RAK', city: 'Marrakech', name: 'Marrakech Menara Airport', country: 'Morocco' },
+    { code: 'ACC', city: 'Accra', name: 'Kotoka Intl Airport', country: 'Ghana' },
+    { code: 'DKR', city: 'Dakar', name: 'Blaise Diagne Intl Airport', country: 'Senegal' },
+    { code: 'DAR', city: 'Dar es Salaam', name: 'Julius Nyerere Intl', country: 'Tanzania' },
+    { code: 'ZNZ', city: 'Zanzibar', name: 'Abeid Amani Karume Intl', country: 'Tanzania' },
+    { code: 'EBB', city: 'Entebbe', name: 'Entebbe Intl Airport', country: 'Uganda' },
+
+    // --- More South America ---
+    { code: 'GIG', city: 'Rio de Janeiro', name: 'Galeão Intl Airport', country: 'Brazil' },
+    { code: 'BSB', city: 'Brasília', name: 'Brasília Intl Airport', country: 'Brazil' },
+    { code: 'MDZ', city: 'Mendoza', name: 'Governor Francisco Gabrielli', country: 'Argentina' },
+    { code: 'MDE', city: 'Medellín', name: 'José María Córdova Intl', country: 'Colombia' },
+    { code: 'CTG', city: 'Cartagena', name: 'Rafael Núñez Intl Airport', country: 'Colombia' },
+
+    // --- Pakistan (Additional) ---
+    { code: 'PEW', city: 'Peshawar', name: 'Bacha Khan Intl Airport', country: 'Pakistan' },
+    { code: 'MUX', city: 'Multan', name: 'Multan Intl Airport', country: 'Pakistan' },
+    { code: 'SKT', city: 'Sialkot', name: 'Sialkot Intl Airport', country: 'Pakistan' },
 ]);
 
 export const MULTI_TRIP_MAX_FLIGHT=5

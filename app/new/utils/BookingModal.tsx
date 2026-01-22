@@ -218,7 +218,7 @@ export default function BookingModal({ isOpen, onClose, onSubmit, isInternationa
                     <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                     <>
-                        confirm & book 
+                        Book via WhatsApp
                         <Phone className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                     </>
                 )}
