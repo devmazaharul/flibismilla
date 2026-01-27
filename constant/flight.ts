@@ -1,14 +1,5 @@
 import { getAirlineLogo } from "@/validation/response";
 
-interface CommistionType{
-    type: "percentage" | "fixed";
-    amount: number;
-}
-export const TICKET_PRICE_COMMISION_AMOUNT_PERCENT=0; // 0% commission on ticket price
-export const TICKET_PRICE_COMMISION:CommistionType = {
-    type: "percentage",
-    amount: 0,
-}; // 15% commission on ticket price
 
 // Popular airport suggestions for flight search
 export const airportSuggestions = Object.freeze([
@@ -477,14 +468,6 @@ export const airportSuggestions = Object.freeze([
     { code: 'SKT', city: 'Sialkot', name: 'Sialkot Intl Airport', country: 'Pakistan' },
 ]);
 
-export const MULTI_TRIP_MAX_FLIGHT=5
-export const   TRAVALERS_MAX_QUANTITY={
-    maxAdults: 9,
-    maxChildren: 8,
-    maxInfants: 5
-    
-
-}
 
 
 // flight result int-dom

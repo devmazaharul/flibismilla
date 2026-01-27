@@ -5,7 +5,7 @@ export const websiteDetails = {
         'Fly Bismillah - Your Trusted Travel Partner for Hajj, Umrah, Flights, Hotels, and Tours.',
     address: 'Los Angeles,California 90057',
     phone: '+1-213-985-8499',
-    email: 'Murad.usa09@gmail.com',
+    email: 'murad.usa09@gmail.com',
     whatappsLink: 'https://api.whatsapp.com/send/?phone=12139858499',
     whatsappNumber: '12139858499',
 };
@@ -33,9 +33,7 @@ export const headerData = {
             href: '#',
             hasDropdown: true,
             subMenu: [
-                 { label: 'Flight Search ', href: '/new' },
-               // { label: 'Flight Search ', href: '/flight/search' },
-
+                { label: 'Flight Search ', href: '/flight/search' },
                 { label: 'Domestic Flight Booking', href: '/flight/domestic' },
                 { label: 'International Flight Booking', href: '/flight/international' },
             ],
@@ -242,8 +240,11 @@ export const footerData = {
         title: 'SUPPORT',
         links: [
             { label: 'FAQ', href: '/faq' },
+             { label: 'Contact Us', href: '/contact' },
             { label: 'Privacy Policy', href: '/privacy-policy' },
-            { label: 'Contact Us', href: '/contact' },
+            { label: 'Terms & conditions', href: '/terms-conditions' },
+            { label: 'Refund Policy', href: '/refund-policy' },
+           
         ],
     },
     getApp: {

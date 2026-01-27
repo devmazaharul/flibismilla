@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # 🗄️ Database Service
+  mongo:
+    image: mongo:latest
+    container_name: flybismillah_db
+    restart: always
+    ports:
+      - "27017:27017" # Localhost Port : Container Port
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    volumes:
+      - ./mongo-data:/data/db # ডাটা সেভ থাকার জন্য ভলিউম বাইন্ডিং
+
+  # 🖥️ GUI Client (Web Interface)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: flybismillah_ui
+    restart: always
+    ports:
+      - "8081:8081" # ব্রাউজারে http://localhost:8081 এ দেখা যাবে
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_SERVER: mongo # উপরের সার্ভিস নেম ব্যবহার করতে হবে
+      ME_CONFIG_BASICAUTH: "false" # ডেভেলপমেন্টের জন্য লগইন ছাড়াই ড্যাশবোর্ড দেখাবে
+    depends_on:
+      - mongo
