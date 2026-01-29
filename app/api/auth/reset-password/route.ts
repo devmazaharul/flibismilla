@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import dbConnect from '@/connection/db'; 
+import dbConnect from '@/connection/db';
 import Admin from '@/models/Admin.model';
+import { MIN_PASSWORD, MAX_PASSWORD, COOKIE_NAME } from '../../controller/constant';
+import { cookies } from 'next/headers';
+import { sendForgotPasswordEmail, sendPasswordChangedEmail } from '@/app/emails/email';
 
-import { MIN_PASSWORD,MAX_PASSWORD } from '../../controller/constant';
-
-// 1. Zod Schema for Strong Password Validation
+// 1. Zod Schema
 const resetPasswordSchema = z.object({
     token: z.string().min(1, 'Token is missing'),
     password: z
@@ -30,7 +31,10 @@ export async function PUT(req: Request) {
 
         if (!validation.success) {
             return NextResponse.json(
-                { error: 'Weak password', details: validation.error.flatten() },
+                {
+                    message: 'Weak password or invalid input',
+                    details: validation.error.flatten(),
+                },
                 { status: 400 },
             );
         }
@@ -38,29 +42,55 @@ export async function PUT(req: Request) {
         const { token, password } = validation.data;
         const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
 
-        // 4. Find Admin with matching token AND check if it is not expired
+        // 3. Find Admin with matching token AND check if it is not expired
         const admin = await Admin.findOne({
             resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() }, // $gt means "Greater Than" current time
+            resetPasswordExpire: { $gt: Date.now() },
         });
 
         if (!admin) {
-            return NextResponse.json({ error: 'Invalid or expired reset token' }, { status: 400 });
+            return NextResponse.json(
+                { message: 'Invalid or expired reset token' },
+                { status: 400 },
+            );
         }
 
-        // 5. Hash the New Password
-        const salt = await bcrypt.genSalt(12);
-        admin.password = await bcrypt.hash(password, salt);
+        // 4. Check if new password is the same as the old password
+        // ✅ FIX: Compare Plain Text (password) vs DB Hash (admin.password)
+        const isSamePassword = await bcrypt.compare(password, admin.password);
 
-        // 6. Clear the reset fields (Prevent reuse of token)
+        if (isSamePassword) {
+            return NextResponse.json(
+                { message: 'New password must be different from the old password' },
+                { status: 400 },
+            );
+        }
+
+        // 5. Hash the New Password and Update
+        const salt = await bcrypt.genSalt(12);
+        const newHashPass = await bcrypt.hash(password, salt);
+
+        // ✅ FIX: Actually assign the new password to the admin document
+        admin.password = newHashPass;
+
+        // 6. Clear the reset fields
         admin.resetPasswordToken = undefined;
         admin.resetPasswordExpire = undefined;
 
-        // Optional: Reset failed login attempts if any
+        // Reset failed login attempts
         admin.failedLoginAttempts = 0;
         admin.lockUntil = undefined;
 
         await admin.save();
+
+        //if cookies/sessions were used, we would invalidate them here
+        const cookieStore = await cookies();
+        if (cookieStore.has(COOKIE_NAME)) {
+            cookieStore.delete(COOKIE_NAME);
+        }
+
+        // send email notification about password change (optional)
+        await sendPasswordChangedEmail(admin.email, admin.name);
 
         return NextResponse.json({
             success: true,
@@ -68,6 +98,6 @@ export async function PUT(req: Request) {
         });
     } catch (error) {
         console.error('Reset Password Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -3,19 +3,19 @@ import bcrypt from 'bcryptjs';
 import Admin from '@/models/Admin.model';
 import dbConnect from '@/connection/db';
 import { SALT_ROUNDS } from '@/app/api/controller/constant';
-let  role="admin"
+
 
 export async function POST(req: Request) {
-
+let  role="admin"
 
   try {
     await dbConnect();
 
     const body = await req.json();
-    const { name, email, password, role } = body;
-    if (!name || !email || !password || !role) {
+    const { name, email, password } = body;
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { success: false, message: "Name, Email, Password, and Role are required." },
+        { success: false, message: "Name, Email and Password are required." },
         { status: 400 }
       );
     }

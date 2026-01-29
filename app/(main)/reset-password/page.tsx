@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, ArrowRight, LockKeyhole, ShieldCheck, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import Link from 'next/link';
+import axios, { isAxiosError } from 'axios'; // 1. Import Axios
 import { MAX_PASSWORD, MIN_PASSWORD } from '@/app/api/controller/constant';
 
 // 1. Zod Schema for Strong Password
@@ -15,12 +16,12 @@ const resetSchema = z
     .object({
         password: z
             .string()
-        .min(MIN_PASSWORD, `Password must be at least ${MIN_PASSWORD} characters`)
-        .max(MAX_PASSWORD, `Password must be at most ${MAX_PASSWORD} characters`)
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number')
-        .regex(/[^a-zA-Z0-9]/, 'Password must contain at least one special character'),
+            .min(MIN_PASSWORD, `Password must be at least ${MIN_PASSWORD} characters`)
+            .max(MAX_PASSWORD, `Password must be at most ${MAX_PASSWORD} characters`)
+            .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+            .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+            .regex(/[0-9]/, 'Password must contain at least one number')
+            .regex(/[^a-zA-Z0-9]/, 'Password must contain at least one special character'),
         confirmPassword: z.string().min(1, 'Confirm password is required'),
     })
     .refine((data) => data.password === data.confirmPassword, {
@@ -62,30 +63,32 @@ function ResetPasswordContent() {
         if (!token) return; // Double check
 
         try {
-            const res = await fetch('/api/auth/reset-password', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: token, // Send token from URL
-                    password: data.password,
-                }),
+            // 4. Axios PUT Request
+            await axios.put('/api/auth/reset-password', {
+                token: token,
+                password: data.password,
             });
 
-            const result = await res.json();
-
-            if (!res.ok) {
-                setError(result.error || 'Failed to reset password');
-                return;
-            }
-
+            // If execution reaches here, the status was 2xx (Success)
             setSuccess(true);
 
             // Auto redirect after 3 seconds
             setTimeout(() => {
                 router.push('/access?message=Password reset successful');
             }, 3000);
-        } catch (err) {
-            setError('Unable to connect to server.');
+
+        } catch (err: any) {
+            // 5. Axios Error Handling
+            if (isAxiosError(err) && err.response) {
+                // Server responded with a status code other than 2xx
+                setError(err.response.data.message || 'Failed to reset password');
+            } else if (err.request) {
+                // Request was made but no response received
+                setError('No response from server. Please try again.');
+            } else {
+                // Something happened in setting up the request
+                setError('Unable to connect to server.');
+            }
         }
     };
 
@@ -98,7 +101,7 @@ function ResetPasswordContent() {
                 <div className="p-8 sm:p-10">
                     {/* Icon Header */}
                     <div className="flex justify-center mb-6">
-                        <div className="bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-100">
+                        <div className="p-3">
                             <div className="bg-slate-900 rounded-xl p-2.5">
                                 <LockKeyhole className="w-6 h-6 text-white" />
                             </div>
@@ -181,7 +184,7 @@ function ResetPasswordContent() {
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all duration-200 shadow-lg shadow-slate-900/20 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-4"
+                                    className="w-full cursor-pointer bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all duration-200 shadow-lg shadow-slate-900/20 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-4"
                                 >
                                     {isSubmitting ? (
                                         <Loader2 className="w-5 h-5 animate-spin text-slate-400" />

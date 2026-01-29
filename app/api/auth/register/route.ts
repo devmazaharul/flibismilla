@@ -4,6 +4,7 @@ import Admin from '@/models/Admin.model';
 import dbConnect from '@/connection/db';
 import { SALT_ROUNDS } from '../../controller/constant';
 import { isAdmin } from '../../lib/auth';
+import { sendTeamInviteEmail } from '@/app/emails/email';
 
 
 const MAX_STAFF_LIMIT = 5;
@@ -64,6 +65,15 @@ export async function POST(req: Request) {
       role: role,            // 'editor' or 'viewer'
       adminId: auth.user._id, // Link to Parent Admin
     });
+
+    // email send 
+ 
+await sendTeamInviteEmail(email, {
+    invitedBy: auth.user.name||"Admin Name",
+    invitedName:name,
+    role: role,
+    link: "https://flybismillah.com/access"
+});
 
     return NextResponse.json({
       success: true,

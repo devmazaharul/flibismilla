@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Loader2, ArrowRight, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
+import axios, { isAxiosError } from 'axios'; // 1. Import Axios
 
 // Validation Schema
 const forgotSchema = z.object({
@@ -29,21 +30,27 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotFormData) => {
     setServerError(null);
+    
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      // 2. Axios POST Request
+      // Axios automatically handles headers and JSON stringification
+      await axios.post('/api/auth/forgot-password', data);
 
+      // If execution reaches here, status was 2xx (Success)
+      setIsSent(true);
 
-      if (res.ok) {
-        setIsSent(true);
-      } else {
-        setServerError("Something went wrong. Please try again.");
-      }
     } catch (error) {
-      setServerError("Connection failed.");
+      // 3. Axios Error Handling
+      if (isAxiosError(error) && error.response) {
+        // Server responded with a status code (e.g., 400, 404, 500)
+        setServerError(
+            error.response.data.message || 
+            "Something went wrong. Please try again."
+        );
+      } else {
+        // Network error or no response
+        setServerError("Connection failed. Please check your internet.");
+      }
     }
   };
 
@@ -62,7 +69,7 @@ export default function ForgotPasswordPage() {
             
             {/* Header Icon */}
             <div className="flex justify-center mb-6">
-                <div className="bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-100">
+                <div className=" p-3">
                     <div className="bg-slate-900 rounded-xl p-2.5">
                         <Mail className="w-6 h-6 text-white" />
                     </div>

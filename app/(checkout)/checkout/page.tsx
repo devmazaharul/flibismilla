@@ -3,249 +3,346 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Phone, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle, Loader2, CreditCard, Clock, CheckCircle } from "lucide-react";
 import { useEffect, useState, Suspense } from "react";
+import axios from "axios"; 
+
 import { BookingFormData, bookingSchema } from "./utils/validation";
 import { PassengerForm } from "./components/PassengerForm";
 import { BookingSummary } from "./components/BookingSummary";
 import { PriceValidityNotice } from "@/app/(main)/components/PriceValidityNotice";
 
+// ----------------------------------------------------------------------
+// 🟢 MODAL COMPONENT (Payment Confirmation)
+// ----------------------------------------------------------------------
+const PaymentModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  isInstantPayment, 
+  price, 
+  isProcessing 
+}: any) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+        
+        {/* Modal Header */}
+        <div className={`p-6 text-center ${isInstantPayment ? 'bg-rose-50' : 'bg-blue-50'}`}>
+          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${isInstantPayment ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+            {isInstantPayment ? <CreditCard className="w-8 h-8" /> : <Clock className="w-8 h-8" />}
+          </div>
+          <h3 className="text-xl font-black text-slate-800">
+            {isInstantPayment ? "Instant Payment Required" : "Confirm Booking"}
+          </h3>
+          <p className="text-sm text-slate-500 mt-2 px-4">
+            {isInstantPayment 
+              ? "This airline requires immediate payment to issue the ticket. Holding is not available." 
+              : "You can hold this booking now and pay later within the time limit."}
+          </p>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6">
+          <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
+            <span className="text-sm font-bold text-slate-500">Total Amount</span>
+            <span className="text-xl font-black text-slate-900">{price}</span>
+          </div>
+
+          <div className="flex gap-3">
+            <button 
+              onClick={onClose}
+              disabled={isProcessing}
+              className="flex-1 py-3.5 rounded-xl font-bold cursor-pointer text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={onConfirm}
+              disabled={isProcessing}
+              className={`flex-1 py-3.5 rounded-xl font-bold cursor-pointer text-white shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 ${
+                isInstantPayment 
+                  ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' 
+                  : 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
+              }`}
+            >
+              {isProcessing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  {isInstantPayment ? "Pay Now" : "Book Now"}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ----------------------------------------------------------------------
+// 🟢 MAIN COMPONENT
+// ----------------------------------------------------------------------
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  // URL থেকে ডাটা এক্সট্রাকশন
+  // URL Params
   const offerId = searchParams.get("offer_id");
-  const adultsCount = parseInt(searchParams.get("adt") || "1");
+  const adultsCount = parseInt(searchParams.get("adt") || "0");
   const childrenCount = parseInt(searchParams.get("chd") || "0");
   const infantsCount = parseInt(searchParams.get("inf") || "0");
 
   // States
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // For final API call
+  const [isLoading, setIsLoading] = useState(true); // For initial fetch
   const [flightData, setFlightData] = useState<any>(null);
   const [fetchError, setFetchError] = useState("");
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<BookingFormData | null>(null);
 
-  // 🟢 1. REAL API CALL TO FETCH FLIGHT DETAILS
+  // Form Setup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<BookingFormData>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: { contact: { email: "", phone: "" }, passengers: [] },
+  });
+
+  // 1. FETCH & VALIDATE
   useEffect(() => {
     if (!offerId) {
-      setFetchError("Invalid Offer ID. Please search again.");
+      setFetchError("Invalid Offer ID.");
       setIsLoading(false);
       return;
     }
 
     const getFlightDetails = async () => {
       try {
-        // 🚀 Calling your Backend API
-        const res = await fetch(`/api/duffel/get-offer?offer_id=${offerId}`);
-        const result = await res.json();
+        const response = await axios.get('/api/duffel/get-offer', { params: { offer_id: offerId } });
+        const result = response.data;
 
+        if (!result.success) throw new Error(result.message);
+        const data = result.data;
+        
+        // 🛡️ Guard Clause
+        const apiAdults = data.passengers.filter((p: any) => p.type === 'adult').length;
+        const apiChildren = data.passengers.filter((p: any) => p.type === 'child').length;
+        const apiInfants = data.passengers.filter((p: any) => p.type === 'infant_without_seat').length;
 
-        if (!result.success) {
-          throw new Error(result.error || "Failed to load flight details.");
+        if (apiAdults !== adultsCount || apiChildren !== childrenCount || apiInfants !== infantsCount) {
+           throw new Error("Security Mismatch: Please search again.");
         }
-     setFlightData(result.data);
+
+        setFlightData(data);
+        reset({
+          contact: { email: "", phone: "" },
+          passengers: data.passengers.map((p: any) => ({
+            id: p.id, type: p.type, gender: "male", title: "mr",
+            firstName: "", lastName: "", dob: "", passportNumber: "", passportExpiry: "", middleName: ""
+          }))
+        });
         setIsLoading(false);
 
       } catch (error: any) {
-        setFetchError(error.message || "This offer has expired or is no longer available.");
+        let msg = "An unexpected error occurred.";
+        if (axios.isAxiosError(error)) msg = error.response?.data?.message || error.message;
+        else if (error instanceof Error) msg = error.message;
+        setFetchError(msg);
         setIsLoading(false);
       }
     };
 
     getFlightDetails();
-  }, [offerId]);
+  }, [offerId, adultsCount, childrenCount, infantsCount, reset]);
 
-  // 🟢 2. FORM SETUP
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      contact: { email: "", phone: "" },
-      passengers: [
-        ...Array(adultsCount).fill({ type: "adult", gender: "", title: "", firstName: "", lastName: "", dob: "", passportNumber: "", passportExpiry: "" }),
-        ...Array(childrenCount).fill({ type: "child", gender: "", title: "", firstName: "", lastName: "", dob: "", passportNumber: "", passportExpiry: "" }),
-        ...Array(infantsCount).fill({ type: "infant", gender: "", title: "", firstName: "", lastName: "", dob: "", passportNumber: "", passportExpiry: "" }),
-      ],
-    },
-  });
+  // 2. PRE-SUBMIT (Opens Modal)
+  const onPreSubmit: SubmitHandler<BookingFormData> = (formData) => {
+    setPendingFormData(formData);
+    setIsModalOpen(true);
+  };
 
-  // 🟢 3. HANDLE FORM SUBMISSION & PAYMENT
-  const onSubmit: SubmitHandler<BookingFormData> = async (formData) => {
-    setIsSubmitting(true);
+  // 3. FINAL EXECUTION (Called from Modal)
+  const handleConfirmBooking = async () => {
+    if (!pendingFormData || !flightData) return;
     
+    setIsSubmitting(true);
 
     const bookingPayload = {
         offer_id: offerId,
-        contact: formData.contact,
-        passengers: formData.passengers,
-        expected_total: flightData?.price.finalPrice, 
+        contact: pendingFormData.contact,
+        passengers: pendingFormData.passengers.map(p => ({
+            id: p.id,
+            given_name: p.firstName,
+            family_name: p.lastName,
+            gender: p.gender,
+            title: p.title,
+            born_on: p.dob,
+            email: pendingFormData.contact.email, 
+            phone_number: pendingFormData.contact.phone,
+            type: p.type 
+        })),
+        expected_total: flightData.price.finalPrice, 
     };
 
-    console.log("SENDING TO BACKEND:", bookingPayload);
-    
     try {
-        // 🚀 Create Order & Get Payment Link
-        // const response = await fetch('/api/create-order', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify(bookingPayload)
-        // });
-        // const data = await response.json();
+        // 👇 BACKEND CALL
+        // const response = await axios.post('/api/booking/create', bookingPayload);
         
-        // if(data.url) {
-        //    window.location.href = data.url; // Redirect to Stripe
-        // } else {
-        //    throw new Error('Payment URL not found');
-        // }
-        
-        // Demo Alert (যতক্ষণ না পেমেন্ট এপিআই বসাচ্ছেন)
+        console.log("Submitting Payload:", bookingPayload);
+
         setTimeout(() => {
-            alert("API Call Success! Redirecting to Payment Gateway...");
+            alert("Success! Redirecting...");
             setIsSubmitting(false);
+            setIsModalOpen(false);
         }, 2000);
 
     } catch (error) {
-        alert("Something went wrong with the booking. Please try again.");
+        alert("Booking failed. Please try again.");
         setIsSubmitting(false);
+        setIsModalOpen(false);
     }
   };
 
-  // 🟢 4. LOADING STATE
+  // Loading UI
   if (isLoading) {
     return (
         <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-rose-600 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-slate-500 font-bold animate-pulse">Verifying Flight Availability...</p>
-            </div>
+            <Loader2 className="w-12 h-12 text-rose-600 animate-spin" />
         </div>
     );
   }
 
-  // 🟢 5. ERROR STATE
+  // Error UI
   if (fetchError || !flightData) {
     return (
         <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-            <div className="p-8 rounded-3xl  text-center max-w-md animate-in zoom-in-95">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="w-8 h-8 text-red-500" />
-                </div>
-                <h2 className="text-2xl font-black text-slate-900 mb-2">Offer Expired</h2>
-                <p className="text-slate-500 mb-6">{fetchError}</p>
-                <button 
-                    onClick={() => router.push('/flight/search')}
-                    className="w-full py-3 cursor-pointer bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg"
-                >
-                    Search New Flights
-                </button>
+            <div className="p-8 bg-white shadow-xl rounded-3xl text-center max-w-md border border-red-100">
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+                <p className="text-slate-500 mb-6 text-sm">{fetchError}</p>
+                <button onClick={() => router.push('/')} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold">Search Again</button>
             </div>
         </div>
     );
   }
 
-  // 🟢 6. MAIN CONTENT
-  return (
-   <div>
-      <div className="mb-8 max-w-3xl mx-auto lg:mx-0">
-              <PriceValidityNotice offerId={offerId as string} />
-          </div>
-    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-black text-slate-900 mb-2">Complete Your Booking</h1>
-        <p className="text-slate-500 mb-8">Please fill in the details carefully as per your passport.</p>
+  const summaryCounts = {
+      adults: flightData.passengers.filter((p: any) => p.type === 'adult').length,
+      children: flightData.passengers.filter((p: any) => p.type === 'child').length,
+      infants: flightData.passengers.filter((p: any) => p.type === 'infant_without_seat').length,
+  };
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          
-          {/* Left Side: Forms */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Contact Info */}
-            <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200">
-              <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                <Mail className="w-5 h-5 text-rose-500" /> Contact Details
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
-                  <input
-                    {...register("contact.email")}
-                    placeholder="ticket@example.com"
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none"
-                  />
-                  {errors.contact?.email && <p className="text-xs text-red-500 font-bold">{errors.contact.email.message}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
-                  <input
-                    {...register("contact.phone")}
-                    placeholder="+1"
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none"
-                  />
-                  {errors.contact?.phone && <p className="text-xs text-red-500 font-bold">{errors.contact.phone.message}</p>}
-                </div>
-              </div>
+  // Payment Requirement Check
+  const requiresInstantPayment = flightData.payment_requirements?.requires_instant_payment ?? true;
+
+  return (
+   <>
+    <div>
+      <div className="mb-8 max-w-3xl mx-auto lg:mx-0">
+          <PriceValidityNotice offerId={offerId as string} />
+      </div>
+
+      <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 mb-2">Complete Your Booking</h1>
+              <p className="text-slate-500 flex items-center gap-2">
+                Passenger details must match your passport.
+                <span className="flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                    <Lock className="w-3 h-3" /> Secure Session
+                </span>
+              </p>
             </div>
 
-            {/* Dynamic Passengers Forms */}
-            {Array.from({ length: adultsCount + childrenCount + infantsCount }).map((_, index) => {
-               let type: "adult" | "child" | "infant" = "adult";
-               if (index >= adultsCount && index < adultsCount + childrenCount) type = "child";
-               if (index >= adultsCount + childrenCount) type = "infant";
-
-               return (
-                 <PassengerForm 
-                    key={index} 
-                    index={index} 
-                    type={type} 
-                    register={register} 
-                    errors={errors} 
-                 />
-               );
-            })}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-4 cursor-pointer bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-200 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Lock className="w-5 h-5" /> Proceed to Payment
-                </>
-              )}
-            </button>
+            {/* Payment Badge Indicator */}
+            <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 ${
+                requiresInstantPayment ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-blue-50 border-blue-100 text-blue-700'
+            }`}>
+                {requiresInstantPayment ? <CreditCard className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                <span className="text-xs font-bold">
+                    {requiresInstantPayment ? "Instant Payment Only" : "Hold Booking Available"}
+                </span>
+            </div>
           </div>
 
-          {/* Right Side: Summary (Real Data Passed) */}
-          <div className="lg:col-span-1">
-             <BookingSummary 
-                passengers={{ adults: adultsCount, children: childrenCount, infants: infantsCount }} 
-                flight={flightData} 
-             />
-          </div>
+          <form onSubmit={handleSubmit(onPreSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            
+            {/* Left Side: Forms */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Contact Info */}
+              <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200">
+                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-rose-500" /> Contact Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
+                    <input {...register("contact.email")} placeholder="ticket@example.com" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none" />
+                    {errors.contact?.email && <p className="text-xs text-red-500 font-bold mt-1">{errors.contact.email.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
+                    <input {...register("contact.phone")} placeholder="+880 1XXX..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none" />
+                    {errors.contact?.phone && <p className="text-xs text-red-500 font-bold mt-1">{errors.contact.phone.message}</p>}
+                  </div>
+                </div>
+              </div>
 
-        </form>
+              {/* Passenger Forms */}
+              {flightData.passengers.map((passenger: any, index: number) => {
+                  let type = "adult";
+                  if (passenger.type === 'child') type = "child";
+                  if (passenger.type === 'infant_without_seat') type = "infant";
+                 return <PassengerForm key={passenger.id} index={index} type={type as any} register={register} errors={errors} />;
+              })}
+
+              {/* MAIN SUBMIT BUTTON */}
+              <button
+                type="submit"
+                className="w-full py-4 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <CheckCircle className="w-5 h-5" /> Review & Continue
+              </button>
+            </div>
+
+            {/* Right Side: Summary */}
+            <div className="lg:col-span-1">
+               <BookingSummary passengers={summaryCounts} flight={flightData} />
+            </div>
+
+          </form>
+        </div>
       </div>
     </div>
-   </div>
+
+    {/* 🟢 CONFIRMATION MODAL */}
+    <PaymentModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmBooking}
+        isInstantPayment={requiresInstantPayment}
+        price={`${flightData.price.currency} ${flightData.price.finalPrice.toLocaleString()}`}
+        isProcessing={isSubmitting}
+    />
+   </>
   );
 }
 
-// 🟢 7. Wrapper Component (Suspense Boundary)
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-rose-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    }>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
         <CheckoutContent />
     </Suspense>
   );

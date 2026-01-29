@@ -122,7 +122,7 @@ export default function AdminLoginPage() {
         
         {/* Logo Section */}
         <div className="flex justify-center mb-8">
-            <div className="bg-white p-3 rounded-2xl shadow-2xl shadow-gray-100 ring-1 ring-slate-100">
+            <div className=" p-3">
                 <div className="bg-slate-900 rounded-xl p-2.5">
                     {loginStep === 'credentials' ? (
                         <KeyRound className="w-6 h-6 text-white" />

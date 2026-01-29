@@ -1,22 +1,22 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'; // Prevent Vercel Caching
 import { NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import { COMMISION_RATE } from '@/constant/control';
 
 // ------------------------------------------------------------------
-// ⚙️ CONFIGURATION
+// ⚙️ CONFIGURATION & TYPES
 // ------------------------------------------------------------------
-const COMMISSION_PERCENTAGE = COMMISION_RATE; // এখানে 5 দিলে ৫% লাভ হবে
+const COMMISSION_PERCENTAGE = Number(COMMISION_RATE) || 0; // Ensure number
 
 const duffel = new Duffel({
   token: process.env.DUFFEL_ACCESS_TOKEN as string,
 });
 
 // ------------------------------------------------------------------
-// 🟢 HELPER FUNCTIONS (UTILITIES)
+// 🟢 HELPER FUNCTIONS
 // ------------------------------------------------------------------
 
-// 1. Safe Duration Parser (ISO String "PT4H30M" -> "4h 30m")
+// 1. Safe Duration Parser
 const parseDuration = (duration: string | null | undefined) => {
   if (!duration) return "--";
   return duration
@@ -27,11 +27,14 @@ const parseDuration = (duration: string | null | undefined) => {
     .trim();
 };
 
-// 2. Price Calculation with Commission Constant
+// 2. Price Calculation (Safe Math)
 const calculatePriceWithMarkup = (amount: string | null | undefined, currency: string | undefined) => {
   if (!amount) return { currency: 'USD', basePrice: 0, markup: 0, finalPrice: 0 };
   
   const basePrice = parseFloat(amount);
+  // Security: Prevent NaN issues
+  if (isNaN(basePrice)) return { currency: 'USD', basePrice: 0, markup: 0, finalPrice: 0 };
+
   const markup = basePrice * (COMMISSION_PERCENTAGE / 100); 
   const finalPrice = Math.ceil(basePrice + markup);
 
@@ -43,133 +46,136 @@ const calculatePriceWithMarkup = (amount: string | null | undefined, currency: s
   };
 };
 
-// 3. Cabin Class Extractor (Checks deeply nested objects)
+// 3. Cabin Class Extractor (Fail-safe)
 const getCabinClass = (slices: any[]) => {
   try {
-    const rawClass = slices[0]?.segments[0]?.passengers?.[0]?.cabin_class_marketing_name 
-                  || slices[0]?.segments[0]?.passengers?.[0]?.cabin_class 
-                  || "Economy";
+    const segment = slices[0]?.segments[0];
+    const passenger = segment?.passengers?.[0];
     
-    // Capitalize: "economy" -> "Economy"
-    return rawClass.charAt(0).toUpperCase() + rawClass.slice(1);
+    const rawClass = passenger?.cabin_class_marketing_name || passenger?.cabin_class || "Economy";
+    // Capitalize properly
+    return rawClass.charAt(0).toUpperCase() + rawClass.slice(1).toLowerCase();
   } catch (e) {
     return "Economy";
   }
 };
 
-// 4. Baggage Info Extractor (Iterates all segments to find checked bags)
+// 4. Baggage Extractor
 const getBaggageInfo = (slices: any[]) => {
   try {
-    for (const slice of slices) {
-      if (!slice.segments) continue;
-      for (const segment of slice.segments) {
-        const bags = segment.passengers?.[0]?.baggages;
-        if (Array.isArray(bags) && bags.length > 0) {
-          const checkedBag = bags.find((b: any) => b.type === 'checked');
-          if (checkedBag) {
-            return `${checkedBag.quantity} Checked Bag(s)`;
-          }
-        }
+    // Check first passenger of first segment
+    const bags = slices[0]?.segments[0]?.passengers?.[0]?.baggages;
+    
+    if (Array.isArray(bags) && bags.length > 0) {
+      const checkedBag = bags.find((b: any) => b.type === 'checked');
+      if (checkedBag) {
+         // Some airlines send weight (e.g., "23kg") instead of quantity
+         if(checkedBag.quantity) return `${checkedBag.quantity} Checked Bag(s)`;
+         // if(checkedBag.weight) return `${checkedBag.weight} Checked Bag`; // Optional logic
       }
     }
-    return "Cabin Baggage Only"; 
+    return "Cabin Bag Only";
   } catch (e) {
-    return "Check Airline Rules";
+    return "Check Rules";
   }
 };
 
 // ------------------------------------------------------------------
-// 🚀 MAIN API HANDLER (GET)
+// 🚀 MAIN API HANDLER
 // ------------------------------------------------------------------
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  let offerId = searchParams.get('offer_id');
-
-  // 🛡️ SECURITY 1: Basic Validation
-  if (!offerId) {
-    return NextResponse.json({ success: false, error: 'Offer ID is missing' }, { status: 400 });
-  }
-
-  // 🛡️ SECURITY 2: Clean ID (Fixes 422 Error from spaces)
-  offerId = offerId.trim();
-
-  // 🛡️ SECURITY 3: Format Check
-  if (!offerId.startsWith('off_')) {
-    return NextResponse.json({ success: false, error: 'Invalid Offer ID format.' }, { status: 422 });
-  }
-
   try {
-    // 📡 FETCH FROM DUFFEL
-    // console.log(`🔍 Fetching: ${offerId}`); // Debug Log (Optional)
+    const { searchParams } = new URL(request.url);
+    const rawOfferId = searchParams.get('offer_id');
+
+    // 🛡️ SECURITY 1: Input Existence Check
+    if (!rawOfferId) {
+      return NextResponse.json(
+        { success: false, message: 'Offer ID is required.' }, 
+        { status: 400 }
+      );
+    }
+
+    const offerId = rawOfferId.trim();
+
+    // 🛡️ SECURITY 2: Strict Format Validation (Regex)
+    // Duffel Offer IDs always start with "off_" followed by alphanumeric characters
+    const offerIdRegex = /^off_[a-zA-Z0-9]+$/;
+    if (!offerIdRegex.test(offerId)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid Offer ID format detected.' }, 
+        { status: 422 } // Unprocessable Entity
+      );
+    }
+
+    // 📡 FETCH DATA
     const offer = await duffel.offers.get(offerId);
 
-    if (!offer.data) {
-      throw new Error("Empty data received from Duffel");
+    // 🛡️ SECURITY 3: Empty Data Check
+    if (!offer || !offer.data) {
+      return NextResponse.json(
+        { success: false, message: 'No data received from flight provider.' }, 
+        { status: 404 }
+      );
     }
 
     const data = offer.data;
 
-    // 💰 PROCESS CALCULATIONS
+    // 💰 CALCULATIONS
     const pricing = calculatePriceWithMarkup(data.total_amount, data.total_currency);
     const cabinClass = getCabinClass(data.slices);
     const baggageInfo = getBaggageInfo(data.slices);
 
-    // 🗺️ PROCESS ITINERARY (Critical Logic for Multi-City)
+    // 🗺️ ITINERARY MAPPING
     const itinerary = data.slices.map((slice: any, index: number) => {
       const segments = slice.segments || [];
       const firstSegment = segments[0];
       const lastSegment = segments[segments.length - 1];
       const totalSlices = data.slices.length;
 
-      // 🧠 DYNAMIC DIRECTION LOGIC
       let directionLabel = "One Way";
       if (totalSlices === 2) {
         directionLabel = index === 0 ? 'Outbound' : 'Inbound';
       } else if (totalSlices > 2) {
-        directionLabel = `Flight ${index + 1}`; // Multi-City
+        directionLabel = `Flight ${index + 1}`;
       }
 
-      // 🛡️ FALLBACK DATA (Prevents "undefined" errors)
       return {
+        id: slice.id,
         direction: directionLabel,
-        
-        // Airline Name Handling
         mainAirline: firstSegment.operating_carrier?.name || "Airline",
-        
-        // Logo Handling (Frontend will handle null)
         mainLogo: firstSegment.operating_carrier?.logo_symbol_url || null,
         
         mainDeparture: {
           code: firstSegment.origin?.iata_code || "UNK",
-          // Fallback: City Name -> Airport Name -> "Unknown"
-          city: firstSegment.origin?.city_name || firstSegment.origin?.name || "Unknown City",
+          city: firstSegment.origin?.city_name || firstSegment.origin?.name,
           time: firstSegment.departing_at,
         },
         mainArrival: {
           code: lastSegment.destination?.iata_code || "UNK",
-          city: lastSegment.destination?.city_name || lastSegment.destination?.name || "Unknown City",
+          city: lastSegment.destination?.city_name || lastSegment.destination?.name,
           time: lastSegment.arriving_at,
         },
         
         totalDuration: parseDuration(slice.duration),
         stops: segments.length - 1,
         
-        // Detailed Segments for UI
         segments: segments.map((seg: any) => ({
-          flightNumber: `${seg.operating_carrier?.iata_code || ''}${seg.operating_carrier_flight_number || ''}`,
+          id: seg.id,
+          flightNumber: `${seg.operating_carrier?.iata_code || ''} ${seg.operating_carrier_flight_number || ''}`,
           aircraft: seg.aircraft?.name || 'Aircraft',
-          airline: seg.operating_carrier?.name || "Airline",
-          logo: seg.operating_carrier?.logo_symbol_url || null,
+          airline: seg.operating_carrier?.name,
+          logo: seg.operating_carrier?.logo_symbol_url,
           duration: parseDuration(seg.duration),
           departure: {
-             code: seg.origin?.iata_code || "",
-             airport: seg.origin?.name || seg.origin?.city_name || "",
+             code: seg.origin?.iata_code,
+             airport: seg.origin?.name,
              time: seg.departing_at
           },
           arrival: {
-             code: seg.destination?.iata_code || "",
-             airport: seg.destination?.name || seg.destination?.city_name || "",
+             code: seg.destination?.iata_code,
+             airport: seg.destination?.name,
              time: seg.arriving_at
           }
         }))
@@ -181,52 +187,59 @@ export async function GET(request: Request) {
       success: true,
       data: {
         id: data.id,
+        // Frontend Needs these for Logic:
+        expires_at: data.expires_at,
+        payment_requirements: data.payment_requirements, // Instant payment check এর জন্য
+        
+        // Frontend Needs these for Display:
         price: pricing,
         itinerary: itinerary,
         baggage: baggageInfo,
         cabinClass: cabinClass,
-        conditions: {
-          refundable: !data.conditions?.refund_before_departure?.allowed === false,
-        },
-        expires_at: data.expires_at
+        
+        // For Fare Rules & Passenger Form:
+        passengers: data.passengers, // Form generation এর জন্য
+        conditions: data.conditions, // Refund policy এর জন্য
+        owner: data.owner // Airline info
       }
     });
 
   } catch (error: any) {
-    // 🔍 Detailed Error Logging
+    console.error("❌ Offer Fetch Error:", error.meta || error);
 
-    // 🔴 CASE 1: Offer Expired (Status 422 with specific code)
-    // This was your previous error: "offer_no_longer_available"
+    // 🔴 ERROR HANDLING STRATEGY
+
+    // 1. Duffel Specific: Offer Expired
     if (
       error.meta?.status === 422 && 
       error.errors?.[0]?.code === 'offer_no_longer_available'
     ) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'This flight price has expired. Please search again for the latest rates.' 
-      }, { status: 404 }); // Return 404 to trigger "Expired" UI
+      return NextResponse.json(
+        { success: false, message: 'This flight price has expired. Please search again.' }, 
+        { status: 404 } 
+      );
     }
 
-    // 🔴 CASE 2: Invalid Data/Format (Generic 422)
-    if (error.meta?.status === 422 || error.status === 422) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Unprocessable Entity. Please check if the Offer ID is valid.' 
-      }, { status: 422 });
+    // 2. Duffel Specific: Not Found
+    if (error.meta?.status === 404) {
+      return NextResponse.json(
+        { success: false, message: 'Offer not found or invalid.' }, 
+        { status: 404 }
+      );
     }
 
-    // 🔴 CASE 3: Not Found (404)
-    if (error.meta?.status === 404 || error.status === 404) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Offer not found or expired.' 
-      }, { status: 404 });
+    // 3. Generic Client Error (400-499)
+    if (error.meta?.status >= 400 && error.meta?.status < 500) {
+      return NextResponse.json(
+        { success: false, message: 'Unable to process request. Please try again.' }, 
+        { status: 422 }
+      );
     }
 
-    // 🔴 CASE 4: Server Error
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Internal Server Error' 
-    }, { status: 500 });
+    // 4. Server Error (500)
+    return NextResponse.json(
+      { success: false, message: 'Internal Server Error. Please contact support.' }, 
+      { status: 500 }
+    );
   }
 }

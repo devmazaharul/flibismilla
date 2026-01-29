@@ -5,6 +5,7 @@ import Admin from '@/models/Admin.model';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { COOKIE_NAME, JWT_SECRET } from '@/app/api/controller/constant';
+import { send2FAStatusEmail } from '@/app/emails/email';
 
 export async function POST(req: Request) {
   try {
@@ -49,6 +50,14 @@ export async function POST(req: Request) {
         twoFactorSecret: secret,
         isTwoFactorEnabled: true 
     });
+
+     await send2FAStatusEmail(admin.email, {
+    userName: admin.name,
+    status: "enabled",
+    ip: admin.loginHistory[0].ip,
+    deviceInfo: admin.loginHistory[0].device,
+    location: admin.loginHistory[0].location,
+})
 
     return NextResponse.json({ 
       success: true, 

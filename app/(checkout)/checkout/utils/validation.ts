@@ -9,6 +9,7 @@ export const bookingSchema = z.object({
   passengers: z.array(
     z.object({
       type: z.enum(["adult", "child", "infant"]),
+      id: z.string().min(1, "Passenger ID is required"),
       
       title: z.string().min(1, "Title is required"),
       

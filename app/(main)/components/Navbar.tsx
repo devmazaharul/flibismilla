@@ -274,9 +274,7 @@ const Navbar = () => {
                                                     <Button variant="outline" asChild className="w-full h-12 font-bold text-gray-700 border-gray-200">
                                                         <Link href={'/access'}>Log In</Link>
                                                     </Button>
-                                                    <Button asChild className="w-full bg-rose-600 hover:bg-rose-700 h-12 font-bold shadow-lg shadow-rose-500/20">
-                                                        <Link href={'/signup'}>Create Account</Link>
-                                                    </Button>
+                                                  
                                                 </>
                                             )}
                                         </div>
