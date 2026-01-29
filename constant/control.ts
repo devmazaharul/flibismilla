@@ -17,6 +17,6 @@ export const COMMISION_RATE = 0; // 5% Commission
 export const TAX_RATE = 0; // 10% Tax
 export const DISCOUNT_RATE = 0;
 export const MAX_PASSENGERS = 9; // Max 9 Passengers per Booking
-export const MIN_PASSENGERS = 3; // Min 1 Passenger per Booking
+export const MIN_PASSENGERS = 1; // Min 1 Passenger per Booking
 export const WEBSITE_NAME = 'FlyBismillah';
 export const WEBSITE_URL = 'https://www.flybismillah.com';
