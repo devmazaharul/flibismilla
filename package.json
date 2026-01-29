@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "email": "email dev -d app/emails"
+    "lint": "eslint"
   },
   "dependencies": {
     "@duffel/api": "^4.21.2",

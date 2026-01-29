@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: `Secure Checkout - ${websiteDetails.name}`,
   description: "Complete your flight booking securely. Your payment information is encrypted and protected.",
   robots: {
-    index: false, // ⚠️ Checkout page should NOT be indexed
+    index: false, 
     follow: false,
   },
 };
