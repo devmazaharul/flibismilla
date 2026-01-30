@@ -19,14 +19,25 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, Suspense } from 'react';
 import axios from 'axios';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns'; // 🟢 Added date-fns
 
 import { BookingFormData, bookingSchema } from './utils/validation';
 import { PassengerForm } from './components/PassengerForm';
 import { BookingSummary } from './components/BookingSummary';
 import { websiteDetails } from '@/constant/data';
 
-// ⚠️ Update your agency number here
 const AGENCY_WHATSAPP_NUMBER = "8801900000000"; 
+
+// ----------------------------------------------------------------------
+// 🟢 HELPER FUNCTIONS FOR DATE
+// ----------------------------------------------------------------------
+const formatTime = (iso: string) => format(parseISO(iso), 'hh:mm a'); // 02:30 PM
+const formatDate = (iso: string) => format(parseISO(iso), 'EEE, dd MMM'); // Fri, 30 Jan
+
+const getDayDiff = (dep: string, arr: string) => {
+    const diff = differenceInCalendarDays(parseISO(arr), parseISO(dep));
+    return diff > 0 ? diff : 0;
+};
 
 // ----------------------------------------------------------------------
 // 🔴 EXPIRATION MODAL
@@ -154,6 +165,7 @@ function CheckoutContent() {
 
         if (!result.success) throw new Error(result.message);
         const data = result.data;
+        
         // Security Check
         const apiAdults = data.passengers.filter((p: any) => p.type === 'adult').length;
         const apiChildren = data.passengers.filter((p: any) => p.type === 'child').length;
@@ -189,21 +201,17 @@ function CheckoutContent() {
     if (!flightData?.expires_at || isExpired) return;
 
     const interval = setInterval(() => {
-      const now = new Date().getTime();
+      const now = Date.now(); // Using Date.now() for UTC safety
       const expiry = new Date(flightData.expires_at).getTime();
-      
-      // 🟢 MAIN LOGIC: Subtract current time from expiry
       const distance = expiry - now;
 
       if (distance < 0) {
         clearInterval(interval);
         setTimeLeft("00:00");
-        setIsExpired(true); // Triggers Modal
+        setIsExpired(true); 
       } else {
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); // Remaining Minutes
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000); // Remaining Seconds
-        
-        // Formatting 05:09
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
         const m = minutes < 10 ? `0${minutes}` : minutes;
         const s = seconds < 10 ? `0${seconds}` : seconds;
         setTimeLeft(`${m}:${s}`);
@@ -262,7 +270,6 @@ function CheckoutContent() {
     }
   };
 
-  // --- REFRESH HANDLER ---
   const handleRefreshSearch = () => {
       router.push('/flight/search');
   }
@@ -270,7 +277,6 @@ function CheckoutContent() {
   // --- UI STATES ---
   if (isLoading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader2 className="w-10 h-10 text-rose-600 animate-spin" /></div>;
   
-  // Show error only if NOT expired (Expired modal takes priority)
   if ((fetchError || !flightData) && !isExpired) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
       <div className="p-8 bg-white shadow-2xl shadow-gray-100 rounded-3xl text-center max-w-md">
@@ -295,8 +301,6 @@ function CheckoutContent() {
       <ExpirationModal isOpen={isExpired} onRefresh={handleRefreshSearch} />
 
       <div className={`${isExpired ? "blur-sm pointer-events-none select-none overflow-hidden h-screen" : ""} transition-all duration-500`}>
-        {/* Removed PriceValidityNotice as requested */}
-
         <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
           <div className="max-w-7xl mx-auto">
             
@@ -326,7 +330,7 @@ function CheckoutContent() {
                 {/* 🟢 LEFT SIDE: CONTENT */}
                 <div className="lg:col-span-2 space-y-6">
                     
-                    {/* 🛫 FLIGHT DETAILS */}
+                    {/* 🛫 FLIGHT DETAILS (Updated UI) */}
                     <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
                         <Plane className="w-5 h-5 text-rose-500" /> Flight Itinerary
@@ -356,22 +360,32 @@ function CheckoutContent() {
                                     </div>
                                     <div className="flex-1 pb-4">
                                     <div className="flex justify-between items-start">
+                                        
+                                        {/* DEPARTURE */}
                                         <div>
-                                        <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                            {new Date(seg.departure.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                                            <span className="text-slate-300 font-light text-xs">|</span>
-                                            {seg.departure.city} <span className="text-slate-400 font-medium text-xs">({seg.departure.code})</span>
-                                        </p>
-                                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                                            {seg.departure.airport}
-                                            {seg.departure.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.departure.terminal}</span>}
-                                        </p>
+                                            <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                {formatTime(seg.departure.time)}
+                                                <span className="text-slate-300 font-light text-xs">|</span>
+                                                {seg.departure.city} <span className="text-slate-400 font-medium text-xs">({seg.departure.code})</span>
+                                            </p>
+                                            {/* 🟢 NEW: Date Display */}
+                                            <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                {formatDate(seg.departure.time)}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5">
+                                                {seg.departure.airport}
+                                                {seg.departure.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.departure.terminal}</span>}
+                                            </p>
                                         </div>
+
+                                        {/* Airline Info Right */}
                                         <div className="text-right">
-                                        {seg.logo && <img src={seg.logo} alt="" className="w-5 h-5 object-contain ml-auto opacity-80" />}
-                                        <p className="text-[10px] text-slate-400 mt-1 font-medium">{seg.airline}</p>
+                                            {seg.logo && <img src={seg.logo} alt="" className="w-5 h-5 object-contain ml-auto opacity-80" />}
+                                            <p className="text-[10px] text-slate-400 mt-1 font-medium">{seg.airline}</p>
                                         </div>
                                     </div>
+
+                                    {/* Duration Bar */}
                                     <div className="my-2 py-1.5 px-3 bg-slate-50/70 rounded-lg border border-slate-100 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                         <Clock className="w-3 h-3 text-slate-400" />
@@ -382,15 +396,25 @@ function CheckoutContent() {
                                         <span className="text-[10px] text-slate-400 border-l border-slate-200 pl-3">{seg.aircraft}</span>
                                         </div>
                                     </div>
+
+                                    {/* ARRIVAL */}
                                     <div>
                                         <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                        {new Date(seg.arrival.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                                        <span className="text-slate-300 font-light text-xs">|</span>
-                                        {seg.arrival.city} <span className="text-slate-400 font-medium text-xs">({seg.arrival.code})</span>
+                                            {formatTime(seg.arrival.time)}
+                                            {/* 🔴 NEW: +1 Day Indicator */}
+                                            {getDayDiff(seg.departure.time, seg.arrival.time) > 0 && (
+                                                <sup className="text-[9px] font-black text-rose-500 bg-rose-50 px-1 rounded">+{getDayDiff(seg.departure.time, seg.arrival.time)}</sup>
+                                            )}
+                                            <span className="text-slate-300 font-light text-xs">|</span>
+                                            {seg.arrival.city} <span className="text-slate-400 font-medium text-xs">({seg.arrival.code})</span>
                                         </p>
-                                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                                        {seg.arrival.airport}
-                                        {seg.arrival.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.arrival.terminal}</span>}
+                                        {/* 🟢 NEW: Date Display */}
+                                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                            {formatDate(seg.arrival.time)}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                            {seg.arrival.airport}
+                                            {seg.arrival.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.arrival.terminal}</span>}
                                         </p>
                                     </div>
                                     </div>

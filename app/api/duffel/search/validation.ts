@@ -11,17 +11,16 @@ const flightLegSchema = z.object({
 export const searchSchema = z.object({
   type: z.enum(['one_way', 'round_trip', 'multi_city']),
 
-  // Fields for One Way & Round Trip
+  // Basic Fields
   origin: z.string().length(3).optional().transform(v => v?.toUpperCase()),
   destination: z.string().length(3).optional().transform(v => v?.toUpperCase()),
   departureDate: z.string().optional(),
   returnDate: z.string().optional(),
 
-  // Fields for Multi City
+  // Multi City
   flights: z.array(flightLegSchema).max(8).optional(),
 
-  // 🟢 FIX: Passengers must be an Object (not a single number)
-  // This matches your frontend formData structure
+  // Passengers (Matches API structure perfectly)
   passengers: z.object({
     adults: z.coerce.number().min(1).default(1),
     children: z.coerce.number().min(0).default(0),
@@ -29,6 +28,9 @@ export const searchSchema = z.object({
   }).default({ adults: 1, children: 0, infants: 0 }),
 
   cabinClass: z.enum(['economy', 'premium_economy', 'business', 'first']).default('economy'),
+  
+  // ✨ Added Sort (Since backend supports it)
+  sort: z.enum(['best', 'cheapest', 'fastest', 'price_asc', 'price_desc', 'duration']).optional(),
 
 }).superRefine((data, ctx) => {
   
@@ -40,10 +42,15 @@ export const searchSchema = z.object({
     if (!data.destination) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Destination is required", path: ['destination'] });
     }
+    // 🛡️ Safety: Prevent same Origin & Destination
+    if (data.origin && data.destination && data.origin === data.destination) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Origin and Destination cannot be same", path: ['destination'] });
+    }
+
     if (!data.departureDate) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Departure Date is required", path: ['departureDate'] });
     }
-    // Specific Check for Round Trip
+    
     if (data.type === 'round_trip' && !data.returnDate) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Return Date is required", path: ['returnDate'] });
     }

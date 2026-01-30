@@ -24,16 +24,3 @@ export const calculateMarkup = (
 };
 
 
-
-
-// --- 4. HELPER: Time Duration Parser ---
-export const formatDuration = (isoDuration: string | null | undefined) => {
-  if (!isoDuration) return "";
-  
-  return isoDuration
-    .replace("PT", "")
-    .replace("H", "h ")
-    .replace("M", "m")
-    .toLowerCase()
-    .trim();
-};
