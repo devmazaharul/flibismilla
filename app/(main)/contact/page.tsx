@@ -1,7 +1,9 @@
 'use client';
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import axios from 'axios'; 
 
 import { contactPageData } from '@/constant/data';
 import { appTheme } from '@/constant/theme/global';
@@ -26,35 +28,28 @@ const ContactPage = () => {
         resolver: zodResolver(contactFormSchema),
     });
 
-
     const onSubmit = async (data: ContactFormValues) => {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch('/api/contact', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: data.name,
-                    email: data.email,
-                    phone: data.phone,
-                    subject: data.subject,
-                    message: data.message,
-                }),
+            const response = await axios.post('/api/general/contact', {
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                subject: data.subject,
+                message: data.message,
             });
 
-            const result = await response.json();
-
-            if (result.success) {
+            if (response.data.success) {
                 toast.success('Message sent successfully! 🚀');
                 reset(); // Form clear
             } else {
-                toast.error('Failed to send message. Please try again.');
+                toast.error(response.data.message || 'Failed to send message. Please try again.');
             }
-        } catch (error){
-            toast.error('Something went wrong. Please try again later.');
+        } catch (error: any) {
+            console.error('Contact Form Error:', error);
+            const errorMessage = error.response?.data?.message || 'Something went wrong. Please try again later.';
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -123,6 +118,7 @@ const ContactPage = () => {
                                     key={contact.id}
                                     href={contact.link}
                                     target="_blank"
+                                    rel="noreferrer" // Security improvement for target blank
                                     className="flex flex-col items-center text-center bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-gray-200/70 hover:border-rose-200 hover:shadow-lg transition-all group"
                                 >
                                     <div className="w-12 h-12 bg-gray-900 group-hover:bg-rose-600 rounded-full flex items-center justify-center mb-4 transition-colors duration-300">
@@ -234,7 +230,7 @@ const ContactPage = () => {
                         {/* Submit Button */}
                         <Button
                             type="submit"
-                            className={`w-full h-12 text-lg ${button.primary}`}
+                            className={`w-full h-12 cursor-pointer text-lg ${button.primary}`}
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (

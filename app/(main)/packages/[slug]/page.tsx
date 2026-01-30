@@ -142,47 +142,51 @@ const PackageDetails = () => {
         setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSubmitting(true);
 
-        const bookingPayload = {
-            packageTitle: pkg?.title,
-            packagePrice: pkg?.price,
-            customerName: formData.name,
-            customerEmail: formData.email,
-            customerPhone: formData.phone,
-            travelDate: formData.travelDate,
-            returnDate: formData.returnDate,
-            guests: {
-                adults: formData.adults,
-                children: formData.children
-            },
-            notes: formData.message,
-        };
+  const bookingPayload = {
+    packageTitle: pkg?.title || "",
+    packagePrice: pkg?.price || 0,
+    customerName: formData.name,
+    customerEmail: formData.email,
+    customerPhone: formData.phone,
+    travelDate: formData.travelDate,
+    returnDate: formData.returnDate,
+    guests: {
+      adults: Number(formData.adults),
+      children: Number(formData.children),
+    },
+    notes: formData.message,
+  };
 
-        try {
-            // Axios POST request
-            const response = await axios.post('/api/booking', bookingPayload);
+  try {
+    const response = await axios.post("/api/general/package-book", bookingPayload);
 
-            if (response.data.success) {
-                toast.success("Booking Request Sent Successfully! ✅");
-                setIsModalOpen(false);
-                setFormData({
-                    name: '', email: '', phone: '', travelDate: '', returnDate: '',
-                    adults: 1, children: 0, message: ''
-                });
-            } else {
-                toast.error("Failed to send request. Try again.");
-            }
-
-        } catch (error: any) {
-            const errorMsg = error.response?.data?.message || "Something went wrong!";
-            toast.error(errorMsg);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    if (response.data.success) {
+      toast.success("Booking Request Sent Successfully! ✅");
+      setIsModalOpen(false);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        travelDate: "",
+        returnDate: "",
+        adults: 1,
+        children: 0,
+        message: "",
+      });
+    } else {
+      toast.error(response.data.message || "Failed to send request.");
+    }
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.message || "Something went wrong!";
+    toast.error(errorMsg);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
     const handleShare = () => {
         navigator.clipboard.writeText(window.location.href);

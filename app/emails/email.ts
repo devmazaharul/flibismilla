@@ -4,32 +4,16 @@ import TeamInvite from './TeamInvite';
 import ForgotPassword from './ForgotPassword';
 import PasswordChanged from './PasswordChanged';
 import TwoFactorStatus from './TwoFactorStatus';
+import ContactSubmission from './ContactSubmission';
+
+import BookingNotification from './BookingNotification';
 
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 
-// 2. Send Booking Email
-export async function sendBookingEmail(email: string, data: any) {
-  try {
-    await resend.emails.send({
-      from: 'Fly Bismillah Support <support@yourdomain.com>',
-      to: email,
-      subject: `Booking Confirmed: ${data.packageName}`,
-      react: BookingSuccess({ 
-          customerName: data.name,
-          packageName: data.packageName,
-          amount: data.amount,
-          bookingId: data.bookingId
-      }),
-    });
-    return { success: true };
-  } catch (error) {
-    console.error('Email Error:', error);
-    return { success: false, error };
-  }
-}
+
 
 export async function sendTeamInviteEmail(email: string, data: { invitedBy: string, invitedName: string, role: string, link: string }) {
   try {
@@ -46,7 +30,6 @@ export async function sendTeamInviteEmail(email: string, data: { invitedBy: stri
     });
     return { success: true };
   } catch (error) {
-    console.error('Invite Email Error:', error);
     return { success: false, error };
   }
 }
@@ -65,7 +48,6 @@ export async function sendForgotPasswordEmail(email: string, data: { name: strin
     });
     return { success: true };
   } catch (error) {
-    console.error('Forgot Password Email Error:', error);
     return { success: false, error };
   }
 }
@@ -80,7 +62,6 @@ export async function sendPasswordChangedEmail(email: string, userName: string) 
     });
     return { success: true };
   } catch (error) {
-    console.error('Password Change Email Error:', error);
     return { success: false };
   }
 }
@@ -109,7 +90,72 @@ export async function send2FAStatusEmail(
     });
     return { success: true };
   } catch (error) {
-    console.error('2FA Email Error:', error);
+    return { success: false, error };
+  }
+}
+
+// 6. Send Contact Submission Email
+const privateEmail="work.mazaharul@gmail.com"
+export async function sendContactSubmissionEmail(
+  data: { name: string; email: string; phone: string; subject: string; message: string }
+) {
+  try {
+
+    const { data: result, error } = await resend.emails.send({
+      from: 'Fly Bismillah <onboarding@themaza.shop>',
+      to:privateEmail, 
+      subject: `New Inquiry: ${data.subject}`,
+      react: ContactSubmission({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        subject: data.subject,
+        message: data.message,
+      }),
+    });
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    return { success: true, id: result?.id };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+
+interface BookingData {
+  packageTitle: string;
+  packagePrice: string | number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  travelDate: string;
+  returnDate: string;
+  guests: {
+    adults: number;
+    children: number;
+  };
+  notes?: string;
+}
+
+export async function sendBookingEmail(data: BookingData) {
+  try {
+    const { data: result, error } = await resend.emails.send({
+          from: 'Fly Bismillah <onboarding@themaza.shop>',
+      to: [privateEmail], 
+      subject: `✈️ New Booking Request: ${data.packageTitle}`,
+      react: BookingNotification(data),
+    });
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    return { success: true, id: result?.id };
+
+  } catch (error) {
     return { success: false, error };
   }
 }
