@@ -1,80 +1,108 @@
-"use client";
+'use client';
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useForm, SubmitHandler } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Lock, AlertCircle, Loader2, CreditCard, Clock, CheckCircle } from "lucide-react";
-import { useEffect, useState, Suspense } from "react";
-import axios from "axios"; 
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Mail,
+  Lock,
+  AlertCircle,
+  Loader2,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Ban,
+  Plane,
+  Phone,
+  Timer,
+  RefreshCcw
+} from 'lucide-react';
+import { useEffect, useState, Suspense } from 'react';
+import axios from 'axios';
 
-import { BookingFormData, bookingSchema } from "./utils/validation";
-import { PassengerForm } from "./components/PassengerForm";
-import { BookingSummary } from "./components/BookingSummary";
-import { PriceValidityNotice } from "@/app/(main)/components/PriceValidityNotice";
+import { BookingFormData, bookingSchema } from './utils/validation';
+import { PassengerForm } from './components/PassengerForm';
+import { BookingSummary } from './components/BookingSummary';
+import { websiteDetails } from '@/constant/data';
+
+// ⚠️ Update your agency number here
+const AGENCY_WHATSAPP_NUMBER = "8801900000000"; 
 
 // ----------------------------------------------------------------------
-// 🟢 MODAL COMPONENT (Payment Confirmation)
+// 🔴 EXPIRATION MODAL
 // ----------------------------------------------------------------------
-const PaymentModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  isInstantPayment, 
-  price, 
-  isProcessing 
+const ExpirationModal = ({ isOpen, onRefresh }: { isOpen: boolean; onRefresh: () => void }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+        <div className="p-8 text-center">
+          <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center animate-pulse">
+                <Timer className="w-8 h-8 text-rose-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 mb-3">Session Expired</h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-8">
+            The time limit for this offer has passed. Airline prices change constantly, so please search again to get the latest availability.
+          </p>
+          <button 
+            onClick={onRefresh}
+            className="w-full py-4 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
+          >
+            <RefreshCcw className="w-5 h-5" /> Search Again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------------
+// 🟢 PAYMENT MODAL
+// ----------------------------------------------------------------------
+const PaymentModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isInstantPayment,
+  price,
+  isProcessing,
 }: any) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
-        
-        {/* Modal Header */}
         <div className={`p-6 text-center ${isInstantPayment ? 'bg-rose-50' : 'bg-blue-50'}`}>
-          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${isInstantPayment ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
-            {isInstantPayment ? <CreditCard className="w-8 h-8" /> : <Clock className="w-8 h-8" />}
+          <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4 ${isInstantPayment ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+            {isInstantPayment ? <CreditCard className="w-7 h-7" /> : <Clock className="w-7 h-7" />}
           </div>
-          <h3 className="text-xl font-black text-slate-800">
-            {isInstantPayment ? "Instant Payment Required" : "Confirm Booking"}
+          <h3 className="text-lg font-bold text-slate-800">
+            {isInstantPayment ? 'Instant Payment Required' : 'Confirm Booking'}
           </h3>
-          <p className="text-sm text-slate-500 mt-2 px-4">
-            {isInstantPayment 
-              ? "This airline requires immediate payment to issue the ticket. Holding is not available." 
-              : "You can hold this booking now and pay later within the time limit."}
+          <p className="text-sm text-slate-500 mt-2 px-4 leading-relaxed">
+            {isInstantPayment
+              ? 'This airline requires immediate payment. Holding is not available.'
+              : 'You can hold this booking now and pay later within the time limit.'}
           </p>
         </div>
-
-        {/* Modal Body */}
         <div className="p-6">
           <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
-            <span className="text-sm font-bold text-slate-500">Total Amount</span>
-            <span className="text-xl font-black text-slate-900">{price}</span>
+            <span className="text-sm font-semibold text-slate-500">Total Amount</span>
+            <span className="text-lg font-bold text-slate-900">{price}</span>
           </div>
-
           <div className="flex gap-3">
-            <button 
-              onClick={onClose}
-              disabled={isProcessing}
-              className="flex-1 py-3.5 rounded-xl font-bold cursor-pointer text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button 
+            <button onClick={onClose} disabled={isProcessing} className="flex-1 py-3 rounded-xl font-semibold cursor-pointer text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button
               onClick={onConfirm}
               disabled={isProcessing}
-              className={`flex-1 py-3.5 rounded-xl font-bold cursor-pointer text-white shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 ${
-                isInstantPayment 
-                  ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' 
-                  : 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
+              className={`flex-1 py-3 rounded-xl font-semibold cursor-pointer text-white shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 ${
+                isInstantPayment ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
               }`}
             >
-              {isProcessing ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {isInstantPayment ? "Pay Now" : "Book Now"}
-                </>
-              )}
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <>{isInstantPayment ? 'Pay Now' : 'Book Now'}</>}
             </button>
           </div>
         </div>
@@ -83,45 +111,38 @@ const PaymentModal = ({
   );
 };
 
-
 // ----------------------------------------------------------------------
 // 🟢 MAIN COMPONENT
 // ----------------------------------------------------------------------
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // URL Params
-  const offerId = searchParams.get("offer_id");
-  const adultsCount = parseInt(searchParams.get("adt") || "0");
-  const childrenCount = parseInt(searchParams.get("chd") || "0");
-  const infantsCount = parseInt(searchParams.get("inf") || "0");
 
-  // States
-  const [isSubmitting, setIsSubmitting] = useState(false); // For final API call
-  const [isLoading, setIsLoading] = useState(true); // For initial fetch
+  const offerId = searchParams.get('offer_id');
+  const adultsCount = parseInt(searchParams.get('adt') || '0');
+  const childrenCount = parseInt(searchParams.get('chd') || '0');
+  const infantsCount = parseInt(searchParams.get('inf') || '0');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [flightData, setFlightData] = useState<any>(null);
-  const [fetchError, setFetchError] = useState("");
+  const [fetchError, setFetchError] = useState('');
   
-  // Modal State
+  const [timeLeft, setTimeLeft] = useState<string>("--:--");
+  const [isExpired, setIsExpired] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<BookingFormData | null>(null);
 
-  // Form Setup
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<BookingFormData>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { contact: { email: "", phone: "" }, passengers: [] },
+    defaultValues: { contact: { email: '', phone: '' }, passengers: [] },
   });
 
   // 1. FETCH & VALIDATE
   useEffect(() => {
     if (!offerId) {
-      setFetchError("Invalid Offer ID.");
+      setFetchError('Invalid Offer ID.');
       setIsLoading(false);
       return;
     }
@@ -133,28 +154,26 @@ function CheckoutContent() {
 
         if (!result.success) throw new Error(result.message);
         const data = result.data;
-        
-        // 🛡️ Guard Clause
+        // Security Check
         const apiAdults = data.passengers.filter((p: any) => p.type === 'adult').length;
         const apiChildren = data.passengers.filter((p: any) => p.type === 'child').length;
         const apiInfants = data.passengers.filter((p: any) => p.type === 'infant_without_seat').length;
 
         if (apiAdults !== adultsCount || apiChildren !== childrenCount || apiInfants !== infantsCount) {
-           throw new Error("Security Mismatch: Please search again.");
+          throw new Error('Security Mismatch: Please search again.');
         }
 
         setFlightData(data);
         reset({
-          contact: { email: "", phone: "" },
+          contact: { email: '', phone: '' },
           passengers: data.passengers.map((p: any) => ({
-            id: p.id, type: p.type, gender: "male", title: "mr",
-            firstName: "", lastName: "", dob: "", passportNumber: "", passportExpiry: "", middleName: ""
-          }))
+            id: p.id, type: p.type, gender: 'male', title: 'mr',
+            firstName: '', lastName: '', dob: '', passportNumber: '', passportExpiry: '', middleName: '',
+          })),
         });
         setIsLoading(false);
-
       } catch (error: any) {
-        let msg = "An unexpected error occurred.";
+        let msg = 'An unexpected error occurred.';
         if (axios.isAxiosError(error)) msg = error.response?.data?.message || error.message;
         else if (error instanceof Error) msg = error.message;
         setFetchError(msg);
@@ -165,185 +184,309 @@ function CheckoutContent() {
     getFlightDetails();
   }, [offerId, adultsCount, childrenCount, infantsCount, reset]);
 
-  // 2. PRE-SUBMIT (Opens Modal)
+  // 2. COUNTDOWN TIMER LOGIC
+  useEffect(() => {
+    if (!flightData?.expires_at || isExpired) return;
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const expiry = new Date(flightData.expires_at).getTime();
+      
+      // 🟢 MAIN LOGIC: Subtract current time from expiry
+      const distance = expiry - now;
+
+      if (distance < 0) {
+        clearInterval(interval);
+        setTimeLeft("00:00");
+        setIsExpired(true); // Triggers Modal
+      } else {
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); // Remaining Minutes
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000); // Remaining Seconds
+        
+        // Formatting 05:09
+        const m = minutes < 10 ? `0${minutes}` : minutes;
+        const s = seconds < 10 ? `0${seconds}` : seconds;
+        setTimeLeft(`${m}:${s}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [flightData, isExpired]);
+
+  // 3. WHATSAPP REDIRECT
+  const handleWhatsAppRedirect = () => {
+    if (!flightData) return;
+    const firstSlice = flightData.itinerary[0];
+    const route = `${firstSlice.mainDeparture.city} (${firstSlice.mainDeparture.code}) ➡️ ${firstSlice.mainArrival.city} (${firstSlice.mainArrival.code})`;
+    const date = new Date(firstSlice.mainDeparture.time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const airline = firstSlice.mainAirline;
+    const price = `${flightData.price.currency} ${flightData.price.finalPrice}`;
+    
+    const message = `Hello, I want to book a flight but it requires instant payment.\n\n *Flight Info:*\n${route}\n📅 *Date:* ${date}\n *Airline:* ${airline}\n💰 *Price:* ${price}\n\n🆔 *Offer ID:* ${flightData.id}\n\nPlease help me proceed.`;
+
+    const url = `https://wa.me/${websiteDetails.whatsappNumber}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const onPreSubmit: SubmitHandler<BookingFormData> = (formData) => {
     setPendingFormData(formData);
     setIsModalOpen(true);
   };
 
-  // 3. FINAL EXECUTION (Called from Modal)
   const handleConfirmBooking = async () => {
     if (!pendingFormData || !flightData) return;
-    
     setIsSubmitting(true);
 
     const bookingPayload = {
-        offer_id: offerId,
-        contact: pendingFormData.contact,
-        passengers: pendingFormData.passengers.map(p => ({
-            id: p.id,
-            given_name: p.firstName,
-            family_name: p.lastName,
-            gender: p.gender,
-            title: p.title,
-            born_on: p.dob,
-            email: pendingFormData.contact.email, 
-            phone_number: pendingFormData.contact.phone,
-            type: p.type 
-        })),
-        expected_total: flightData.price.finalPrice, 
+      offer_id: offerId,
+      contact: pendingFormData.contact,
+      passengers: pendingFormData.passengers.map((p) => ({
+        id: p.id, given_name: p.firstName, family_name: p.lastName, gender: p.gender, title: p.title,
+        born_on: p.dob, email: pendingFormData.contact.email, phone_number: pendingFormData.contact.phone, type: p.type,
+      })),
+      expected_total: flightData.price.finalPrice,
     };
 
     try {
-        // 👇 BACKEND CALL
-        // const response = await axios.post('/api/booking/create', bookingPayload);
-        
-        console.log("Submitting Payload:", bookingPayload);
-
-        setTimeout(() => {
-            alert("Success! Redirecting...");
-            setIsSubmitting(false);
-            setIsModalOpen(false);
-        }, 2000);
-
+      const response = await axios.post('/api/booking/create', bookingPayload);
+      if (response.data.success) {
+        router.push(`/booking/success?id=${response.data.bookingId}`);
+      } else {
+        alert('Booking failed: ' + response.data.message);
+      }
     } catch (error) {
-        alert("Booking failed. Please try again.");
-        setIsSubmitting(false);
-        setIsModalOpen(false);
+      alert('Booking failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setIsModalOpen(false);
     }
   };
 
-  // Loading UI
-  if (isLoading) {
-    return (
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-            <Loader2 className="w-12 h-12 text-rose-600 animate-spin" />
-        </div>
-    );
+  // --- REFRESH HANDLER ---
+  const handleRefreshSearch = () => {
+      router.push('/flight/search');
   }
 
-  // Error UI
-  if (fetchError || !flightData) {
-    return (
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-            <div className="p-8 bg-white shadow-xl rounded-3xl text-center max-w-md border border-red-100">
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
-                <p className="text-slate-500 mb-6 text-sm">{fetchError}</p>
-                <button onClick={() => router.push('/')} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold">Search Again</button>
-            </div>
-        </div>
-    );
-  }
-
-  const summaryCounts = {
-      adults: flightData.passengers.filter((p: any) => p.type === 'adult').length,
-      children: flightData.passengers.filter((p: any) => p.type === 'child').length,
-      infants: flightData.passengers.filter((p: any) => p.type === 'infant_without_seat').length,
-  };
-
-  // Payment Requirement Check
-  const requiresInstantPayment = flightData.payment_requirements?.requires_instant_payment ?? true;
-
-  return (
-   <>
-    <div>
-      <div className="mb-8 max-w-3xl mx-auto lg:mx-0">
-          <PriceValidityNotice offerId={offerId as string} />
-      </div>
-
-      <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 mb-2">Complete Your Booking</h1>
-              <p className="text-slate-500 flex items-center gap-2">
-                Passenger details must match your passport.
-                <span className="flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                    <Lock className="w-3 h-3" /> Secure Session
-                </span>
-              </p>
-            </div>
-
-            {/* Payment Badge Indicator */}
-            <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 ${
-                requiresInstantPayment ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-blue-50 border-blue-100 text-blue-700'
-            }`}>
-                {requiresInstantPayment ? <CreditCard className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                <span className="text-xs font-bold">
-                    {requiresInstantPayment ? "Instant Payment Only" : "Hold Booking Available"}
-                </span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit(onPreSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            
-            {/* Left Side: Forms */}
-            <div className="lg:col-span-2 space-y-6">
-              
-              {/* Contact Info */}
-              <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200">
-                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-rose-500" /> Contact Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
-                    <input {...register("contact.email")} placeholder="ticket@example.com" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none" />
-                    {errors.contact?.email && <p className="text-xs text-red-500 font-bold mt-1">{errors.contact.email.message}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
-                    <input {...register("contact.phone")} placeholder="+880 1XXX..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 outline-none" />
-                    {errors.contact?.phone && <p className="text-xs text-red-500 font-bold mt-1">{errors.contact.phone.message}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Passenger Forms */}
-              {flightData.passengers.map((passenger: any, index: number) => {
-                  let type = "adult";
-                  if (passenger.type === 'child') type = "child";
-                  if (passenger.type === 'infant_without_seat') type = "infant";
-                 return <PassengerForm key={passenger.id} index={index} type={type as any} register={register} errors={errors} />;
-              })}
-
-              {/* MAIN SUBMIT BUTTON */}
-              <button
-                type="submit"
-                className="w-full py-4 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
-              >
-                <CheckCircle className="w-5 h-5" /> Review & Continue
-              </button>
-            </div>
-
-            {/* Right Side: Summary */}
-            <div className="lg:col-span-1">
-               <BookingSummary passengers={summaryCounts} flight={flightData} />
-            </div>
-
-          </form>
-        </div>
+  // --- UI STATES ---
+  if (isLoading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader2 className="w-10 h-10 text-rose-600 animate-spin" /></div>;
+  
+  // Show error only if NOT expired (Expired modal takes priority)
+  if ((fetchError || !flightData) && !isExpired) return (
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
+      <div className="p-8 bg-white shadow-2xl shadow-gray-100 rounded-3xl text-center max-w-md">
+        <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+        <p className="text-slate-500 mb-6 text-sm">{fetchError}</p>
+        <button onClick={() => router.push('/')} className="px-6 py-2 cursor-pointer bg-slate-900 text-white rounded-lg font-bold">Search Again</button>
       </div>
     </div>
+  );
 
-    {/* 🟢 CONFIRMATION MODAL */}
-    <PaymentModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onConfirm={handleConfirmBooking}
-        isInstantPayment={requiresInstantPayment}
-        price={`${flightData.price.currency} ${flightData.price.finalPrice.toLocaleString()}`}
-        isProcessing={isSubmitting}
-    />
-   </>
+  const summaryCounts = flightData ? {
+    adults: flightData.passengers.filter((p: any) => p.type === 'adult').length,
+    children: flightData.passengers.filter((p: any) => p.type === 'child').length,
+    infants: flightData.passengers.filter((p: any) => p.type === 'infant_without_seat').length,
+  } : { adults:0, children:0, infants:0 };
+
+  const requiresInstantPayment = flightData?.payment_requirements?.requires_instant_payment ?? false;
+
+  return (
+    <>
+      <ExpirationModal isOpen={isExpired} onRefresh={handleRefreshSearch} />
+
+      <div className={`${isExpired ? "blur-sm pointer-events-none select-none overflow-hidden h-screen" : ""} transition-all duration-500`}>
+        {/* Removed PriceValidityNotice as requested */}
+
+        <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Complete Your Booking</h1>
+                <p className="text-slate-500 flex items-center gap-2 text-sm">
+                  <span className="flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-wide">
+                    <Lock className="w-3 h-3" /> Secure Session
+                  </span>
+                </p>
+              </div>
+
+              {/* 🕒 Timer */}
+              <div className={`px-5 py-2.5 rounded-xl flex items-center gap-3 shadow-lg transition-colors ${parseInt(timeLeft) < 5 ? 'bg-rose-600 shadow-rose-200' : 'bg-slate-900 shadow-slate-200'}`}>
+                 <Timer className={`w-5 h-5 ${parseInt(timeLeft) < 5 ? 'text-white' : 'text-rose-400'}`} />
+                 <div>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider leading-none mb-0.5 ${parseInt(timeLeft) < 5 ? 'text-rose-100' : 'text-slate-400'}`}>Price Expires In</p>
+                    <p className="text-lg font-mono font-bold text-white leading-none">{timeLeft}</p>
+                 </div>
+              </div>
+            </div>
+
+            {flightData && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative">
+                {/* 🟢 LEFT SIDE: CONTENT */}
+                <div className="lg:col-span-2 space-y-6">
+                    
+                    {/* 🛫 FLIGHT DETAILS */}
+                    <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                    <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
+                        <Plane className="w-5 h-5 text-rose-500" /> Flight Itinerary
+                    </h3>
+                    <div className="relative">
+                        {flightData.itinerary.map((slice: any, sIdx: number) => (
+                        <div key={slice.id || sIdx} className="relative">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3 flex items-center gap-2.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${sIdx === 0 ? 'bg-rose-500' : 'bg-blue-500'}`}></span>
+                            {slice.direction} Journey
+                            </p>
+                            <div className="space-y-1"> 
+                            {slice.segments.map((seg: any, idx: number) => (
+                                <div key={seg.id || idx} className="group">
+                                {seg.layover && (
+                                    <div className="ml-4 pl-4 border-l-2 border-dashed border-amber-200 my-2">
+                                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100 flex items-center gap-1.5 w-fit">
+                                        <Clock className="w-3 h-3" /> Layover: <span className="font-bold">{seg.layover}</span> in {seg.departure.airport}
+                                    </span>
+                                    </div>
+                                )}
+                                <div className="flex gap-4">
+                                    <div className="flex flex-col items-center pt-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-full border-[2px] border-slate-700 bg-white"></div>
+                                    <div className="w-[1.5px] flex-1 bg-slate-200 my-0.5 min-h-[40px]"></div>
+                                    <div className="w-2.5 h-2.5 rounded-full border-[2px] border-slate-400 bg-white"></div>
+                                    </div>
+                                    <div className="flex-1 pb-4">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                        <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                            {new Date(seg.departure.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            <span className="text-slate-300 font-light text-xs">|</span>
+                                            {seg.departure.city} <span className="text-slate-400 font-medium text-xs">({seg.departure.code})</span>
+                                        </p>
+                                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                            {seg.departure.airport}
+                                            {seg.departure.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.departure.terminal}</span>}
+                                        </p>
+                                        </div>
+                                        <div className="text-right">
+                                        {seg.logo && <img src={seg.logo} alt="" className="w-5 h-5 object-contain ml-auto opacity-80" />}
+                                        <p className="text-[10px] text-slate-400 mt-1 font-medium">{seg.airline}</p>
+                                        </div>
+                                    </div>
+                                    <div className="my-2 py-1.5 px-3 bg-slate-50/70 rounded-lg border border-slate-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        <span className="text-[11px] font-semibold text-slate-600">{seg.duration}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                        <span className="text-[10px] text-slate-400 font-medium uppercase">{seg.flightNumber}</span>
+                                        <span className="text-[10px] text-slate-400 border-l border-slate-200 pl-3">{seg.aircraft}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                        {new Date(seg.arrival.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                        <span className="text-slate-300 font-light text-xs">|</span>
+                                        {seg.arrival.city} <span className="text-slate-400 font-medium text-xs">({seg.arrival.code})</span>
+                                        </p>
+                                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                        {seg.arrival.airport}
+                                        {seg.arrival.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.arrival.terminal}</span>}
+                                        </p>
+                                    </div>
+                                    </div>
+                                </div>
+                                </div>
+                            ))}
+                            </div>
+                            {sIdx < flightData.itinerary.length - 1 && (
+                            <div className="my-8 py-2 relative flex items-center justify-center">
+                                <div className="absolute w-full h-[1px] bg-slate-200 dashed-border"></div>
+                                <div className="relative bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-100 rounded-full py-1">Return Flight</div>
+                            </div>
+                            )}
+                        </div>
+                        ))}
+                    </div>
+                    </div>
+
+                    {/* 🔴 CONDITIONAL RENDERING */}
+                    {requiresInstantPayment ? (
+                        <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
+                            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Ban className="w-8 h-8 text-rose-500" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-900 mb-2">Instant Payment Required</h2>
+                            <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">
+                                This flight cannot be held online. To book this ticket, please contact our support team immediately.
+                            </p>
+                            <div className="flex flex-col sm:flex-row justify-center gap-4">
+                                <button onClick={handleWhatsAppRedirect} className="flex cursor-pointer items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100">
+                                    <Phone className="w-4 h-4" /> Book via WhatsApp
+                                </button>
+                                <button onClick={() => router.push('/flight/search')} className="px-6 cursor-pointer py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                                    Search Other Flights
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit(onPreSubmit)} className="space-y-6">
+                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <Mail className="w-5 h-5 text-rose-500" /> Contact Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email Address</label>
+                                        <input {...register('contact.email')} placeholder="ticket@example.com" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
+                                        {errors.contact?.email && <p className="text-xs text-red-500 font-semibold mt-1">{errors.contact.email.message}</p>}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Phone Number</label>
+                                        <input {...register('contact.phone')} placeholder="+880 1XXX..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
+                                        {errors.contact?.phone && <p className="text-xs text-red-500 font-semibold mt-1">{errors.contact.phone.message}</p>}
+                                    </div>
+                                </div>
+                            </div>
+                            {flightData.passengers.map((passenger: any, index: number) => {
+                                let type = 'adult';
+                                if (passenger.type === 'child') type = 'child';
+                                if (passenger.type === 'infant_without_seat') type = 'infant';
+                                return <PassengerForm key={passenger.id} index={index} type={type as any} register={register} errors={errors} />;
+                            })}
+                            <button type="submit" disabled={isSubmitting} className="w-full py-4 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]">
+                                <CheckCircle className="w-5 h-5" /> Review & Confirm Booking
+                            </button>
+                        </form>
+                    )}
+                </div>
+
+                {/* 🟢 RIGHT SIDE */}
+                <div className="lg:col-span-1 lg:sticky lg:top-8 h-fit">
+                    <BookingSummary passengers={summaryCounts} flight={flightData} />
+                </div>
+                </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {flightData && (
+        <PaymentModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onConfirm={handleConfirmBooking}
+            price={`${flightData.price.currency} ${flightData.price.finalPrice.toLocaleString()}`}
+            isProcessing={isSubmitting}
+        />
+      )}
+    </>
   );
 }
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
-        <CheckoutContent />
+    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-rose-500" /></div>}>
+      <CheckoutContent />
     </Suspense>
   );
 }
