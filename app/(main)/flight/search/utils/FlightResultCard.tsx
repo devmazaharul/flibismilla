@@ -9,7 +9,6 @@ import {
     ChevronDown, 
     Briefcase, 
     Armchair, 
-    Calendar,
     Wifi,
     Utensils,
     Zap,
@@ -60,7 +59,9 @@ interface FlightOffer {
 // ----------------------------------------------------------------------
 // 🟢 HELPER FUNCTIONS
 // ----------------------------------------------------------------------
-const formatTime = (iso: string) => format(parseISO(iso), 'HH:mm');
+// ✨ CHANGED: 12-Hour Format with AM/PM (e.g., 02:30 PM)
+const formatTime = (iso: string) => format(parseISO(iso), 'hh:mm a'); 
+
 const formatDate = (iso: string) => format(parseISO(iso), 'EEE, dd MMM');
 
 const getDayDiff = (dep: string, arr: string) => {
@@ -242,7 +243,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
 
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
-                            className="text-[11px] font-bold cursor-pointer text-slate-500 hover:text-rose-600 flex items-center justify-center gap-1 transition-colors py-2 hover:bg-white rounded-lg"
+                            className="text-[11px] cursor-pointer font-bold text-slate-500 hover:text-rose-600 flex items-center justify-center gap-1 transition-colors py-2 hover:bg-white rounded-lg"
                         >
                             {isExpanded ? 'Hide Details' : 'View Flight Details'}
                             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />

@@ -1,5 +1,7 @@
+'use client';
+
 import { UseFormRegister, FieldErrors } from "react-hook-form";
-import { User, CreditCard } from "lucide-react";
+import { User, CreditCard, Calendar } from "lucide-react";
 import { BookingFormData } from "../utils/validation";
 
 interface PassengerFormProps {
@@ -10,11 +12,14 @@ interface PassengerFormProps {
 }
 
 export const PassengerForm = ({ index, type, register, errors }: PassengerFormProps) => {
+  // Error helper to keep code clean
   const error = errors.passengers?.[index];
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200 mb-6 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+    <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 mb-6 animate-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Header Section */}
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
         <div className={`p-2 rounded-lg ${type === 'adult' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
           <User className="w-5 h-5" />
         </div>
@@ -31,17 +36,20 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
         {/* Title Field */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Title</label>
-          <select
-            {...register(`passengers.${index}.title`)}
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all"
-          >
-            <option value="">Select</option>
-            <option value="mr">Mr</option>
-            <option value="ms">Ms</option>
-            <option value="mrs">Mrs</option>
-            {type === 'child' || type === 'infant' ? <option value="mstr">Master</option> : null}
-          </select>
-          {error?.title && <p className="text-xs text-red-500 font-bold">{error.title.message}</p>}
+          <div className="relative">
+            <select
+                {...register(`passengers.${index}.title`)}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
+            >
+                <option value="">Select</option>
+                <option value="mr">Mr</option>
+                <option value="ms">Ms</option>
+                <option value="mrs">Mrs</option>
+                {(type === 'child' || type === 'infant') && <option value="mstr">Master</option>}
+            </select>
+            <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400 text-[10px]">▼</div>
+          </div>
+          {error?.title && <p className="text-[10px] text-red-500 font-bold ml-1">{error.title.message}</p>}
         </div>
 
         {/* First Name */}
@@ -49,25 +57,23 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
           <label className="text-xs font-bold text-slate-500 uppercase">First Name / Given Name</label>
           <input
             {...register(`passengers.${index}.firstName`)}
-            placeholder="e.g. John"
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal"
+            placeholder="e.g. JOHN"
+            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal uppercase"
           />
-          {error?.firstName && <p className="text-xs text-red-500 font-bold">{error.firstName.message}</p>}
+          {error?.firstName && <p className="text-[10px] text-red-500 font-bold ml-1">{error.firstName.message}</p>}
         </div>
 
-        {/* Middle Name (Optional) - NEW ADDITION */}
+        {/* Middle Name (Optional) */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase flex justify-between">
             Middle Name
             <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
           </label>
           <input
-            {...register(`passengers.${index}.middleName`)}
-            placeholder="e.g. Quincy"
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal"
+            {...register(`passengers.${index}.middleName`)} // Ensure this exists in your zod schema
+            placeholder="e.g. QUINCY"
+            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal uppercase"
           />
-          {/* Validation error displayed only if needed (e.g., max length exceeded), though it's optional */}
-          {error?.middleName && <p className="text-xs text-red-500 font-bold">{error.middleName.message}</p>}
         </div>
 
         {/* Last Name */}
@@ -75,10 +81,10 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
           <label className="text-xs font-bold text-slate-500 uppercase">Last Name / Surname</label>
           <input
             {...register(`passengers.${index}.lastName`)}
-            placeholder="e.g. Doh"
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal"
+            placeholder="e.g. DOE"
+            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal uppercase"
           />
-          {error?.lastName && <p className="text-xs text-red-500 font-bold">{error.lastName.message}</p>}
+          {error?.lastName && <p className="text-[10px] text-red-500 font-bold ml-1">{error.lastName.message}</p>}
         </div>
 
         {/* Date of Birth */}
@@ -86,28 +92,31 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
           <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
              Date of Birth
           </label>
-          <input
-            type="date"
-            {...register(`passengers.${index}.dob`)}
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all"
-          />
-          {error?.dob && <p className="text-xs text-red-500 font-bold">{error.dob.message}</p>}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+            <input
+                type="date"
+                {...register(`passengers.${index}.dob`)}
+                className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all text-slate-700"
+            />
+          </div>
+          {error?.dob && <p className="text-[10px] text-red-500 font-bold ml-1">{error.dob.message}</p>}
         </div>
 
         {/* Gender */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Gender</label>
-          <div className="flex gap-4 pt-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input type="radio" value="male" {...register(`passengers.${index}.gender`)} className="accent-rose-600 w-4 h-4" />
-              <span className="text-sm font-medium text-slate-700 group-hover:text-rose-600 transition-colors">Male</span>
+          <div className="flex gap-4 pt-2">
+            <label className="flex items-center gap-2 cursor-pointer group bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-rose-200 w-full transition-all">
+              <input type="radio" value="male" {...register(`passengers.${index}.gender`)} className="accent-rose-600 w-4 h-4 cursor-pointer" />
+              <span className="text-sm font-bold text-slate-700 group-hover:text-rose-600 transition-colors">Male</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input type="radio" value="female" {...register(`passengers.${index}.gender`)} className="accent-rose-600 w-4 h-4" />
-              <span className="text-sm font-medium text-slate-700 group-hover:text-rose-600 transition-colors">Female</span>
+            <label className="flex items-center gap-2 cursor-pointer group bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-rose-200 w-full transition-all">
+              <input type="radio" value="female" {...register(`passengers.${index}.gender`)} className="accent-rose-600 w-4 h-4 cursor-pointer" />
+              <span className="text-sm font-bold text-slate-700 group-hover:text-rose-600 transition-colors">Female</span>
             </label>
           </div>
-          {error?.gender && <p className="text-xs text-red-500 font-bold">{error.gender.message}</p>}
+          {error?.gender && <p className="text-[10px] text-red-500 font-bold ml-1">{error.gender.message}</p>}
         </div>
 
         {/* Passport Number */}
@@ -118,21 +127,24 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
              <input
                {...register(`passengers.${index}.passportNumber`)}
                placeholder="A12345678"
-               className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all uppercase placeholder:normal-case"
+               className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all uppercase placeholder:normal-case font-mono"
              />
           </div>
-          {error?.passportNumber && <p className="text-xs text-red-500 font-bold">{error.passportNumber.message}</p>}
+          {error?.passportNumber && <p className="text-[10px] text-red-500 font-bold ml-1">{error.passportNumber.message}</p>}
         </div>
 
         {/* Passport Expiry */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Passport Expiry Date</label>
-          <input
-            type="date"
-            {...register(`passengers.${index}.passportExpiry`)}
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all"
-          />
-          {error?.passportExpiry && <p className="text-xs text-red-500 font-bold">{error.passportExpiry.message}</p>}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+            <input
+                type="date"
+                {...register(`passengers.${index}.passportExpiry`)}
+                className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all text-slate-700"
+            />
+          </div>
+          {error?.passportExpiry && <p className="text-[10px] text-red-500 font-bold ml-1">{error.passportExpiry.message}</p>}
         </div>
 
       </div>
