@@ -1,8 +1,12 @@
 'use client';
 
 import { UseFormRegister, FieldErrors } from "react-hook-form";
-import { User, CreditCard, Calendar } from "lucide-react";
+import { User, CreditCard, Calendar, Globe } from "lucide-react"; 
 import { BookingFormData } from "../utils/validation";
+import { COUNTRY_LIST } from "../utils";
+
+
+
 
 interface PassengerFormProps {
   index: number;
@@ -12,11 +16,10 @@ interface PassengerFormProps {
 }
 
 export const PassengerForm = ({ index, type, register, errors }: PassengerFormProps) => {
-  // Error helper to keep code clean
   const error = errors.passengers?.[index];
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 mb-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200/70 mb-6 animate-in slide-in-from-bottom-4 duration-500">
       
       {/* Header Section */}
       <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
@@ -70,7 +73,7 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
             <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
           </label>
           <input
-            {...register(`passengers.${index}.middleName`)} // Ensure this exists in your zod schema
+            {...register(`passengers.${index}.middleName`)} 
             placeholder="e.g. QUINCY"
             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder:font-normal uppercase"
           />
@@ -145,6 +148,31 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
             />
           </div>
           {error?.passportExpiry && <p className="text-[10px] text-red-500 font-bold ml-1">{error.passportExpiry.message}</p>}
+        </div>
+
+        {/* 🟢 NEW: Passport Issuing Country Dropdown */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+             Passport Country
+          </label>
+          <div className="relative">
+            <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+            <select
+                {...register(`passengers.${index}.passportCountry`)}
+                defaultValue="BD" // ডিফল্ট বাংলাদেশ
+                className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer text-slate-700"
+            >
+                <option value="" disabled>Select Country</option>
+                {COUNTRY_LIST.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.name} ({country.code})
+                  </option>
+                ))}
+            </select>
+            <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400 text-[10px]">▼</div>
+          </div>
+          {/* Error Message if needed */}
+          {error?.passportCountry && <p className="text-[10px] text-red-500 font-bold ml-1">{error.passportCountry.message}</p>}
         </div>
 
       </div>

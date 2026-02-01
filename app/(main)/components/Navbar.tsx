@@ -94,7 +94,7 @@ const Navbar = () => {
     };
 
     return (
-        <header className="w-full relative bg-white">
+        <header className="w-full relative bg-white print:hidden">
             
             {/* ================= 1. Top Bar (Desktop Only) ================= */}
             <div className={`${colors.topBar.bg} ${colors.topBar.text} text-[10px] sm:text-xs py-2 hidden md:block border-b border-white/10`}>

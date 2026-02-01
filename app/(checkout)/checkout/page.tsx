@@ -16,21 +16,20 @@ import {
   Phone,
   Timer,
   RefreshCcw,
-  ShieldCheck // 🟢 Added ShieldCheck import
+  ShieldCheck
 } from 'lucide-react';
 import { useEffect, useState, Suspense } from 'react';
 import axios from 'axios';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 
-// 🟢 Import the new component
 import { PaymentForm } from './components/PaymentForm'; 
 import { BookingFormData, bookingSchema } from './utils/validation';
 import { PassengerForm } from './components/PassengerForm';
 import { BookingSummary } from './components/BookingSummary';
 import { websiteDetails } from '@/constant/data';
+import { toast } from 'sonner';
 
-
-// ... (Keep existing Helper Functions) ...
+// --- Helper Functions ---
 const formatTime = (iso: string) => format(parseISO(iso), 'hh:mm a');
 const formatDate = (iso: string) => format(parseISO(iso), 'EEE, dd MMM');
 const getDayDiff = (dep: string, arr: string) => {
@@ -67,10 +66,10 @@ const ExpirationModal = ({ isOpen, onRefresh }: { isOpen: boolean; onRefresh: ()
         </div>
       </div>
     );
-  };
+};
   
 // ----------------------------------------------------------------------
-// 🟢 PAYMENT MODAL (UPDATED WITH FLIGHT INFO & EMAIL MSG)
+// 🟢 PAYMENT MODAL
 // ----------------------------------------------------------------------
 const PaymentModal = ({
   isOpen,
@@ -79,8 +78,8 @@ const PaymentModal = ({
   isInstantPayment,
   price,
   isProcessing,
-  flightData, // 🟢 Received Prop
-  formData    // 🟢 Received Prop
+  flightData, 
+  formData 
 }: any) => {
   if (!isOpen) return null;
 
@@ -101,7 +100,7 @@ const PaymentModal = ({
         
         {/* Header */}
         <div className="p-6 pb-4 text-center border-b border-slate-50">
-          <div className={`w-12 h-12 mx-auto  flex items-center justify-center mb-4 ${isInstantPayment ? 'bg-rose-50 text-rose-500' : ' text-slate-700'}`}>
+          <div className={`w-12 h-12 mx-auto flex items-center justify-center mb-4 ${isInstantPayment ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-700'}`}>
             {isInstantPayment ? <CreditCard className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
           </div>
           <h3 className="text-lg font-bold text-slate-900">
@@ -112,11 +111,11 @@ const PaymentModal = ({
           </p>
         </div>
 
-        {/* 🟢 REVIEW SECTION */}
+        {/* Review Section */}
         <div className="p-5 space-y-3 bg-slate-50/50">
           
           {/* Flight Mini Summary */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between shadow-2xl shadow-gray-100">
+          <div className="bg-white border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between shadow-2xl shadow-gray-100">
             <div className="flex items-center gap-3.5">
                <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
                   <Plane className="w-4 h-4" />
@@ -133,7 +132,7 @@ const PaymentModal = ({
           </div>
 
           {/* Card Mini Summary */}
-          <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between shadow-2xl shadow-gray-100">
+          <div className="bg-white border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between shadow-2xl shadow-gray-100">
             <div className="flex items-center gap-3.5">
                <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
                   <CreditCard className="w-4 h-4" />
@@ -150,7 +149,7 @@ const PaymentModal = ({
             <CheckCircle className="w-4 h-4 text-emerald-500" />
           </div>
 
-          {/* 🟢 CONFIRMATION MESSAGE */}
+          {/* Confirmation Message */}
           <div className="mt-2 bg-emerald-50/50 border border-emerald-100/60 rounded-xl p-3 flex gap-3 items-start">
              <div className="mt-0.5 min-w-[16px]"> 
                 <Mail className="w-4 h-4 text-emerald-600" />
@@ -214,19 +213,18 @@ function CheckoutContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<BookingFormData | null>(null);
 
-  // 🟢 Updated defaultValues to include payment object
   const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: { 
         contact: { email: '', phone: '' }, 
         passengers: [],
         payment: {
-            cardHolderName: '',
+            cardName: '',
             cardNumber: '',
             expiryDate: '',
             cvv: '',
             billingAddress: {
-                line1: '',
+                street: '',
                 city: '',
                 state: '',
                 zipCode: '',
@@ -263,17 +261,16 @@ function CheckoutContent() {
         setFlightData(data);
         reset({
           contact: { email: '', phone: '' },
-          // 🟢 Ensure payment defaults are preserved when resetting passengers
           payment: {
-            cardHolderName: '',
+            cardName: '',
             cardNumber: '',
             expiryDate: '',
             cvv: '',
-            billingAddress: { line1: '', city: '', zipCode: '', country: 'US', state: undefined as any }
+            billingAddress: { street: '', city: '', zipCode: '', country: 'US', state: '' }
           },
           passengers: data.passengers.map((p: any) => ({
             id: p.id, type: p.type, gender: 'male', title: 'mr',
-            firstName: '', lastName: '', dob: '', passportNumber: '', passportExpiry: '', middleName: '',
+            firstName: '', lastName: '', dob: '', passportNumber: '', passportExpiry: '', middleName: '', passportCountry: 'BD'
           })),
         });
         setIsLoading(false);
@@ -289,7 +286,7 @@ function CheckoutContent() {
     getFlightDetails();
   }, [offerId, adultsCount, childrenCount, infantsCount, reset]);
 
-  // ... (Keep Countdown Logic) ...
+  // Timer Logic
   useEffect(() => {
     if (!flightData?.expires_at || isExpired) return;
 
@@ -334,29 +331,104 @@ function CheckoutContent() {
     setIsModalOpen(true);
   };
 
+  // 🟢 CORE BOOKING LOGIC
   const handleConfirmBooking = async () => {
-    if (!pendingFormData || !flightData) return;
-    
-    const bookingPayload = {
-      offer_id: offerId,
-      contact: pendingFormData.contact,
-      passengers: pendingFormData.passengers.map((p) => ({
-        id: p.id, given_name: p.firstName, family_name: p.lastName, gender: p.gender, title: p.title,
-        born_on: p.dob, email: pendingFormData.contact.email, phone_number: pendingFormData.contact.phone, type: p.type,
-      })),
-      payment: pendingFormData.payment, 
-      expected_total: flightData.price.finalPrice,
-    };
-    
-    console.log(bookingPayload);
-    // Add your API call here
+    if (!pendingFormData || !flightData) {
+        alert("Session invalid. Please refresh the page.");
+        return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+        const firstItinerary = flightData.itinerary[0];
+        const lastItinerary = flightData.itinerary[flightData.itinerary.length - 1];
+
+        const mainSegment = firstItinerary?.segments[0];
+        const lastSegmentOfLastItinerary = lastItinerary?.segments[lastItinerary.segments.length - 1];
+
+        // Route Generation Logic
+        const routeString = flightData.itinerary
+            .map((slice: any) => {
+                const start = slice.segments[0].departure.code;
+                const end = slice.segments[slice.segments.length - 1].arrival.code;
+                return `${start} ➝ ${end}`;
+            })
+            .join(" | ");
+
+        // Trip Type Logic
+        let tripType = "one_way";
+        if (flightData.itinerary.length === 2) tripType = "round_trip";
+        else if (flightData.itinerary.length > 2) tripType = "multi_city";
+
+        const flightSnapshot = {
+            airline: mainSegment?.airline || "Unknown Airline",
+            flightNumber: mainSegment?.flightNumber || "N/A",
+            route: routeString, 
+            departureDate: mainSegment?.departure?.time,
+            arrivalDate: lastSegmentOfLastItinerary?.arrival?.time,
+            duration: flightData.totalDuration || firstItinerary?.totalDuration,
+            flightType: tripType 
+        };
+
+        const bookingPayload = {
+            offer_id: offerId,
+            contact: {
+                email: pendingFormData.contact.email,
+                phone: pendingFormData.contact.phone
+            },
+            passengers: pendingFormData.passengers.map((p) => ({
+                id: p.id,
+                type: p.type,
+                title: p.title,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                middleName: p.middleName || "",
+                gender: p.gender,
+                dob: p.dob,
+                passportNumber: p.passportNumber || "",
+                passportExpiry: p.passportExpiry || "",
+                passportCountry: p.passportCountry || "BD" // 🟢 Passport Country Included
+            })),
+            payment: {
+                cardName: pendingFormData.payment.cardName,
+                cardNumber: pendingFormData.payment.cardNumber.replace(/\s/g, ''),
+                expiryDate: pendingFormData.payment.expiryDate,
+                cvv: pendingFormData.payment.cvv,
+                billingAddress: pendingFormData.payment.billingAddress
+            },
+            flight_details: flightSnapshot,
+            pricing: {
+                total_amount: flightData.price.finalPrice,
+                currency: flightData.price.currency,
+                base_fare: flightData.price.basePrice || 0,
+            }
+        };
+
+
+        const response = await axios.post('/api/duffel/booking', bookingPayload);
+
+        if (response.data.success) {
+            router.push(`/booking/success?id=${response.data.bookingId}`);
+        } else {
+            throw new Error(response.data.message || "Booking failed.");
+        }
+
+    } catch (error: any) {
+        let errorMessage = error.response?.data?.message || error.message || "Something went wrong.";
+        toast.error(`Booking Failed: ${errorMessage}`);
+   //     router.push('/booking/failed?message=' + errorMessage);
+    } finally {
+        setIsSubmitting(false);
+    }
   };
+
 
   const handleRefreshSearch = () => {
       router.push('/flight/search');
   }
 
-  // --- UI STATES ---
+  // --- UI RENDERING ---
   if (isLoading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader2 className="w-10 h-10 text-rose-600 animate-spin" /></div>;
   
   if ((fetchError || !flightData) && !isExpired) return (
@@ -397,7 +469,7 @@ function CheckoutContent() {
                 </p>
               </div>
 
-              {/* 🕒 Timer */}
+              {/* Timer */}
               <div className={`px-5 py-2.5 rounded-xl flex items-center gap-3 shadow-lg transition-colors ${parseInt(timeLeft) < 5 ? 'bg-rose-600 shadow-rose-200' : 'bg-slate-900 shadow-slate-200'}`}>
                  <Timer className={`w-5 h-5 ${parseInt(timeLeft) < 5 ? 'text-white' : 'text-rose-400'}`} />
                  <div>
@@ -412,8 +484,8 @@ function CheckoutContent() {
                 {/* 🟢 LEFT SIDE: CONTENT */}
                 <div className="lg:col-span-2 space-y-6">
                     
-                    {/* 🛫 FLIGHT DETAILS (Updated UI) */}
-                    <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                    {/* FLIGHT DETAILS CARD */}
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200/80">
                     <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
                         <Plane className="w-5 h-5 text-rose-500" /> Flight Itinerary
                     </h3>
@@ -442,59 +514,59 @@ function CheckoutContent() {
                                     </div>
                                     <div className="flex-1 pb-4">
                                     <div className="flex justify-between items-start">
-                                        
-                                        {/* DEPARTURE */}
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                                {formatTime(seg.departure.time)}
-                                                <span className="text-slate-300 font-light text-xs">|</span>
-                                                {seg.departure.city} <span className="text-slate-400 font-medium text-xs">({seg.departure.code})</span>
-                                            </p>
-                                            <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                                                {formatDate(seg.departure.time)}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400 mt-0.5">
-                                                {seg.departure.airport}
-                                                {seg.departure.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.departure.terminal}</span>}
-                                            </p>
-                                        </div>
+                                            
+                                            {/* DEPARTURE */}
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                    {formatTime(seg.departure.time)}
+                                                    <span className="text-slate-300 font-light text-xs">|</span>
+                                                    {seg.departure.city} <span className="text-slate-400 font-medium text-xs">({seg.departure.code})</span>
+                                                </p>
+                                                <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    {formatDate(seg.departure.time)}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                                    {seg.departure.airport}
+                                                    {seg.departure.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.departure.terminal}</span>}
+                                                </p>
+                                            </div>
 
-                                        {/* Airline Info Right */}
-                                        <div className="text-right">
-                                            {seg.logo && <img src={seg.logo} alt="" className="w-5 h-5 object-contain ml-auto opacity-80" />}
-                                            <p className="text-[10px] text-slate-400 mt-1 font-medium">{seg.airline}</p>
-                                        </div>
+                                            {/* Airline Info Right */}
+                                            <div className="text-right">
+                                                {seg.logo && <img src={seg.logo} alt="" className="w-5 h-5 object-contain ml-auto opacity-80" />}
+                                                <p className="text-[10px] text-slate-400 mt-1 font-medium">{seg.airline}</p>
+                                            </div>
                                     </div>
 
                                     {/* Duration Bar */}
                                     <div className="my-2 py-1.5 px-3 bg-slate-50/70 rounded-lg border border-slate-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                        <Clock className="w-3 h-3 text-slate-400" />
-                                        <span className="text-[11px] font-semibold text-slate-600">{seg.duration}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                        <span className="text-[10px] text-slate-400 font-medium uppercase">{seg.flightNumber}</span>
-                                        <span className="text-[10px] text-slate-400 border-l border-slate-200 pl-3">{seg.aircraft}</span>
-                                        </div>
+                                            <div className="flex items-center gap-2">
+                                            <Clock className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[11px] font-semibold text-slate-600">{seg.duration}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                            <span className="text-[10px] text-slate-400 font-medium uppercase">{seg.flightNumber}</span>
+                                            <span className="text-[10px] text-slate-400 border-l border-slate-200 pl-3">{seg.aircraft}</span>
+                                            </div>
                                     </div>
 
                                     {/* ARRIVAL */}
                                     <div>
-                                        <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                            {formatTime(seg.arrival.time)}
-                                            {getDayDiff(seg.departure.time, seg.arrival.time) > 0 && (
-                                                <sup className="text-[9px] font-black text-rose-500 bg-rose-50 px-1 rounded">+{getDayDiff(seg.departure.time, seg.arrival.time)}</sup>
-                                            )}
-                                            <span className="text-slate-300 font-light text-xs">|</span>
-                                            {seg.arrival.city} <span className="text-slate-400 font-medium text-xs">({seg.arrival.code})</span>
-                                        </p>
-                                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                            {formatDate(seg.arrival.time)}
-                                        </p>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">
-                                            {seg.arrival.airport}
-                                            {seg.arrival.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.arrival.terminal}</span>}
-                                        </p>
+                                            <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                {formatTime(seg.arrival.time)}
+                                                {getDayDiff(seg.departure.time, seg.arrival.time) > 0 && (
+                                                    <sup className="text-[9px] font-black text-rose-500 bg-rose-50 px-1 rounded">+{getDayDiff(seg.departure.time, seg.arrival.time)}</sup>
+                                                )}
+                                                <span className="text-slate-300 font-light text-xs">|</span>
+                                                {seg.arrival.city} <span className="text-slate-400 font-medium text-xs">({seg.arrival.code})</span>
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                                {formatDate(seg.arrival.time)}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5">
+                                                {seg.arrival.airport}
+                                                {seg.arrival.terminal && <span className="ml-1.5 text-blue-600 bg-blue-50 px-1.5 rounded text-[10px] font-bold">T-{seg.arrival.terminal}</span>}
+                                            </p>
                                     </div>
                                     </div>
                                 </div>
@@ -512,7 +584,7 @@ function CheckoutContent() {
                     </div>
                     </div>
 
-                    {/* 🔴 CONDITIONAL RENDERING */}
+                    {/* FORM SECTION */}
                     {requiresInstantPayment ? (
                         <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
                             <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -533,7 +605,7 @@ function CheckoutContent() {
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit(onPreSubmit)} className="space-y-6">
-                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                            <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200/80">
                                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                     <Mail className="w-5 h-5 text-rose-500" /> Contact Details
                                 </h3>
@@ -545,12 +617,13 @@ function CheckoutContent() {
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Phone Number</label>
-                                        <input {...register('contact.phone')} placeholder="+880 1XXX..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
+                                        <input {...register('contact.phone')} placeholder="+1" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
                                         {errors.contact?.phone && <p className="text-xs text-red-500 font-semibold mt-1">{errors.contact.phone.message}</p>}
                                     </div>
                                 </div>
                             </div>
                             
+                            {/* PASSENGERS */}
                             {flightData.passengers.map((passenger: any, index: number) => {
                                 let type = 'adult';
                                 if (passenger.type === 'child') type = 'child';
@@ -558,7 +631,7 @@ function CheckoutContent() {
                                 return <PassengerForm key={passenger.id} index={index} type={type as any} register={register} errors={errors} />;
                             })}
                             
-                            {/* 🟢 NEW: Payment Form Added Here */}
+                            {/* PAYMENT */}
                             <PaymentForm register={register} errors={errors} setValue={setValue}/>
 
                             <button type="submit" disabled={isSubmitting} className="w-full py-4 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]">
@@ -587,7 +660,6 @@ function CheckoutContent() {
             isProcessing={isSubmitting}
             isInstantPayment={flightData?.payment_requirements?.requires_instant_payment ?? false}
             
-            // 🟢 Props passed here
             flightData={flightData}
             formData={pendingFormData}
         />

@@ -2,27 +2,12 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api'; 
 import { searchSchema } from './validation';
-import { calculateMarkup } from './utils';
+import { calculatePriceWithMarkup, checkRateLimit } from './utils';
 
 // ------------------------------------------------------------------
 // 🛡️ SECURITY: RATE LIMITER
 // ------------------------------------------------------------------
-const rateLimit = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; 
-const MAX_REQUESTS = 15; 
 
-const checkRateLimit = (ip: string) => {
-  const now = Date.now();
-  const userRecord = rateLimit.get(ip) || { count: 0, lastRequest: now };
-  if (now - userRecord.lastRequest > RATE_LIMIT_WINDOW) {
-    rateLimit.set(ip, { count: 1, lastRequest: now });
-    return true;
-  }
-  if (userRecord.count >= MAX_REQUESTS) return false;
-  userRecord.count += 1;
-  rateLimit.set(ip, userRecord);
-  return true;
-};
 
 
 // ✅ 1. Advanced Duration Parser (Fixes P1DT10H -> 1d 10h)
@@ -123,7 +108,7 @@ export async function POST(req: NextRequest) {
     const cleanOffers = rawOffers.map((offer: any) => {
       
       // A. Price Calculation
-      const priceDetails = calculateMarkup(offer.total_amount, offer.total_currency);
+      const priceDetails = calculatePriceWithMarkup(offer.total_amount, offer.total_currency);
 
       // B. Baggage Logic (Global for offer)
       let baggageInfo = "Cabin Bag Only";

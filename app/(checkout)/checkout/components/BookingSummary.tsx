@@ -62,7 +62,7 @@ const formatCurrency = (amount: number | undefined, currency: string = "USD") =>
       currency: currency,
       minimumFractionDigits: 0, 
       maximumFractionDigits: 2,
-    }).format(Math.ceil(amount));
+    }).format(amount);
   } catch (e) {
     return `${amount} ${currency}`;
   }
