@@ -342,8 +342,8 @@ export async function POST(request: Request) {
         try {
             const emailDate = format(parseISO(flight_details.departureDate), 'dd MMM, yyyy');
             const routeParts = finalRoute.split('|')[0].split('➝');
-            const emailOrigin = routeParts[0]?.trim() || 'Origin';
-            const emailDest = routeParts[routeParts.length - 1]?.trim() || 'Dest';
+            // const emailOrigin = routeParts[0]?.trim() || 'Origin';
+            // const emailDest = routeParts[routeParts.length - 1]?.trim() || 'Dest';
 
             
         } catch (emailError) {
