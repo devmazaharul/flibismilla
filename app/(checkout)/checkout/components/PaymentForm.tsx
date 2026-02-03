@@ -2,8 +2,37 @@
 
 import React from 'react';
 import { UseFormRegister, FieldErrors, UseFormSetValue } from 'react-hook-form';
-import { CreditCard, Lock, MapPin, Globe, User, Calendar, Hash, Home } from 'lucide-react';
+import { CreditCard, Lock, MapPin, Globe, User, Calendar, Hash, Home, ChevronDown } from 'lucide-react';
 import { BookingFormData } from '../utils/validation';
+
+// 🟢 Comprehensive List of Countries (Updated & Expanded)
+const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+  "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
+  "Cambodia", "Cameroon", "Canada", "Cape Verde", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Democratic Republic)", "Congo (Republic)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
+  "Denmark", "Djibouti", "Dominica", "Dominican Republic",
+  "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+  "Fiji", "Finland", "France",
+  "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+  "Haiti", "Honduras", "Hong Kong", "Hungary",
+  "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast",
+  "Jamaica", "Japan", "Jordan",
+  "Kazakhstan", "Kenya", "Kiribati", "Kosovo", "Kuwait", "Kyrgyzstan",
+  "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
+  "Macau", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
+  "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway",
+  "Oman",
+  "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+  "Qatar",
+  "Romania", "Russia", "Rwanda",
+  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria",
+  "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+  "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan",
+  "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen",
+  "Zambia", "Zimbabwe"
+].sort();
+
 
 interface PaymentFormProps {
   register: UseFormRegister<BookingFormData>;
@@ -14,21 +43,16 @@ interface PaymentFormProps {
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({ register, errors, setValue, amount }) => {
   
-  // 🟢 FIXED: Auto-format Card Number (Supports 15 to 19 digits for Int. Cards)
+  // 🟢 Auto-format Card Number
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, ''); // শুধুমাত্র নাম্বার নিবে
-    
-    // International cards max length usually 19 digits
+    let val = e.target.value.replace(/\D/g, ''); 
     if (val.length > 19) val = val.slice(0, 19); 
-    
-    // প্রতি ৪ ডিজিট পর পর স্পেস দিবে
     const formatted = val.replace(/(\d{4})(?=\d)/g, '$1 '); 
-    
     e.target.value = formatted; 
     setValue('payment.cardNumber', formatted, { shouldValidate: true });
   };
 
-  // 🟢 Logic: Auto-format Expiry (MM/YY)
+  // 🟢 Auto-format Expiry (MM/YY)
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 4) val = val.slice(0, 4);
@@ -75,7 +99,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ register, errors, setV
 
       <div className="space-y-5">
         
-        {/* Card Number (FIXED) */}
+        {/* Card Number */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Card Number</label>
           <div className="relative group">
@@ -86,14 +110,14 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ register, errors, setV
               {...register('payment.cardNumber')}
               onChange={handleCardNumberChange}
               placeholder="0000 0000 0000 0000" 
-              maxLength={23} // 19 digits + 4 spaces
+              maxLength={23} 
               className={`${inputClass(errors.payment?.cardNumber)} pl-10 font-mono tracking-widest`} 
             />
           </div>
           {errors.payment?.cardNumber && <p className="text-[11px] text-red-600 mt-1 font-bold">{errors.payment.cardNumber.message}</p>}
         </div>
 
-        {/* Grid: Name, Expiry, CVC */}
+        {/* Grid: Name, Expiry */}
         <div className="grid grid-cols-12 gap-4">
             
             {/* Name */}
@@ -124,22 +148,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ register, errors, setV
                     />
                 </div>
                  {errors.payment?.expiryDate && <p className="text-[11px] text-red-600 mt-1 font-bold">Invalid</p>}
-            </div>
-
-            {/* CVC */}
-            <div className="col-span-6 md:col-span-3 space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center justify-between">
-                    CVC
-                    <Lock className="w-3 h-3 text-gray-300" />
-                </label>
-                <input 
-                  {...register('payment.cvv')} 
-                  type="password"
-                  placeholder="123" 
-                  maxLength={4}
-                  className={`${inputClass(errors.payment?.cvv)} text-center tracking-widest`}
-                />
-                 {errors.payment?.cvv && <p className="text-[11px] text-red-600 mt-1 font-bold">Required</p>}
             </div>
         </div>
       </div>
@@ -197,16 +205,26 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ register, errors, setV
                 {errors.payment?.billingAddress?.zipCode && <p className="text-[11px] text-red-600 font-bold">{errors.payment.billingAddress.zipCode.message}</p>}
              </div>
              
-             {/* Country */}
+             {/* 🟢 Country Dropdown (Updated) */}
              <div className="col-span-6 space-y-1">
                  <div className="relative group">
-                    <Globe className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3.5" />
-                    <input 
-                    {...register('payment.billingAddress.country')} 
-                    placeholder="Country"
-                    defaultValue="United States"
-                    className={`${inputClass(errors.payment?.billingAddress?.country)} pl-9`}
-                    />
+                    <Globe className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3.5 z-10" />
+                    
+                    <select 
+                      {...register('payment.billingAddress.country')} 
+                      defaultValue="United States"
+                      className={`${inputClass(errors.payment?.billingAddress?.country)} pl-9 pr-8 appearance-none cursor-pointer`}
+                    >
+                      <option value="" disabled>Select Country</option>
+                      {COUNTRIES.map((country) => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+
+                    {/* Custom Dropdown Arrow for better styling */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <ChevronDown className="w-4 h-4" />
+                    </div>
                  </div>
              </div>
          </div>

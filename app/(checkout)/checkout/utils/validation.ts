@@ -36,7 +36,6 @@ export const bookingSchema = z.object({
     z.object({
       type: z.enum(["adult", "child", "infant", "infant_without_seat"]),
       id: z.string().min(1),
-      title: z.string().min(1, "Title is required"),
       firstName: z.string().min(2).regex(/^[a-zA-Z\s]+$/, "Only letters allowed"),
       middleName: z.string().optional(),
       lastName: z.string().min(2).regex(/^[a-zA-Z\s]+$/, "Only letters allowed"),
@@ -93,16 +92,33 @@ export const bookingSchema = z.object({
         
         return true;
       }, "Card has expired"),
+   billingAddress: z.object({
+  street: z.string()
+    .trim() // শুরু বা শেষের এক্সট্রা স্পেস কেটে দিবে
+    .min(5, "Address needs to be at least 5 characters") // মিনিমাম ৫
+    .max(100, "Address cannot exceed 100 characters"), // ম্যাক্সিমাম ১০০
 
-    cvv: z.string().regex(/^[0-9]{3,4}$/, "CVV must be 3 or 4 digits"),
+  city: z.string()
+    .trim()
+    .min(2, "City name must be at least 2 characters")
+    .max(50, "City name is too long"), // সাধারণত সিটির নাম ৫০ এর বেশি হয় না
 
-    billingAddress: z.object({
-      street: z.string().min(5, "Address too short"),
-      city: z.string().min(2, "City required"),
-      state: z.string().min(2, "State required"),
-      zipCode: z.string().min(3, "Invalid Zip Code"),
-      country: z.string().min(2, "Country required"),
-    })
+  state: z.string()
+    .trim()
+    .min(2, "State must be at least 2 characters")
+    .max(50, "State name is too long"),
+
+  zipCode: z.string()
+    .trim()
+    .min(3, "Zip code is too short")
+    .max(12, "Zip code cannot exceed 12 characters")
+    // শুধুমাত্র অক্ষর, সংখ্যা, স্পেস এবং হাইফেন এলাউ করবে (International Format)
+    .regex(/^[a-zA-Z0-9\s\-]+$/, "Invalid Zip Code format"), 
+
+  country: z.string()
+    .min(2, "Please select a valid country")
+    .max(60, "Invalid country name"),
+})
   })
 });
 

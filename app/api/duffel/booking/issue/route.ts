@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
-import dbConnect from '@/connection/db';
-import Booking from '@/models/Booking.model';
+import dbConnect from '@/connection/db'; // পাথ ঠিক আছে কিনা চেক করুন
+import Booking from '@/models/Booking.model'; // পাথ ঠিক আছে কিনা চেক করুন
 import { decrypt } from '../utils';
 
 // 1. Duffel Configuration
@@ -29,6 +29,8 @@ function isRateLimited(ip: string) {
 
 // --- 🚀 3. Main POST API Handler ---
 export async function POST(req: Request) {
+  let bookingIdForError = null;
+
   try {
     const ip = req.headers.get('x-forwarded-for') || 'unknown-ip';
     if (isRateLimited(ip)) {
@@ -38,14 +40,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🟢 1. Parse Body (cvv comes here)
     const body = await req.json();
-    const { bookingId, paymentMethod } = body; // paymentMethod: 'card' | 'balance'
+    const { bookingId, paymentMethod, cvv } = body; // paymentMethod: 'card' | 'balance'
 
+    bookingIdForError = bookingId;
+
+    // Basic Validation
     if (!bookingId || !paymentMethod) {
       return NextResponse.json(
         { success: false, message: "Booking ID or Payment Method is missing" },
         { status: 400 }
       );
+    }
+
+    // 🟢 2. CVV Validation (Only if Card is selected)
+    if (paymentMethod === 'card' && !cvv) {
+        return NextResponse.json(
+            { success: false, message: "CVV is required for card payment" },
+            { status: 400 }
+        );
     }
 
     await dbConnect();
@@ -61,19 +75,16 @@ export async function POST(req: Request) {
     // 🛑 Retry Guard
     if ((booking.retryCount || 0) >= 3) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Maximum retry limit reached. Please contact support."
-        },
+        { success: false, message: "Maximum retry limit reached. Please contact support." },
         { status: 403 }
       );
     }
 
+    // 3. Get Duffel Order Details
     let orderDetails;
     try {
       const res = await duffel.orders.get(booking.duffelOrderId);
       orderDetails = res.data as any;
-      console.log(orderDetails);
     } catch (err) {
       console.error("Duffel Connection Error:", err);
       return NextResponse.json(
@@ -82,7 +93,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if booking is cancelled by airline
+    // Check Cancellation
     if (orderDetails.cancelled_at) {
       await Booking.findByIdAndUpdate(bookingId, { status: 'cancelled' });
       return NextResponse.json(
@@ -91,7 +102,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // If ticket already issued, return documents
+    // Check if Already Issued
     if (orderDetails.documents?.length > 0) {
       const formattedDocs = orderDetails.documents.map((doc: any) => ({
         unique_identifier: doc.unique_identifier,
@@ -99,39 +110,36 @@ export async function POST(req: Request) {
         url: doc.url
       }));
 
-      await Booking.findByIdAndUpdate(bookingId, {
+      const updated = await Booking.findByIdAndUpdate(bookingId, {
         status: 'issued',
         pnr: orderDetails.booking_reference,
-        documents: formattedDocs,
-        'paymentInfo.cvv': null
-      });
+        documents: formattedDocs
+      }, { new: true });
 
       return NextResponse.json({
         success: true,
         message: "Ticket is already issued!",
-        data: booking
+        data: updated
       });
     }
 
-    // 💰 5. Prepare Payment Payload
+    // 💰 4. Prepare Payment Payload
     const amountToPay = orderDetails.total_amount;
     const currency = orderDetails.total_currency;
 
-    // Base payment payload
     const paymentPayload: any = {
       order_id: booking.duffelOrderId,
       payment: {
         amount: amountToPay,
         currency: currency,
-        type: "balance" // Default payment type
+        type: "balance" // Default
       }
     };
 
-    // 🔐 6. Payment Logic (Card vs Balance)
+    // 🔐 5. Payment Logic Implementation
     if (paymentMethod === 'card') {
       console.log("Processing Card Payment...");
 
-      // Check card data exists in database
       if (!booking.paymentInfo?.cardNumber) {
         return NextResponse.json(
           { success: false, message: "Card data missing in database" },
@@ -140,19 +148,18 @@ export async function POST(req: Request) {
       }
 
       try {
-        // Decrypt card number
+        // Decrypt card number from DB
         const decryptedCardNum = decrypt(booking.paymentInfo.cardNumber);
 
-        // Format expiry date (MM/YY -> MM & YYYY)
+        // Format expiry date
         const [expMonth, expYearShort] = booking.paymentInfo.expiryDate.split('/');
-        const expYearFull =
-          expYearShort.length === 2 ? `20${expYearShort}` : expYearShort;
+        const expYearFull = expYearShort.length === 2 ? `20${expYearShort}` : expYearShort;
 
-        // Update payment payload for card
+        // Construct Card Details
         paymentPayload.payment.type = "card";
         paymentPayload.payment.card_details = {
           number: decryptedCardNum,
-          cvv: booking.paymentInfo.cvv,
+          cvv: cvv, // 🟢 Runtime CVV from Request Body
           exp_month: expMonth,
           exp_year: expYearFull,
           name: booking.paymentInfo.cardName,
@@ -166,42 +173,36 @@ export async function POST(req: Request) {
         );
       }
     } else {
-      // Balance payment
+      // Balance Payment
       console.log("Processing Balance Payment...");
       paymentPayload.payment.type = "balance";
     }
 
-    // ⚡ 7. Execute Payment
+    // ⚡ 6. Execute Payment
     console.log(`Charging ${amountToPay} ${currency} via ${paymentMethod}...`);
 
     const paymentResponse = await duffel.payments.create(paymentPayload);
 
-    // ✅ 8. Success Handling
+    // ✅ 7. Success Handling
     if (paymentResponse.data) {
       console.log("Payment Successful! Fetching Documents...");
 
-      // Re-fetch order to get ticket documents
+      // Re-fetch order for documents
       const updatedOrder = await duffel.orders.get(booking.duffelOrderId);
 
-      // Format PDF documents
-      const pdfDocuments =
-        updatedOrder.data.documents?.map((doc: any) => ({
-          unique_identifier: doc.unique_identifier,
-          type: doc.type,
-          url: doc.url || "abc.pdf"
-        })) || [];
+      const pdfDocuments = updatedOrder.data.documents?.map((doc: any) => ({
+        unique_identifier: doc.unique_identifier,
+        type: doc.type,
+        url: doc.url
+      })) || [];
 
-      // Update booking record
+      // Update Database
       const updatedBooking = await Booking.findByIdAndUpdate(
         bookingId,
         {
           status: 'issued',
           pnr: updatedOrder.data.booking_reference,
           documents: pdfDocuments,
-
-          // Security: remove CVV
-          'paymentInfo.cvv': null,
-
           $set: {
             retryCount: 0,
             adminNotes: `Ticket Issued via ${paymentMethod} at ${new Date().toLocaleString()}`
@@ -218,21 +219,18 @@ export async function POST(req: Request) {
     }
 
   } catch (error: any) {
-    console.error("Payment Failed:", JSON.stringify(error, null, 2));
+    console.error("Payment Error:", JSON.stringify(error, null, 2));
 
-    const errorMessage =
-      error.errors?.[0]?.message || error.message || "Unknown Payment Error";
+    const errorMessage = error.errors?.[0]?.message || error.message || "Payment Processing Failed";
 
     // Increase retry count on failure
-    try {
-      const body = await req.json().catch(() => ({}));
-      if (body.bookingId) {
-        await Booking.findByIdAndUpdate(body.bookingId, {
-          $inc: { retryCount: 1 },
-          lastRetryAt: new Date(),
-        });
-      }
-    } catch (e) { /* Ignore */ }
+    if (bookingIdForError) {
+      await Booking.findByIdAndUpdate(bookingIdForError, {
+        $inc: { retryCount: 1 },
+        lastRetryAt: new Date(),
+        adminNotes: `Payment Failed: ${errorMessage}`
+      });
+    }
 
     return NextResponse.json(
       { success: false, message: errorMessage },
@@ -240,7 +238,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fallback
   return NextResponse.json(
     { success: false, message: "Internal Server Error" },
     { status: 500 }

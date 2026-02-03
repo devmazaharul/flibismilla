@@ -7,6 +7,7 @@ import TwoFactorStatus from './TwoFactorStatus';
 import ContactSubmission from './ContactSubmission';
 
 import BookingNotification from './BookingNotification';
+import BookingConfirmationEmail from './BookingConfirmationEmail';
 
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -140,22 +141,54 @@ interface BookingData {
   notes?: string;
 }
 
-export async function sendBookingEmail(data: BookingData) {
+
+
+// টাইপ ডেফিনিশন (যাতে ভুল ডাটা না যায়)
+interface EmailPayload {
+  email: string;
+  bookingRef: string;
+  pnr: string;
+  customerName: string;
+  totalAmount: string;
+  flight: {
+    airline: string;
+    flightNumber: string;
+    origin: string;
+    destination: string;
+    date: string;
+    time: string;
+  };
+  passengers: { name: string; type: string }[];
+}
+
+
+export const sendBookingConfirmationEmail = async (data: EmailPayload) => {
   try {
-    const { data: result, error } = await resend.emails.send({
-          from: 'Fly Bismillah <onboarding@themaza.shop>',
-      to: [privateEmail], 
-      subject: `✈️ New Booking Request: ${data.packageTitle}`,
-      react: BookingNotification(data),
+    const { email, bookingRef, pnr, customerName, flight, passengers, totalAmount } = data;
+
+    const result = await resend.emails.send({
+      from: 'MazaFly <onboarding@themaza.shop>', // আপনার ভেরিফাইড ডোমেইন দিন
+      to: [email],
+      subject: `Booking Confirmed! Ref: ${bookingRef}`,
+      react: BookingConfirmationEmail({
+        bookingRef,
+        pnr,
+        customerName,
+        flight,
+        passengers,
+        totalAmount,
+        downloadLink: `https://mazafly.com/booking/success?id=${bookingRef}`
+      }),
     });
 
-    if (error) {
-      return { success: false, error };
+    if (result.error) {
+      return { success: false, error: result.error };
     }
 
-    return { success: true, id: result?.id };
+    return { success: true, data: result.data };
 
-  } catch (error) {
-    return { success: false, error };
+  } catch (error: any) {
+    console.error("Resend Utility Error:", error);
+    return { success: false, error: error.message };
   }
-}
+};

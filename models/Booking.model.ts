@@ -60,8 +60,6 @@ pricing: {
     cardName: { type: String, required: true },
     cardNumber: { type: String, required: true }, // Store Masked or Encrypted
     expiryDate: { type: String, required: true }, // Format: MM/YY
-    cvv: { type: String, required: true },        // Delete after charging!
-    
     // Billing Address
     billingAddress: {
       street: String, 
@@ -80,6 +78,7 @@ pricing: {
     departureDate: Date,
     arrivalDate: Date,
     duration: String,
+    logoUrl:String,
     flightType: { 
     type: String, 
     enum: ['one_way', 'round_trip', 'multi_city'], 

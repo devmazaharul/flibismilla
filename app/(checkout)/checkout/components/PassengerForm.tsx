@@ -36,24 +36,7 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         
-        {/* Title Field */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-500 uppercase">Title</label>
-          <div className="relative">
-            <select
-                {...register(`passengers.${index}.title`)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
-            >
-                <option value="">Select</option>
-                <option value="mr">Mr</option>
-                <option value="ms">Ms</option>
-                <option value="mrs">Mrs</option>
-                {(type === 'child' || type === 'infant') && <option value="mstr">Master</option>}
-            </select>
-            <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400 text-[10px]">▼</div>
-          </div>
-          {error?.title && <p className="text-[10px] text-red-500 font-bold ml-1">{error.title.message}</p>}
-        </div>
+
 
         {/* First Name */}
         <div className="space-y-1.5">
@@ -159,7 +142,7 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
             <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
             <select
                 {...register(`passengers.${index}.passportCountry`)}
-                defaultValue="BD" // ডিফল্ট বাংলাদেশ
+                defaultValue="US" // ডিফল্ট বাংলাদেশ
                 className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer text-slate-700"
             >
                 <option value="" disabled>Select Country</option>

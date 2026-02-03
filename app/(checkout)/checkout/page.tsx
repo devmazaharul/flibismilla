@@ -1,7 +1,8 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, SubmitHandler } from 'react-hook-form';
+// 1. Controller import added
+import { useForm, SubmitHandler, Controller } from 'react-hook-form'; 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Mail,
@@ -21,6 +22,10 @@ import {
 import { useEffect, useState, Suspense } from 'react';
 import axios from 'axios';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+
+// 2. React Phone Number Input Import
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css'; 
 
 import { PaymentForm } from './components/PaymentForm'; 
 import { BookingFormData, bookingSchema } from './utils/validation';
@@ -213,7 +218,8 @@ function CheckoutContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<BookingFormData | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<BookingFormData>({
+  // 3. Added 'control' for React Hook Form Controller
+  const { register, handleSubmit, reset, control, formState: { errors }, setValue } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: { 
         contact: { email: '', phone: '' }, 
@@ -222,7 +228,6 @@ function CheckoutContent() {
             cardName: '',
             cardNumber: '',
             expiryDate: '',
-            cvv: '',
             billingAddress: {
                 street: '',
                 city: '',
@@ -265,7 +270,6 @@ function CheckoutContent() {
             cardName: '',
             cardNumber: '',
             expiryDate: '',
-            cvv: '',
             billingAddress: { street: '', city: '', zipCode: '', country: 'US', state: '' }
           },
           passengers: data.passengers.map((p: any) => ({
@@ -331,7 +335,7 @@ function CheckoutContent() {
     setIsModalOpen(true);
   };
 
-  // 🟢 CORE BOOKING LOGIC
+ // 🟢 CORE BOOKING LOGIC WITH ERROR HANDLING
   const handleConfirmBooking = async () => {
     if (!pendingFormData || !flightData) {
         alert("Session invalid. Please refresh the page.");
@@ -340,13 +344,13 @@ function CheckoutContent() {
 
     setIsSubmitting(true);
 
+    // Helpers need to be accessible in catch block
+    const firstItinerary = flightData.itinerary[0];
+    const lastItinerary = flightData.itinerary[flightData.itinerary.length - 1];
+    const mainSegment = firstItinerary?.segments[0];
+    const lastSegmentOfLastItinerary = lastItinerary?.segments[lastItinerary.segments.length - 1];
+
     try {
-        const firstItinerary = flightData.itinerary[0];
-        const lastItinerary = flightData.itinerary[flightData.itinerary.length - 1];
-
-        const mainSegment = firstItinerary?.segments[0];
-        const lastSegmentOfLastItinerary = lastItinerary?.segments[lastItinerary.segments.length - 1];
-
         // Route Generation Logic
         const routeString = flightData.itinerary
             .map((slice: any) => {
@@ -388,13 +392,12 @@ function CheckoutContent() {
                 dob: p.dob,
                 passportNumber: p.passportNumber || "",
                 passportExpiry: p.passportExpiry || "",
-                passportCountry: p.passportCountry || "BD" // 🟢 Passport Country Included
+                passportCountry: p.passportCountry || "BD"
             })),
             payment: {
                 cardName: pendingFormData.payment.cardName,
                 cardNumber: pendingFormData.payment.cardNumber.replace(/\s/g, ''),
                 expiryDate: pendingFormData.payment.expiryDate,
-                cvv: pendingFormData.payment.cvv,
                 billingAddress: pendingFormData.payment.billingAddress
             },
             flight_details: flightSnapshot,
@@ -405,7 +408,6 @@ function CheckoutContent() {
             }
         };
 
-
         const response = await axios.post('/api/duffel/booking', bookingPayload);
 
         if (response.data.success) {
@@ -415,14 +417,88 @@ function CheckoutContent() {
         }
 
     } catch (error: any) {
-        let errorMessage = error.response?.data?.message || error.message || "Something went wrong.";
+        // 🔥 SMART ERROR HANDLING
+        const errorResponse = error.response?.data;
+        const errorCode = errorResponse?.code || errorResponse?.errorType;
+        const errorMessage = errorResponse?.message || error.message || "Something went wrong.";
+
+        // 🛑 Case 1: Offer Expired or Price Changed
+        if (errorCode === 'offer_no_longer_available' || errorCode === 'OFFER_EXPIRED') {
+            
+            toast.error("Session Expired! Redirecting to fresh results...", { duration: 4000 });
+
+            // 1. Calculate Passenger Counts
+            const adt = pendingFormData.passengers.filter(p => p.type === 'adult').length;
+            const chd = pendingFormData.passengers.filter(p => p.type === 'child').length;
+            const inf = pendingFormData.passengers.filter(p => p.type === 'infant_without_seat').length;
+
+            // 2. Determine Trip Type
+            let currentTripType = 'one_way';
+            if (flightData.itinerary.length === 2) currentTripType = 'round_trip';
+            else if (flightData.itinerary.length > 2) currentTripType = 'multi_city';
+
+            // 3. Construct Search Query
+            const params = new URLSearchParams({
+                type: currentTripType, // Changed 'tripType' to 'type' to match your URL format
+                adt: adt.toString(), // Match 'adt'
+                chd: chd.toString(), // Match 'chd'
+                inf: inf.toString(), // Match 'inf'
+                class: 'economy'     // Match 'class'
+            });
+
+            // 4. Handle Specific Logic based on Trip Type
+            if (currentTripType === 'multi_city') {
+                // ✅ Multi City Format: &flights=[{origin, destination, date}, ...]
+                const flightsArray = flightData.itinerary.map((slice: any) => ({
+                    origin: slice.segments[0].departure.code,
+                    destination: slice.segments[slice.segments.length - 1].arrival.code,
+                    date: slice.segments[0].departure.time.split('T')[0]
+                }));
+                
+                params.append('flights', JSON.stringify(flightsArray));
+
+            } else {
+                // ✅ One Way / Round Trip Logic
+                // Origin/Dest from first leg
+                const outboundSlice = flightData.itinerary[0];
+                const searchOrigin = outboundSlice.segments[0].departure.code;
+                const searchDest = outboundSlice.segments[outboundSlice.segments.length - 1].arrival.code;
+                const searchDate = outboundSlice.segments[0].departure.time.split('T')[0];
+
+                params.append('origin', searchOrigin);
+                params.append('destination', searchDest);
+                params.append('date', searchDate); // Or 'departureDate' based on your router
+
+                // Add Return Date if Round Trip
+                if (currentTripType === 'round_trip' && flightData.itinerary[1]) {
+                    const returnDate = flightData.itinerary[1].segments[0].departure.time.split('T')[0];
+                    params.append('returnDate', returnDate);
+                }
+            }
+
+            // 5. Redirect after brief delay
+            setTimeout(() => {
+                // Ensure the path matches your search page route (e.g., /flight/search or /flights)
+                router.push(`/flight/search?${params.toString()}`);
+            }, 2500);
+            
+            return; 
+        }
+
+        // 🛑 Case 2: Instant Payment Required
+        if (errorCode === 'instant_payment_required' || errorCode === 'INSTANT_PAYMENT_REQUIRED') {
+             toast.error("This flight requires Instant Payment. Please contact support.");
+             setIsModalOpen(false);
+             return;
+        }
+
+        // Default Error
         toast.error(`Booking Failed: ${errorMessage}`);
-   //     router.push('/booking/failed?message=' + errorMessage);
+        
     } finally {
         setIsSubmitting(false);
     }
   };
-
 
   const handleRefreshSearch = () => {
       router.push('/flight/search');
@@ -453,6 +529,41 @@ function CheckoutContent() {
   return (
     <>
       <ExpirationModal isOpen={isExpired} onRefresh={handleRefreshSearch} />
+      
+      {/* 4. Global Style for Phone Input to match standard inputs */}
+      <style jsx global>{`
+        .PhoneInput {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            background-color: #f8fafc; /* bg-slate-50 */
+            border: 1px solid #e2e8f0; /* border-slate-200 */
+            border-radius: 0.75rem; /* rounded-xl */
+            padding: 0.75rem; /* p-3 */
+            transition: all 0.2s;
+        }
+        .PhoneInput:focus-within {
+            border-color: #f43f5e; /* rose-500 */
+            background-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2);
+        }
+        .PhoneInputInput {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500;
+            color: #1e293b;
+            flex: 1;
+        }
+        .PhoneInputCountry {
+            margin-right: 0.75rem;
+        }
+        /* Error State */
+        .PhoneInput.input-error {
+            border-color: #ef4444; /* red-500 */
+        }
+      `}</style>
 
       <div className={`${isExpired ? "blur-sm pointer-events-none select-none overflow-hidden h-screen" : ""} transition-all duration-500`}>
         <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 md:px-8">
@@ -605,6 +716,7 @@ function CheckoutContent() {
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit(onPreSubmit)} className="space-y-6">
+                            {/* 5. UPDATED CONTACT DETAILS SECTION */}
                             <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200/80">
                                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                     <Mail className="w-5 h-5 text-rose-500" /> Contact Details
@@ -612,12 +724,42 @@ function CheckoutContent() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email Address</label>
-                                        <input {...register('contact.email')} placeholder="ticket@example.com" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
+                                        <input 
+                                            {...register('contact.email', {
+                                                required: "Email is required",
+                                                pattern: {
+                                                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                                                    message: "Invalid email address"
+                                                }
+                                            })} 
+                                            placeholder="ticket@example.com" 
+                                            className={`w-full p-3 bg-slate-50 border rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white ${errors.contact?.email ? 'border-red-500' : 'border-slate-200'}`} 
+                                        />
                                         {errors.contact?.email && <p className="text-xs text-red-500 font-semibold mt-1">{errors.contact.email.message}</p>}
                                     </div>
+                                    
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Phone Number</label>
-                                        <input {...register('contact.phone')} placeholder="+1" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-rose-500 outline-none transition-all focus:bg-white" />
+                                        
+                                        {/* React Phone Number Input with Strict Validation */}
+                                        <Controller
+                                            name="contact.phone"
+                                            control={control}
+                                            rules={{
+                                                required: "Phone number is required",
+                                                validate: (value) => isValidPhoneNumber(value || "") || "Invalid phone number for selected country"
+                                            }}
+                                            render={({ field: { onChange, value } }) => (
+                                                <PhoneInput
+                                                    international
+                                                    defaultCountry="US"
+                                                    value={value}
+                                                    onChange={onChange}
+                                                    placeholder="Enter phone number"
+                                                    className={`PhoneInput ${errors.contact?.phone ? 'input-error' : ''}`}
+                                                />
+                                            )}
+                                        />
                                         {errors.contact?.phone && <p className="text-xs text-red-500 font-semibold mt-1">{errors.contact.phone.message}</p>}
                                     </div>
                                 </div>
