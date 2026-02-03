@@ -38,7 +38,7 @@ export const headerData = {
                 { label: 'International Flight Booking', href: '/flight/international' },
             ],
         },
-        { label: 'HOTEL', href: '/hotel', hasDropdown: false, subMenu: null },
+        { label: 'Verify Ticket', href: '/booking/status', hasDropdown: false, subMenu: null },
         {
             label: 'HAJJ',
             href: '/packages?type=hajj',

@@ -139,7 +139,7 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
       className="group flex items-center gap-1.5 hover:bg-gray-100 px-2 py-1 rounded transition cursor-pointer"
       title="Click to copy"
     >
-      <span className="font-mono font-medium text-sm text-gray-700">
+      <span className="font-mono  font-medium text-sm text-gray-700">
         {text}
       </span>
       <Copy className="w-3 h-3 text-gray-400 group-hover:text-black" />
@@ -342,7 +342,7 @@ export default function BookingDetailsPage() {
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <button
                 onClick={() => router.back()}
-                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition"
+                className="inline-flex items-center gap-1 rounded-full border border-gray-200/70 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-2xl shadow-gray-100 hover:bg-gray-50 hover:text-gray-900 transition"
               >
                 <span>Back</span>
                 <ChevronRight className="h-3.5 w-3.5 rotate-180" />
@@ -356,13 +356,13 @@ export default function BookingDetailsPage() {
             </div>
 
             <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-500">
-              <span className="rounded-full bg-white/80 px-3 py-1 border border-gray-200 shadow-sm">
+              <span className="rounded-full bg-white/80 px-3 py-1 border border-gray-200/70 shadow-2xl shadow-gray-100 ">
                 Trip:
                 <span className="font-semibold text-gray-800 ml-1">
                   {data.tripType.replace("_", " ")}
                 </span>
               </span>
-              <span className="rounded-full bg-white/80 px-3 py-1 border border-gray-200 shadow-sm">
+              <span className="rounded-full bg-white/80 px-3 py-1 border border-gray-200/70 shadow-2xl shadow-gray-100 ">
                 Booking ID:
                 <span className="font-mono text-xs ml-1">
                   {data.id.slice(0, 8)}...
@@ -374,7 +374,7 @@ export default function BookingDetailsPage() {
           {/* Hero grid */}
           <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
             {/* Route & meta */}
-            <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-6 py-5 shadow-sm">
+            <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-6 py-5   shadow-2xl shadow-gray-100">
               <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-sky-100/60 blur-3xl" />
               <div className="absolute -left-14 -bottom-20 h-36 w-36 rounded-full bg-indigo-100/50 blur-3xl" />
 
@@ -393,7 +393,7 @@ export default function BookingDetailsPage() {
                     </h1>
 
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border border-slate-200/80 shadow-sm backdrop-blur-sm">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur-sm">
                         <Calendar className="h-3.5 w-3.5 text-sky-500" />
                         <span className="font-medium">
                           {format(
@@ -407,13 +407,13 @@ export default function BookingDetailsPage() {
                           )}
                         </span>
                       </div>
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border border-slate-200/80 shadow-sm backdrop-blur-sm">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border  border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur-sm">
                         <User className="h-3.5 w-3.5 text-indigo-500" />
                         <span className="font-medium">
                           {passengerLabel}
                         </span>
                       </div>
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border border-slate-200/80 shadow-sm backdrop-blur-sm">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border  border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur-sm">
                         <Clock className="h-3.5 w-3.5 text-emerald-500" />
                         <span className="font-medium">
                           Total trip: {totalTripDurationLabel}
@@ -424,7 +424,7 @@ export default function BookingDetailsPage() {
 
                   <div className="flex flex-col items-end gap-2">
                     <StatusBadge status={data.status} />
-                    <span className="inline-flex items-center gap-1 rounded-full bg-black/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-black/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white border-gray-200/70 shadow-2xl shadow-gray-100 ">
                       <Plane className="h-3 w-3" />
                       {data.tripType.replace("_", " ")}
                     </span>
@@ -433,7 +433,7 @@ export default function BookingDetailsPage() {
 
                 {/* Ref / PNR / Duffel */}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                  <div className="inline-flex items-center gap-2 rounded-lg bg-white/90 px-3 py-1.5 border border-gray-200 shadow-sm">
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-white/90 px-3 py-1.5 border border-gray-200/70 shadow-2xl shadow-gray-100">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                       Reference
                     </span>
@@ -442,7 +442,7 @@ export default function BookingDetailsPage() {
                       label="Reference"
                     />
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-lg bg-white/90 px-3 py-1.5 border border-gray-200 shadow-sm">
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-white/90 px-3 py-1.5 border  border-gray-200/70 shadow-2xl shadow-gray-100">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                       PNR
                     </span>
@@ -454,7 +454,7 @@ export default function BookingDetailsPage() {
                         Duffel
                       </span>
                       <span className="truncate max-w-[130px]">
-                        {data.duffelOrderId}
+                        <CopyButton text={data.duffelOrderId} label="duffelOrderId" />
                       </span>
                     </div>
                   )}
@@ -463,7 +463,7 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* Status / Deadline / Contact snapshot */}
-            <div className="flex h-full flex-col gap-4 rounded-2xl border border-gray-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+            <div className="flex h-full flex-col gap-4 rounded-2xl border  bg-white/80 p-5  border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
@@ -543,7 +543,7 @@ export default function BookingDetailsPage() {
           {/* --- Left Column (Flight Info) --- */}
           <div className="lg:col-span-2 space-y-8">
             {/* 1. Flight Itinerary */}
-            <div className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden">
+            <div className="bg-white border border-gray-200/70 shadow-2xl shadow-gray-100  rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Plane className="w-4 h-4 text-gray-500" />
@@ -670,7 +670,7 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* 2. Travelers */}
-            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200/70 shadow-2xl shadow-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-500" />

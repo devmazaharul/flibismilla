@@ -1,19 +1,12 @@
 import { Resend } from 'resend';
-import BookingSuccess from './BookingSuccess';
 import TeamInvite from './TeamInvite';
 import ForgotPassword from './ForgotPassword';
 import PasswordChanged from './PasswordChanged';
 import TwoFactorStatus from './TwoFactorStatus';
 import ContactSubmission from './ContactSubmission';
 
-import BookingNotification from './BookingNotification';
-import BookingConfirmationEmail from './BookingConfirmationEmail';
-
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-
-
 
 
 export async function sendTeamInviteEmail(email: string, data: { invitedBy: string, invitedName: string, role: string, link: string }) {
@@ -126,24 +119,8 @@ export async function sendContactSubmissionEmail(
 }
 
 
-interface BookingData {
-  packageTitle: string;
-  packagePrice: string | number;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  travelDate: string;
-  returnDate: string;
-  guests: {
-    adults: number;
-    children: number;
-  };
-  notes?: string;
-}
 
 
-
-// টাইপ ডেফিনিশন (যাতে ভুল ডাটা না যায়)
 interface EmailPayload {
   email: string;
   bookingRef: string;
@@ -162,33 +139,9 @@ interface EmailPayload {
 }
 
 
-export const sendBookingConfirmationEmail = async (data: EmailPayload) => {
-  try {
-    const { email, bookingRef, pnr, customerName, flight, passengers, totalAmount } = data;
 
-    const result = await resend.emails.send({
-      from: 'MazaFly <onboarding@themaza.shop>', // আপনার ভেরিফাইড ডোমেইন দিন
-      to: [email],
-      subject: `Booking Confirmed! Ref: ${bookingRef}`,
-      react: BookingConfirmationEmail({
-        bookingRef,
-        pnr,
-        customerName,
-        flight,
-        passengers,
-        totalAmount,
-        downloadLink: `https://mazafly.com/booking/success?id=${bookingRef}`
-      }),
-    });
 
-    if (result.error) {
-      return { success: false, error: result.error };
-    }
 
-    return { success: true, data: result.data };
 
-  } catch (error: any) {
-    console.error("Resend Utility Error:", error);
-    return { success: false, error: error.message };
-  }
-};
+
+

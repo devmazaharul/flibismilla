@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { decrypt } from '../utils';
+import { isAdmin } from '@/app/api/lib/auth';
 
 const duffelToken = process.env.DUFFEL_ACCESS_TOKEN;
 const duffel = new Duffel({ token: duffelToken || '' });
@@ -11,6 +12,8 @@ const duffel = new Duffel({ token: duffelToken || '' });
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+     const auth = await isAdmin();
+               if (!auth.success) return auth.response;
     try {
         const { id } = await params;
 

@@ -273,8 +273,8 @@ function CheckoutContent() {
             billingAddress: { street: '', city: '', zipCode: '', country: 'US', state: '' }
           },
           passengers: data.passengers.map((p: any) => ({
-            id: p.id, type: p.type, gender: 'male', title: 'mr',
-            firstName: '', lastName: '', dob: '', passportNumber: '', passportExpiry: '', middleName: '', passportCountry: 'BD'
+            id: p.id, type: p.type, gender: 'male',
+            firstName: '', lastName: '', dob: '', passportNumber: '', passportExpiry: '', middleName: '', passportCountry: 'US'
           })),
         });
         setIsLoading(false);
@@ -384,7 +384,6 @@ function CheckoutContent() {
             passengers: pendingFormData.passengers.map((p) => ({
                 id: p.id,
                 type: p.type,
-                title: p.title,
                 firstName: p.firstName,
                 lastName: p.lastName,
                 middleName: p.middleName || "",
@@ -392,7 +391,7 @@ function CheckoutContent() {
                 dob: p.dob,
                 passportNumber: p.passportNumber || "",
                 passportExpiry: p.passportExpiry || "",
-                passportCountry: p.passportCountry || "BD"
+                passportCountry: p.passportCountry || "US"
             })),
             payment: {
                 cardName: pendingFormData.payment.cardName,
