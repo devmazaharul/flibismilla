@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import dbConnect from "@/connection/db";
 import Booking from "@/models/Booking.model";
-import { sendTicketIssuedEmail } from "@/utils/sendTicketEmail"; // আপনার সঠিক পাথ ব্যবহার করুন
+import { sendTicketIssuedEmail } from "@/app/emails/email";
 
 export const runtime = "nodejs";          // Crypto লাইব্রেরির জন্য জরুরি
 export const dynamic = "force-dynamic";   // ক্যাশিং বন্ধ রাখার জন্য
