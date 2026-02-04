@@ -103,7 +103,7 @@ export async function sendContactSubmissionEmail(
   try {
     const { data: result, error } = await resend.emails.send({
       from: `Fly Bismillah <onboarding@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
-      to: ADMIN_EMAIL, // ✅ Updated to use the Admin Email variable
+      to: ADMIN_EMAIL, 
       subject: `New Inquiry: ${data.subject}`,
       react: ContactSubmission({
         name: data.name,
