@@ -2,9 +2,8 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import { CheckCircle, Home, Printer, Loader2, Plane, Download, Copy } from 'lucide-react';
+import { CheckCircle, Loader2, Plane, Copy } from 'lucide-react';
 import axios from 'axios';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 // --- Types (আপনার ডাটাবেস স্কিমা অনুযায়ী) ---
@@ -36,16 +35,14 @@ function SuccessContent() {
 
     const fetchBooking = async () => {
       try {
-        // আপনার GET API কল করুন (বুকিং আইডি দিয়ে)
-        // নিশ্চিত করুন আপনার ব্যাকএন্ডে এই রাউটটি আছে: /api/booking/[id]
         const res = await axios.get(`/api/public/booking/${id}`);
-        
+
         if (res.data.success) {
           setBooking(res.data.data);
         }
       } catch (error) {
-        console.error("Error fetching booking:", error);
-        toast.error("Could not load booking details.");
+        console.error('Error fetching booking:', error);
+        toast.error('Could not load booking details.');
       } finally {
         setLoading(false);
       }
@@ -57,16 +54,20 @@ function SuccessContent() {
   const handleCopyPNR = () => {
     if (booking?.pnr) {
       navigator.clipboard.writeText(booking.pnr);
-      toast.success("PNR Copied!");
+      toast.success('PNR copied!');
     }
   };
 
   // --- Loading State ---
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-3">
-        <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
-        <p className="text-slate-500 font-medium animate-pulse">Generating your ticket...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50 gap-3">
+        <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center">
+          <Loader2 className="w-7 h-7 text-emerald-600 animate-spin" />
+        </div>
+        <p className="text-slate-500 font-medium animate-pulse">
+          Generating your ticket...
+        </p>
       </div>
     );
   }
@@ -74,81 +75,165 @@ function SuccessContent() {
   // --- Error/Empty State ---
   if (!booking && !loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50 p-4 text-center">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-            <span className="text-2xl">⚠️</span>
+          <span className="text-2xl">⚠️</span>
         </div>
         <h2 className="text-xl font-bold text-slate-900">Booking Not Found</h2>
-        <button onClick={() => router.push('/')} className="mt-6 text-blue-600 hover:underline">Go Home</button>
+        <p className="mt-1 text-sm text-slate-500 max-w-xs">
+          We couldn&apos;t find a booking for this link. Please check your
+          email for the correct confirmation link.
+        </p>
+        <button
+          onClick={() => router.push('/')}
+          className="mt-6 text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium"
+        >
+          Go Home
+        </button>
       </div>
     );
   }
 
+  // এখানে এসে booking নিশ্চিতভাবে আছে
   return (
-    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 flex items-center justify-center">
-      <div className="max-w-lg w-full bg-white rounded-3xl shadow-2xl shadow-slate-100 border border-slate-100 overflow-hidden relative">
-        
-        {/* Top Decoration */}
-        <div className="h-2 w-full bg-emerald-500"></div>
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50 py-12 px-4 flex items-center justify-center">
+      <div className="relative max-w-xl w-full bg-white/95 backdrop-blur-sm rounded-3xl border border-slate-100 shadow-[0_18px_45px_rgba(15,23,42,0.15)] overflow-hidden">
+        {/* Top gradient accent */}
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-sky-500 via-emerald-500 to-emerald-400" />
 
-        <div className="p-8 text-center">
+        {/* Content */}
+        <div className="pt-10 pb-7 px-6 sm:px-8">
           {/* Success Icon */}
-          <div className="w-20 h-20 bg-emerald-50/50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle className="w-10 h-10 text-emerald-600" />
+          <div className="w-20 h-20 rounded-full bg-emerald-50 border-[6px] border-white shadow-lg flex items-center justify-center mx-auto mb-4 relative">
+            <CheckCircle className="w-9 h-9 text-emerald-600" />
+            <div className="absolute inset-1 rounded-full border border-emerald-200/70" />
           </div>
 
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Booking Confirmed!</h1>
-          <p className="text-slate-500 text-sm mb-8">
-            Your flight has been successfully booked. A confirmation email has been sent to <span className="font-bold text-slate-700">{booking?.contact.email}</span>.
-          </p>
+          {/* Heading */}
+          <div className="text-center mb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
+              Booking confirmed
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-slate-900">
+              Your flight is ready to go
+            </h1>
+            <p className="mt-2 text-xs sm:text-sm text-slate-500">
+              A detailed e‑ticket has been sent to{' '}
+              <span className="font-semibold text-slate-700">
+                {booking?.contact.email}
+              </span>
+              . Your booking and contact details are shown below.
+            </p>
+          </div>
 
           {/* Ticket Summary Card */}
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/60 text-left relative overflow-hidden">
+          <div className="mt-4 bg-slate-50 rounded-2xl border border-slate-200/70 text-left relative overflow-hidden">
             {/* Cutout Circles for Ticket Look */}
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-r border-slate-200"></div>
-            <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-l border-slate-200"></div>
+            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-b from-slate-50 to-white rounded-full border-r border-slate-200" />
+            <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-b from-slate-50 to-white rounded-full border-l border-slate-200" />
 
-            <div className="space-y-4">
-              {/* PNR Section */}
-              <div className="flex justify-between items-center pb-4 border-b border-dashed border-slate-300">
+            <div className="p-5 space-y-4">
+              {/* PNR + Booking reference + User info + Amount */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-4 border-b border-dashed border-slate-300/70">
+                {/* Left side: PNR + Booking Ref */}
                 <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Airline PNR</p>
-                  <p className="text-2xl font-mono font-bold text-emerald-600 tracking-wide">{booking?.pnr}</p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-[0.18em]">
+                    Airline PNR
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-2xl font-mono font-bold text-emerald-600 tracking-wide">
+                      {booking?.pnr}
+                    </p>
+                    <button
+                      onClick={handleCopyPNR}
+                      className="p-1.5 cursor-pointer rounded-lg bg-white/70 border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition"
+                      aria-label="Copy PNR"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <p className="mt-3 text-[10px] uppercase font-semibold text-slate-400 tracking-[0.18em]">
+                    Booking Reference
+                  </p>
+                  <p className="mt-1 text-xs font-mono font-semibold text-slate-800">
+                    {booking?.bookingReference}
+                  </p>
                 </div>
-                <button onClick={handleCopyPNR} className="p-2 cursor-pointer hover:bg-slate-200 rounded-lg transition text-slate-400 hover:text-slate-600">
-                  <Copy className="w-4 h-4" />
-                </button>
+
+                {/* Right side: User (contact) info + amount */}
+                <div className="sm:text-right">
+                  <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-[0.18em]">
+                    Traveler contact
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-900 break-all">
+                    {booking?.contact.email}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {booking?.contact.phone}
+                  </p>
+
+                  <p className="mt-4 text-[10px] uppercase font-semibold text-slate-400 tracking-[0.18em]">
+                    Total paid
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900 font-mono">
+                    {booking?.currency} {booking?.amount}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    All taxes &amp; fees included
+                  </p>
+                </div>
               </div>
 
               {/* Flight Info */}
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white rounded-2xl border border-slate-100">
-                  <Plane className="w-5 h-5 text-blue-600" />
+              <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <Plane className="w-5 h-5 text-sky-600" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase text-slate-400 tracking-[0.18em]">
+                      Route
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {booking?.flight.route}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {booking?.flight.airline}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{booking?.flight.route}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{booking?.flight.airline} • {booking?.flight.date}</p>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs sm:text-[13px]">
+                  <div>
+                    <p className="text-[10px] uppercase text-slate-400 tracking-[0.18em]">
+                      Travel date
+                    </p>
+                    <p className="mt-1 font-medium text-slate-900">
+                      {booking?.flight.date}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-slate-400 tracking-[0.18em]">
+                      Contact
+                    </p>
+                    <p className="mt-1 font-medium text-slate-900 truncate">
+                      {booking?.contact.phone}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 mt-8 print:hidden">
-            <button 
-              onClick={() => window.print()}
-              className="flex items-center cursor-pointer justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-sm"
-            >
-              <Download className="w-4 h-4" /> Download PDF
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="flex items-center justify-center cursor-pointer gap-2 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition text-sm shadow-lg shadow-slate-200"
-            >
-              <Home className="w-4 h-4" /> Back Home
-            </button>
-          </div>
+          {/* Small note */}
+          <p className="mt-4 text-[11px] text-slate-500 text-center">
+            Please arrive at the airport at least 3 hours before departure for
+            international flights and carry a valid photo ID matching the
+            passenger name.
+          </p>
 
+          {/* নিচে action button গুলো ইচ্ছা মতো উঠিয়ে দেওয়া হয়েছে */}
         </div>
       </div>
     </div>
@@ -158,7 +243,13 @@ function SuccessContent() {
 // Suspense Wrapper for Next.js Router
 export default function BookingSuccessPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+    <Suspense
+      fallback={
+        <div className="h-screen flex items-center justify-center bg-white">
+          <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+        </div>
+      }
+    >
       <SuccessContent />
     </Suspense>
   );

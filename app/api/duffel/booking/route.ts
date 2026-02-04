@@ -5,6 +5,7 @@ import { decrypt, encrypt, generateBookingReference } from './utils';
 import Booking from '@/models/Booking.model';
 import { format, parseISO } from 'date-fns';
 import { isAdmin } from '../../lib/auth';
+import { sendBookingProcessingEmail, sendNewBookingAdminNotification } from '@/app/emails/email';
 
 // --- Type Definitions ---
 interface PassengerInput {
@@ -43,14 +44,12 @@ function isRateLimited(ip: string) {
     return clientData.count > maxRequests;
 }
 
-
 const validatePhoneNumber = (phone: string | undefined) => {
     if (!phone) return undefined;
 
     const cleaned = phone.trim().replace(/[\s-]/g, '');
 
     if (cleaned.length < 10 || cleaned.length > 17) {
-
         return undefined;
     }
 
@@ -58,8 +57,6 @@ const validatePhoneNumber = (phone: string | undefined) => {
 };
 
 export async function POST(request: Request) {
-
-
     let newBookingId = null;
     const ip = request.headers.get('x-forwarded-for') || 'unknown-ip';
 
@@ -340,12 +337,47 @@ export async function POST(request: Request) {
 
         // 🟢 7. SEND EMAIL
         try {
+            // Format date for email (e.g. "12 Oct, 2025")
             const emailDate = format(parseISO(flight_details.departureDate), 'dd MMM, yyyy');
-            const routeParts = finalRoute.split('|')[0].split('➝');
-            // const emailOrigin = routeParts[0]?.trim() || 'Origin';
-            // const emailDest = routeParts[routeParts.length - 1]?.trim() || 'Dest';
 
+            // Extract origin & destination from the first leg of the route string
+            // Example route: "DAC ➝ JFK | JFK ➝ DAC"
+            const firstLeg = finalRoute.split('|')[0] || finalRoute;
+            const routeParts = firstLeg.split('➝');
+
+            const emailOrigin = routeParts[0]?.trim() || 'Origin';
+            const emailDest = routeParts[routeParts.length - 1]?.trim() || 'Destination';
+            const primaryPassengerName =
+                passengers && passengers.length > 0
+                    ? `${passengers[0].title || ''} ${passengers[0].firstName} ${passengers[0].lastName}`
+                    : 'Traveler';
+            // Make sure we have an email address
+            if (contact?.email) {
+                await sendBookingProcessingEmail({
+                    to: contact.email,
+                    customerName: primaryPassengerName || 'Traveler',
+                    bookingReference: order.data.booking_reference,
+                    origin: emailOrigin,
+                    destination: emailDest,
+                    flightDate: emailDate,
+                });
             
+                const firstLeg = finalRoute.split('|')[0] || finalRoute; // Route বের করা
+    
+    await sendNewBookingAdminNotification({
+        pnr: order.data.booking_reference,
+        customerName: contact.name || passengers[0].firstName, // কন্টাক্ট নাম বা প্রথম যাত্রী
+        customerPhone: contact.phone || passengers[0].phone || 'N/A',
+        route: finalRoute, // e.g. DAC ➝ JFK
+        airline: flight_details.airline, // e.g. Emirates
+        flightDate: format(parseISO(flight_details.departureDate), 'dd MMM, yyyy'),
+        totalAmount: customerTotalAmount,
+        bookingId: newBookingId.toString(),
+    });
+            
+            } else {
+                console.warn('No contact.email found, skipping booking processing email.');
+            }
         } catch (emailError) {
             console.error('Failed to send email:', emailError);
         }
@@ -427,8 +459,8 @@ async function syncSingleBooking(booking: any) {
                 updates.adminNotes = `Auto-Sync: Cancelled on Duffel at ${orderData.cancelled_at}`;
                 needsUpdate = true;
             }
-        } 
-        
+        }
+
         // ✅ Case B: Issuance Check
         else if (orderData.documents && orderData.documents.length > 0) {
             const hasLocalDocs = booking.documents && booking.documents.length > 0;
@@ -437,7 +469,7 @@ async function syncSingleBooking(booking: any) {
                 updates.documents = orderData.documents.map((doc: any) => ({
                     unique_identifier: doc.unique_identifier,
                     type: doc.type,
-                    url: doc.url
+                    url: doc.url,
                 }));
                 needsUpdate = true;
             }
@@ -456,7 +488,7 @@ async function syncSingleBooking(booking: any) {
             // ধরে নিচ্ছি প্রথম স্লাইসের প্রথম সেগমেন্ট হলো জার্নি শুরুর সময়
             const firstSlice = orderData.slices[0];
             const firstSegment = firstSlice.segments[0];
-            
+
             // ধরে নিচ্ছি শেষ স্লাইসের শেষ সেগমেন্ট হলো জার্নি শেষ হওয়ার সময় (বা One way হলে প্রথম স্লাইসের শেষ)
             const lastSlice = orderData.slices[orderData.slices.length - 1];
             const lastSegment = lastSlice.segments[lastSlice.segments.length - 1];
@@ -472,19 +504,21 @@ async function syncSingleBooking(booking: any) {
             // পার্থক্য চেক (ধরি ১ মিনিটের বেশি পার্থক্য হলে আপডেট করব)
             const timeDiff = Math.abs(newDepartureTime - localDepartureTime);
 
-            if (timeDiff > 60000) { // 60,000 ms = 1 minute
+            if (timeDiff > 60000) {
+                // 60,000 ms = 1 minute
                 console.log(`⚠️ Schedule Change Detected for PNR ${booking.pnr}`);
-                
+
                 // Flight Details আপডেট সেট করা
                 // আমরা ডট নোটেশন ব্যবহার করছি যাতে পুরো অবজেক্ট রিপ্লেস না হয়ে শুধু ফিল্ড আপডেট হয়
                 updates['flightDetails.departureDate'] = firstSegment.departing_at;
                 updates['flightDetails.arrivalDate'] = lastSegment.arriving_at;
-                updates['flightDetails.flightNumber'] = `${firstSegment.operating_carrier.iata_code}${firstSegment.operating_carrier_flight_number}`;
+                updates['flightDetails.flightNumber'] =
+                    `${firstSegment.operating_carrier.iata_code}${firstSegment.operating_carrier_flight_number}`;
                 updates['flightDetails.duration'] = firstSlice.duration; // বা আপনার লজিক অনুযায়ী টোটাল ডিউরেশন
-                
+
                 // চাইলে একটা ফ্ল্যাগ সেট করতে পারেন
                 updates.isScheduleChanged = true;
-                
+
                 needsUpdate = true;
             }
         }
@@ -492,24 +526,23 @@ async function syncSingleBooking(booking: any) {
         // --- ৪. Database Write Operation ---
         if (needsUpdate) {
             console.log(`🔄 Syncing PNR ${booking.pnr}: Updates applied.`);
-            
+
             const updatedBooking = await Booking.findByIdAndUpdate(
-                booking._id, 
-                { 
+                booking._id,
+                {
                     $set: updates,
-                    $currentDate: { updatedAt: true }
-                }, 
-                { new: true }
+                    $currentDate: { updatedAt: true },
+                },
+                { new: true },
             ).lean();
 
             return updatedBooking;
         }
 
         return booking;
-
     } catch (error) {
         console.error(`❌ Sync failed for ${booking.pnr || booking._id}:`, error);
-        return booking; 
+        return booking;
     }
 }
 
@@ -531,7 +564,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '20'); 
+        const limit = parseInt(searchParams.get('limit') || '20');
         const skip = (page - 1) * limit;
 
         // 🟢 2. Fetch Only Required Data (Not All)
@@ -543,19 +576,18 @@ export async function GET(req: Request) {
             .limit(limit)
             .lean();
 
-   const syncedBookings = await Promise.all(
-    bookings.map(async (booking) => {
+        const syncedBookings = await Promise.all(
+            bookings.map(async (booking) => {
+                const finalStates = ['cancelled', 'failed', 'expired'];
 
-        const finalStates = ['cancelled', 'failed', 'expired']; 
+                if (!finalStates.includes(booking.status)) {
+                    // held, processing, issued -> সব চেক হবে
+                    return await syncSingleBooking(booking);
+                }
 
-        if (!finalStates.includes(booking.status)) {
-            // held, processing, issued -> সব চেক হবে
-            return await syncSingleBooking(booking);
-        }
-        
-        return booking;
-    }),
-);
+                return booking;
+            }),
+        );
 
         const now = new Date();
 
@@ -659,7 +691,7 @@ export async function GET(req: Request) {
                 actionData: {
                     ticketUrl: ticketLink,
                 },
-                updatedAt:booking.updatedAt
+                updatedAt: booking.updatedAt,
             };
         });
 

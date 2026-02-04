@@ -5,7 +5,6 @@ import Booking from '@/models/Booking.model';
 
 export async function POST(req: Request) {
   try {
-    // ১. সিকিউরিটি ভেরিফিকেশন (Duffel Signature Check)
     const rawBody = await req.text();
     const headersList = req.headers;
     const signature = headersList.get('x-duffel-signature');
@@ -34,15 +33,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid signature' }, { status: 403 });
     }
 
-    // ২. ইভেন্ট প্রসেসিং এবং ডাটাবেস আপডেট
     await dbConnect();
     const event = JSON.parse(rawBody);
     const { type, data } = event;
 
-    console.log(`🔔 Webhook: ${type} | Order: ${data.id}`);
+    // লগ (ডিবাগিংয়ের জন্য)
+    // নোট: ইভেন্ট টাইপ অনুযায়ী অর্ডার আইডি বের করা হচ্ছে
+    const targetOrderId = data.order_id || data.id; 
+    console.log(`🔔 Webhook: ${type} | Target Order: ${targetOrderId}`);
 
     switch (type) {
       
+      // ✅ FIX 1: এখানে data টাই Order অবজেক্ট, তাই `data.id` ব্যবহার করতে হবে
       case 'order.tickets_issued':
         const tickets = data.documents?.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
@@ -51,7 +53,7 @@ export async function POST(req: Request) {
         })) || [];
 
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id }, 
+          { duffelOrderId: data.id }, // ⚠️ Changed from data.order_id to data.id
           { 
             $set: { 
               status: 'issued', 
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
         );
         break;
 
+      // ✅ FIX 2: এখানেও data টাই Order অবজেক্ট, তাই `data.id` ব্যবহার করতে হবে
       case 'order.created':
         const updateData: any = { status: 'held' };
         if (data.payment_required_by) {
@@ -69,14 +72,42 @@ export async function POST(req: Request) {
         }
         
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
+          { duffelOrderId: data.id }, // ⚠️ Changed from data.order_id to data.id
           { $set: updateData }
         );
         break;
 
-      case 'order.cancelled':
+      // ✅ CASE 3: পেমেন্ট অবজেক্টে `order_id` থাকে (এটি ঠিক ছিল)
+      case 'air.payment.succeeded':
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
+          { duffelOrderId: data.order_id }, 
+          { 
+            $set: { 
+              paymentStatus: 'paid', 
+              updatedAt: new Date()
+            } 
+          }
+        );
+        break;
+
+      // ✅ CASE 4: পেমেন্ট ফেইল করলে `order_id` থাকে (এটি ঠিক ছিল)
+      case 'air.payment.failed':
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: data.order_id }, 
+          { 
+            $set: { 
+              status: 'failed',
+              adminNotes: `Auto: Payment failed. Reason: ${data.error_message || 'Unknown'}`,
+              updatedAt: new Date()
+            } 
+          }
+        );
+        break;
+
+      // ✅ CASE 5: ক্যান্সেলেশন অবজেক্টে `order_id` থাকে (এটি ঠিক ছিল)
+      case 'order.cancellation.confirmed':
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: data.order_id },
           { 
             $set: { 
               status: 'cancelled',
@@ -86,33 +117,26 @@ export async function POST(req: Request) {
         );
         break;
 
-      case 'order.schedule_change':
+      // ✅ CASE 6: শিডিউল চেঞ্জ অবজেক্টে `order_id` থাকে (এটি ঠিক ছিল)
+      case 'order.airline_initiated_change_detected':
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
+          { duffelOrderId: data.order_id },
           { 
             $set: { 
               airlineInitiatedChanges: data, 
-              adminNotes: "Auto: Flight schedule changed by airline. Check 'airlineInitiatedChanges'.",
+              adminNotes: "Auto: Flight schedule changed by airline. Check Dashboard.",
               updatedAt: new Date()
             } 
           }
         );
         break;
 
-      case 'order.payment_failed':
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
-          { 
-            $set: { 
-              status: 'failed',
-              adminNotes: "Auto: Duffel payment failed webhook received."
-            } 
-          }
-        );
+      case 'order.creation_failed':
+         console.warn('Order creation failed webhook received', data);
         break;
 
       default:
-        console.log(`Unhandled event: ${type}`);
+        console.log(`ℹ️ Unhandled event type: ${type}`);
     }
 
     return NextResponse.json({ success: true });

@@ -4,15 +4,22 @@ import ForgotPassword from './ForgotPassword';
 import PasswordChanged from './PasswordChanged';
 import TwoFactorStatus from './TwoFactorStatus';
 import ContactSubmission from './ContactSubmission';
+import AdminMessageEmail from './AdminMessageEmail';
+import BookingProcessingEmail from './BookingProcessingEmail';
+import NewBookingAdminEmail from './NewBookingAdminEmail';
 
+// Environment Variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL as string; 
+// Assuming ADMIN_BUSINESS_EMAIL contains the domain (e.g., "themaza.shop")
+const ADMIN_BUSINESS_EMAIL = process.env.ADMIN_BUSINESS_EMAIL || 'themaza.shop'; 
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-
+// 1. Send Team Invite Email
 export async function sendTeamInviteEmail(email: string, data: { invitedBy: string, invitedName: string, role: string, link: string }) {
   try {
     await resend.emails.send({
-      from: 'Fly Bismillah <team@themaza.shop>',
+      from: `Fly Bismillah <team@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
       to: email,
       subject: `Invitation to join Fly Bismillah as ${data.role}`,
       react: TeamInvite({ 
@@ -28,11 +35,11 @@ export async function sendTeamInviteEmail(email: string, data: { invitedBy: stri
   }
 }
 
-// 4. Send Forgot Password Email
+// 2. Send Forgot Password Email
 export async function sendForgotPasswordEmail(email: string, data: { name: string, link: string }) {
   try {
     await resend.emails.send({
-     from: 'Fly Bismillah <security@themaza.shop>',
+      from: `Fly Bismillah <security@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
       to: email,
       subject: 'Reset your password',
       react: ForgotPassword({ 
@@ -46,10 +53,11 @@ export async function sendForgotPasswordEmail(email: string, data: { name: strin
   }
 }
 
+// 3. Send Password Changed Email
 export async function sendPasswordChangedEmail(email: string, userName: string) {
   try {
     await resend.emails.send({
-      from: 'Fly Bismillah <security@themaza.shop>',
+      from: `Fly Bismillah <security@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
       to: email,
       subject: 'Your password was changed',
       react: PasswordChanged({ userName }),
@@ -60,7 +68,7 @@ export async function sendPasswordChangedEmail(email: string, userName: string) 
   }
 }
 
-
+// 4. Send 2FA Status Email
 export async function send2FAStatusEmail(
     email: string, 
     data: { 
@@ -73,7 +81,7 @@ export async function send2FAStatusEmail(
 ) {
   try {
     await resend.emails.send({
-      from: 'Fly Bismillah <security@themaza.shop>',
+      from: `Fly Bismillah <security@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
       to: email,
       subject: `Security Alert: 2FA ${data.status === "enabled" ? "Enabled" : "Disabled"}`,
       react: TwoFactorStatus({ 
@@ -88,16 +96,14 @@ export async function send2FAStatusEmail(
   }
 }
 
-// 6. Send Contact Submission Email
-const privateEmail="work.mazaharul@gmail.com"
+// 5. Send Contact Submission Email
 export async function sendContactSubmissionEmail(
   data: { name: string; email: string; phone: string; subject: string; message: string }
 ) {
   try {
-
     const { data: result, error } = await resend.emails.send({
-      from: 'Fly Bismillah <onboarding@themaza.shop>',
-      to:privateEmail, 
+      from: `Fly Bismillah <onboarding@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
+      to: ADMIN_EMAIL, // ✅ Updated to use the Admin Email variable
       subject: `New Inquiry: ${data.subject}`,
       react: ContactSubmission({
         name: data.name,
@@ -120,28 +126,116 @@ export async function sendContactSubmissionEmail(
 
 
 
-
-interface EmailPayload {
-  email: string;
-  bookingRef: string;
-  pnr: string;
-  customerName: string;
-  totalAmount: string;
-  flight: {
-    airline: string;
-    flightNumber: string;
-    origin: string;
-    destination: string;
-    date: string;
-    time: string;
-  };
-  passengers: { name: string; type: string }[];
+interface SendEmailParams {
+  to: string;      
+  subject: string;  
+  message: string;  
+  name?: string;    
 }
 
+// 6. Send Generic Email via Resend
+export const sendEmailViaResend = async ({ to, subject, message, name }: SendEmailParams) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Fly Bismillah <onboarding@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
+      to: [to],
+      subject: subject,
+      react: AdminMessageEmail({ 
+        subject, 
+        message, 
+        recipientName: "Fly Bismillah Team Member" 
+      }),
+    });
 
+    if (error) {
+      console.error("Resend Error:", error);
+      return { success: false, error };
+    }
 
+    return { success: true, data };
+  } catch (err) {
+    console.error("Sending Failed:", err);
+    return { success: false, error: err };
+  }
+};
 
+interface ProcessingEmailParams {
+  to: string;           
+  customerName: string;
+  bookingReference: string; 
+  origin: string;
+  destination: string;
+  flightDate: string;
+}
 
+// 7. Send Booking Processing Email
+export const sendBookingProcessingEmail = async ({
+  to,
+  customerName,
+  bookingReference,
+  origin,
+  destination,
+  flightDate
+}: ProcessingEmailParams) => {
+  try {
+    const { data, error } = await resend.emails.send({
+       from: `Fly Bismillah <onboarding@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Updated
+      to: [to],
+      subject: `Booking Processing - Ref: ${bookingReference}`,
+      react: BookingProcessingEmail({
+        customerName,
+        bookingReference,
+        origin,
+        destination,
+        flightDate
+      }),
+    });
 
+    if (error) {
+      console.error("Resend Error:", error);
+      return { success: false, error };
+    }
 
+    return { success: true, messageId: data?.id };
 
+  } catch (err) {
+    console.error("Email Sending Failed:", err);
+    return { success: false, error: err };
+  }
+};
+
+interface AdminEmailParams {
+  pnr: string;
+  customerName: string;
+  customerPhone: string;
+  route: string;
+  airline: string;
+  flightDate: string;
+  totalAmount: number;
+  bookingId: string;
+}
+
+// 8. Send New Booking Notification to Admin
+export const sendNewBookingAdminNotification = async (params: AdminEmailParams) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `System Bot <notifications@${ADMIN_BUSINESS_EMAIL}>`, // ✅ Consistent with others
+      to: [ADMIN_EMAIL], // ✅ Uses the Admin Email variable
+      subject: `[New Booking] ${params.route} - ${params.customerName}`,
+      react: NewBookingAdminEmail({
+        ...params,
+        totalAmount: params.totalAmount.toLocaleString(), 
+      }),
+    });
+
+    if (error) {
+      console.error("Admin Email Error:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    console.error("Admin Email Failed:", err);
+    return { success: false, error: err };
+  }
+};
