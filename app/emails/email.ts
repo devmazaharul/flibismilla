@@ -7,6 +7,8 @@ import ContactSubmission from './ContactSubmission';
 import AdminMessageEmail from './AdminMessageEmail';
 import BookingProcessingEmail from './BookingProcessingEmail';
 import NewBookingAdminEmail from './NewBookingAdminEmail';
+import TicketIssuedEmail from './TicketIssuedEmail';
+import { format, parseISO } from 'date-fns';
 
 // Environment Variables
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL as string; 
@@ -236,6 +238,64 @@ export const sendNewBookingAdminNotification = async (params: AdminEmailParams) 
     return { success: true, messageId: data?.id };
   } catch (err) {
     console.error("Admin Email Failed:", err);
+    return { success: false, error: err };
+  }
+};
+
+
+
+
+
+interface BookingData {
+  pnr: string;
+  contact: { email: string; phone?: string };
+  passengers: any[];
+  flightDetails: {
+    airline: string;
+    route: string;
+    departureDate: string;
+  };
+  documents: { url: string; unique_identifier: string }[];
+}
+
+export const sendTicketIssuedEmail = async (booking: BookingData) => {
+  try {
+    // Duffel থেকে পাওয়া ডকুমেন্ট লিস্ট থেকে PDF লিংক বের করা
+    const ticketDoc = booking.documents.find((doc) => doc.url) || booking.documents[0];
+    const ticketUrl = ticketDoc?.url || '#';
+
+    // যাত্রীদের নাম ফরম্যাট করা
+    const formattedPassengers = booking.passengers.map((p) => ({
+      name: `${p.title ? p.title + '. ' : ''}${p.firstName} ${p.lastName}`,
+      type: p.type
+    }));
+
+    // ইমেইল পাঠানো
+    const { data, error } = await resend.emails.send({
+      from: `Fly Bismillah <tickets@${ADMIN_BUSINESS_EMAIL}>`, // ✅ tickets@themaza.shop
+      to: [booking.contact.email],
+      subject: `E-Ticket Issued - PNR: ${booking.pnr}`,
+      react: TicketIssuedEmail({
+        customerName: formattedPassengers[0].name, // প্রথম যাত্রীর নাম
+        pnr: booking.pnr,
+        airline: booking.flightDetails.airline,
+        flightDate: format(parseISO(booking.flightDetails.departureDate), 'dd MMM, yyyy'),
+        route: booking.flightDetails.route,
+        ticketUrl: ticketUrl,
+        passengers: formattedPassengers,
+      }),
+    });
+
+    if (error) {
+      console.error("Ticket Email Error:", error);
+      return { success: false, error };
+    }
+
+    console.log(`✅ Ticket Email sent to ${booking.contact.email}`);
+    return { success: true, messageId: data?.id };
+
+  } catch (err) {
+    console.error("Ticket Email Failed:", err);
     return { success: false, error: err };
   }
 };

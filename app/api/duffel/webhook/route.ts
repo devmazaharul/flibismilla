@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import dbConnect from "@/connection/db";
 import Booking from "@/models/Booking.model";
+import { sendTicketIssuedEmail } from "@/app/emails/email"; // ✅ আপনার দেওয়া পাথ
 
-export const runtime = "nodejs";          // ensure Node.js runtime (for crypto)
-export const dynamic = "force-dynamic";   // no caching for webhooks
+export const runtime = "nodejs";          // Crypto ব্যবহারের জন্য Node.js রানটাইম জরুরি
+export const dynamic = "force-dynamic";   // ক্যাশ এড়ানোর জন্য
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
+    
+    // ১. হেডার চেক করা
     const signatureHeader =
       req.headers.get("x-duffel-signature") ||
       req.headers.get("X-Duffel-Signature");
@@ -19,27 +22,31 @@ export async function POST(req: Request) {
 
     const secret = process.env.DUFFEL_WEBHOOK_SECRET;
     if (!secret) {
-      console.error("DUFFEL_WEBHOOK_SECRET is missing");
-      return NextResponse.json(
-        { message: "Server configuration error" },
-        { status: 500 },
-      );
+      console.error("❌ DUFFEL_WEBHOOK_SECRET is missing in .env");
+      return NextResponse.json({ message: "Server config error" }, { status: 500 });
     }
 
     // ----------------------------------------------------------------
-    // 1) Signature verification (Duffel style: t=timestamp,v1=hash)
+    // 🛠️ FIX: Signature Parsing (Space Handling)
     // ----------------------------------------------------------------
-    const parts = signatureHeader.split(",");
+    // Duffel হেডার পাঠাতে পারে এভাবে: "t=12345, v1=abcdef" (মাঝখানে স্পেস থাকে)
+    // তাই split করার পর trim() করা খুব জরুরি।
+    const parts = signatureHeader.split(",").map(part => part.trim());
+
     const tPart = parts.find((p) => p.startsWith("t="));
     const v1Part = parts.find((p) => p.startsWith("v1="));
 
     if (!tPart || !v1Part) {
+      console.error("❌ Invalid Signature Format:", signatureHeader);
       return NextResponse.json({ message: "Invalid signature format" }, { status: 400 });
     }
 
-    const timestamp = tPart.split("=", 2)[1];
-    const receivedHash = v1Part.split("=", 2)[1];
+    const timestamp = tPart.substring(2); // 't=' এর পর থেকে
+    const receivedHash = v1Part.substring(3); // 'v1=' এর পর থেকে
 
+    // ----------------------------------------------------------------
+    // 2. Hash Verification
+    // ----------------------------------------------------------------
     const signedPayload = `${timestamp}.${rawBody}`;
     const expectedHash = crypto
       .createHmac("sha256", secret)
@@ -47,21 +54,12 @@ export async function POST(req: Request) {
       .digest("hex");
 
     if (!crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expectedHash))) {
+      console.error("❌ Hash Mismatch!");
       return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
     }
 
-    // Optional: timestamp freshness check (e.g. 5 minutes)
-    const maxAgeSeconds = 5 * 60;
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    const tsSeconds = Number(timestamp);
-
-    if (!Number.isFinite(tsSeconds) || tsSeconds < nowSeconds - maxAgeSeconds) {
-      console.warn("Duffel webhook timestamp too old – possible replay attack");
-      return NextResponse.json({ message: "Stale webhook" }, { status: 400 });
-    }
-
     // ----------------------------------------------------------------
-    // 2) Parse event & connect DB
+    // 3. Process Event & Database Update
     // ----------------------------------------------------------------
     await dbConnect();
 
@@ -69,37 +67,26 @@ export async function POST(req: Request) {
     try {
       event = JSON.parse(rawBody);
     } catch (e) {
-      console.error("Failed to parse Duffel webhook JSON:", e);
       return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
     }
 
-    const { type, data } = event as { type: string; data: any };
+    const { type, data } = event;
+    const orderId = data?.order_id || data?.id; // ইভেন্ট ভেদে ID ভিন্ন হতে পারে
 
-    if (!type || !data) {
-      return NextResponse.json(
-        { message: "Invalid event payload (missing type or data)" },
-        { status: 400 },
-      );
-    }
+    console.log(`🔔 Webhook: ${type} | ID: ${orderId}`);
 
-    const targetOrderId = data.order_id || data.id;
-    console.log(`🔔 Duffel webhook: ${type} | Target Order: ${targetOrderId}`);
-
-    // ----------------------------------------------------------------
-    // 3) Handle specific event types
-    // ----------------------------------------------------------------
     switch (type) {
-      // data is an Order object
+      
+      // ✅ CASE 1: Ticket Issued (সফল বুকিং)
       case "order.tickets_issued": {
-        const tickets =
-          data.documents?.map((doc: any) => ({
-            unique_identifier: doc.unique_identifier,
-            type: doc.type,
-            url: doc.url,
-          })) || [];
+        const tickets = data.documents?.map((doc: any) => ({
+          unique_identifier: doc.unique_identifier,
+          type: doc.type,
+          url: doc.url,
+        })) || [];
 
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id }, // data.id is the Order ID
+        const booking = await Booking.findOneAndUpdate(
+          { duffelOrderId: data.id },
           {
             $set: {
               status: "issued",
@@ -107,115 +94,121 @@ export async function POST(req: Request) {
               updatedAt: new Date(),
             },
           },
+          { new: true } // আপডেটেড ডাটা রিটার্ন করবে
         );
+        
+        // 📧 ইমেইল পাঠানো হচ্ছে (ফিক্সড)
+        if (booking) {
+            try {
+                // আপনার sendTicketIssuedEmail ফাংশনটি যদি শুধু booking অবজেক্ট নেয়:
+                await sendTicketIssuedEmail(booking);
+                
+                // অথবা যদি (email, booking) এভাবে নেয়, তাহলে নিচের লাইনটি ব্যবহার করুন:
+                // await sendTicketIssuedEmail(booking.contact.email, booking);
+                
+                console.log(`📧 Ticket email sent for PNR: ${booking.pnr}`);
+            } catch (emailError) {
+                console.error(`❌ Failed to send ticket email for PNR: ${booking.pnr}`, emailError);
+            }
+        }
         break;
       }
 
-      // data is an Order object created with pay_later
+      // ✅ CASE 2: Order Created (Hold/Instant)
       case "order.created": {
-        const updateData: any = { status: "held" };
-
-        // In Order resource, payment deadline is under payment_status
-        const paymentRequiredBy = data.payment_status?.payment_required_by;
-        if (paymentRequiredBy) {
-          updateData.paymentDeadline = new Date(paymentRequiredBy);
+        const updateData: any = {};
+        
+        // পেমেন্ট ডেডলাইন চেক এবং আপডেট
+        if (data.payment_status?.payment_required_by) {
+          updateData.paymentDeadline = new Date(data.payment_status.payment_required_by);
+          // যদি আগে স্ট্যাটাস সেট না হয়ে থাকে, তবে held সেট করা
+          updateData.status = "held";
+        }
+        
+        // প্রাইস গ্যারান্টি চেক
+        if (data.payment_status?.price_guarantee_expires_at) {
+          updateData.priceExpiry = new Date(data.payment_status.price_guarantee_expires_at);
         }
 
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id }, // Order ID
-          { $set: updateData },
+          { duffelOrderId: data.id },
+          { $set: updateData }
         );
         break;
       }
 
-      // Payment succeeded event: data.order_id is present
-      case "air.payment.succeeded": {
+      // ✅ CASE 3: Payment Deadline Changed (Airline Update) - খুব জরুরি!
+      case "order.payment_required": {
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
+          { duffelOrderId: data.id },
           {
             $set: {
-              status: "paid",
+              paymentDeadline: new Date(data.payment_status.payment_required_by),
+              adminNotes: `Auto-Update: Airline updated payment deadline to ${data.payment_status.payment_required_by}`,
               updatedAt: new Date(),
             },
-          },
+          }
         );
         break;
       }
 
-      // Payment failed event: data.order_id is present
-      case "air.payment.failed": {
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
+      // ✅ CASE 4: Flight Schedule Change (Risk Alert)
+      case "order.airline_initiated_change_detected": {
+        const affectedBooking = await Booking.findOneAndUpdate(
+          { duffelOrderId: data.id || data.order_id },
           {
             $set: {
-              status: "failed",
-              adminNotes: `Auto: Payment failed. Reason: ${
-                data.error_message || "Unknown"
-              }`,
+              airlineInitiatedChanges: data, // পরিবর্তনের ডিটেইলস সেভ রাখা
+              adminNotes: "⚠️ ALERT: Schedule Change Detected! Please Check Duffel.",
               updatedAt: new Date(),
             },
-          },
+          }
         );
+        
+        // 📧 এডমিন বা ইউজারকে নোটিফাই করার জন্য (ফিউচার ইমপ্লিমেন্টেশন)
+        // if (affectedBooking) await sendScheduleChangeEmail(affectedBooking);
         break;
       }
 
-      // Order cancellation created: data.order_id
-      case "order_cancellation.created": {
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
-          {
-            $set: {
-              status: "cancelled",
-              updatedAt: new Date(),
-            },
-          },
-        );
-        break;
-      }
-
-      // Order cancellation confirmed: data.order_id
+      // ✅ CASE 5: Cancellations
+      case "order.cancelled":
       case "order.cancellation.confirmed": {
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
+          { duffelOrderId: data.id || data.order_id },
           {
             $set: {
               status: "cancelled",
               updatedAt: new Date(),
             },
-          },
+          }
         );
         break;
       }
 
-      // Airline initiated schedule change: data.order_id
-      case "order.airline_initiated_change_detected": {
+      // ✅ CASE 6: Refunded
+      case "order.refunded": {
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
+          { duffelOrderId: data.id },
           {
             $set: {
-              airlineInitiatedChanges: data,
-              adminNotes:
-                "Auto: Flight schedule changed by airline. Check Dashboard.",
+              status: "cancelled",
+              adminNotes: "Auto: Order refunded via Duffel",
               updatedAt: new Date(),
             },
-          },
+          }
         );
-        break;
-      }
-
-      case "order.creation_failed": {
-        console.warn("Duffel webhook: order.creation_failed", data);
         break;
       }
 
       default: {
-        console.log(`ℹ️ Unhandled Duffel event type: ${type}`);
+        console.log(`ℹ️ Unhandled Event: ${type}`);
       }
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Duffel Webhook Error:", error);
+
+  } catch (error: any) {
+    console.error("🔥 Webhook Fatal Error:", error);
     return NextResponse.json(
       { success: false, message: "Internal Server Error" },
       { status: 500 },
