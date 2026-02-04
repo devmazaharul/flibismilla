@@ -119,16 +119,35 @@ export async function POST(req: Request) {
       // ====================================================
       case "payment.succeeded":
       case "air.payment.succeeded": { // Legacy/Alternative support
-        await Booking.findOneAndUpdate(
-            { payment_id: data?.payment_id},
-            {
-                $set: {
-                    status: "paid", 
-                    adminNotes: `Auto: Payment succeeded via Duffel Payment ID: ${data.payment_id}`,
-                    updatedAt: new Date(),
-                }
-            }
+
+        const tickets = data.documents?.map((doc: any) => ({
+          unique_identifier: doc.unique_identifier,
+          type: doc.type,
+          url: doc.url,
+        })) || [];
+
+        const booking = await Booking.findOneAndUpdate(
+          { payment_id: data?.payment_id},
+          {
+            $set: {
+              status: "issued",
+              documents: tickets,
+              updatedAt: new Date(),
+                  adminNotes: `Auto: Payment succeeded via Duffel Payment ID: ${data.payment_id}`,
+            },
+          },
+          { new: true }
         );
+
+        if (booking) {
+          try {
+            await sendTicketIssuedEmail(booking);
+            console.log(`📧 Ticket email sent for PNR: ${booking.pnr}`);
+          } catch (emailError) {
+            console.error(`❌ Failed to send ticket email:`, emailError);
+          }
+        }
+
         break;
       }
 
