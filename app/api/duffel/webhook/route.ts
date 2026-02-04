@@ -120,11 +120,11 @@ export async function POST(req: Request) {
       case "payment.succeeded":
       case "air.payment.succeeded": { // Legacy/Alternative support
         await Booking.findOneAndUpdate(
-            { duffelOrderId: data.order_id },
+            { payment_id: data?.payment_id},
             {
                 $set: {
-                    status: "paid", // টিকেট ইস্যু হওয়ার আগের ধাপ
-                    adminNotes: `Auto: Payment succeeded via Duffel ID: ${data.id}`,
+                    status: "paid", 
+                    adminNotes: `Auto: Payment succeeded via Duffel Payment ID: ${data.payment_id}`,
                     updatedAt: new Date(),
                 }
             }
@@ -133,8 +133,18 @@ export async function POST(req: Request) {
       }
 
       case "payment.created": {
-        // পেমেন্ট ইনিশিয়েট হয়েছে কিন্তু কমপ্লিট হয়নি
+     
         console.log(`Payment created for order ${data.order_id}`);
+         await Booking.findOneAndUpdate(
+            { duffelOrderId: data.order_id },
+            {
+                $set: {
+                    adminNotes: `Auto: Payment Created`,
+                    updatedAt: new Date(),
+                    payment_id:data?.id
+                }
+            }
+        );
         break;
       }
 
@@ -194,7 +204,7 @@ export async function POST(req: Request) {
       case "order.cancellation.confirmed": 
       case "order_cancellation.confirmed": { // Covering all naming conventions
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id || data.order_id }, // Fallback logic
+          { duffelOrderId: orderIdToUpdate}, // Fallback logic
           {
             $set: {
               status: "cancelled",

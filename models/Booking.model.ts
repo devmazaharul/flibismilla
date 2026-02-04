@@ -115,13 +115,13 @@ pricing: {
     type: Number,
     default: 0, // শুরুতে ০ থাকবে
     min: 0,
-    max: 5 // আপনি চাইলে একটা লিমিট এখানেও দিয়ে রাখতে পারেন
+    max: 5 
   },
   
   lastRetryAt: {
-    type: Date // সর্বশেষ কখন ট্রাই করা হয়েছিল তা ট্র্যাকিংয়ের জন্য
+    type: Date 
   },
-
+  payment_id:String
 }, { timestamps: true });
 
 const Booking = models.Booking || model('Booking', BookingSchema);
