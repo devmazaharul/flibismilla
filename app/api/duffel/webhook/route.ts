@@ -5,8 +5,8 @@ import Booking from "@/models/Booking.model";
 import { sendTicketIssuedEmail } from "@/app/emails/email";
 
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs";          
+export const dynamic = "force-dynamic";   
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     const headersList = req.headers;
     const signature = headersList.get("x-duffel-signature") || headersList.get("X-Duffel-Signature");
 
+    // 1. Signature Check
     if (!signature) {
       return NextResponse.json({ message: "Missing signature" }, { status: 401 });
     }
@@ -25,11 +26,11 @@ export async function POST(req: Request) {
     }
 
     // ----------------------------------------------------------------
-    // 🛠️ FIX: v1 এর বদলে v2 খোঁজা হচ্ছে
+    // 🛠️ FIX: Robust Signature Parsing (Regex + v2 Support)
     // ----------------------------------------------------------------
-    // আপনার এরর লগে দেখাচ্ছে: t=...,v2=...
+    // Duffel v2 এখন 'v2=' ব্যবহার করে এবং ফরম্যাটে স্পেস থাকতে পারে
     const timestampMatch = signature.match(/t=([^,]+)/);
-    const hashMatch = signature.match(/v2=([^,]+)/); // 👈 এখানে v1 কে v2 করা হয়েছে
+    const hashMatch = signature.match(/v2=([^,]+)/);
 
     const timestamp = timestampMatch ? timestampMatch[1].trim() : null;
     const receivedHash = hashMatch ? hashMatch[1].trim() : null;
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid signature format" }, { status: 400 });
     }
 
-    // Hash Verification
+    // 2. Hash Verification
     const signedPayload = `${timestamp}.${rawBody}`;
     const expectedHash = crypto
       .createHmac("sha256", secret)
@@ -48,13 +49,11 @@ export async function POST(req: Request) {
 
     if (!crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expectedHash))) {
       console.error("❌ Hash Mismatch!");
-      console.log("Header Hash (v2):", receivedHash);
-      console.log("Calculated Hash:", expectedHash);
       return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
     }
 
     // ----------------------------------------------------------------
-    // Event Processing
+    // 3. Event Processing
     // ----------------------------------------------------------------
     await dbConnect();
 
@@ -65,13 +64,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
     }
 
-    const { type, data } = event;
+    // 🛠️ FIX: Data Extraction Logic (Wrapper handling)
+    const { type, data: item } = event;
+    // Duffel এর ডাটা 'object' এর ভেতরে থাকে, সেটা চেক করে নেওয়া হচ্ছে
+    const data = item?.object ? item.object : item;
+    
     const targetOrderId = data?.order_id || data?.id;
 
     console.log(`🔔 Webhook Verified: ${type} | Order: ${targetOrderId}`);
 
     switch (type) {
-      // ✅ CASE 1: Ticket Issued
+      
+      // ✅ CASE 1: Ticket Issued (Success + Email)
       case "order.tickets_issued": {
         const tickets = data.documents?.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
@@ -102,7 +106,7 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 2: Payment Deadline Changed
+      // ✅ CASE 2: Payment Deadline Changed (Hold Orders)
       case "order.payment_required": {
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id },
@@ -117,7 +121,7 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 3: Schedule Change
+      // ✅ CASE 3: Schedule Change (Risk Management)
       case "order.airline_initiated_change_detected": {
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id || data.order_id },
@@ -134,7 +138,7 @@ export async function POST(req: Request) {
 
       // ✅ CASE 4: Cancellations
       case "order.cancelled":
-      case "order.cancellation.confirmed": {
+      case "order.cancellation.confirmed": { // Standard Duffel event uses dot notation
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id || data.order_id },
           {
