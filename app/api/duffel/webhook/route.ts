@@ -2,19 +2,22 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import dbConnect from "@/connection/db";
 import Booking from "@/models/Booking.model";
-import { sendTicketIssuedEmail } from "@/app/emails/email"; // ✅ আপনার দেওয়া পাথ
+import { sendTicketIssuedEmail } from "@/utils/sendTicketEmail"; // আপনার সঠিক পাথ ব্যবহার করুন
 
-export const runtime = "nodejs";          // Crypto ব্যবহারের জন্য Node.js রানটাইম জরুরি
-export const dynamic = "force-dynamic";   // ক্যাশ এড়ানোর জন্য
+export const runtime = "nodejs";          // Crypto লাইব্রেরির জন্য জরুরি
+export const dynamic = "force-dynamic";   // ক্যাশিং বন্ধ রাখার জন্য
 
 export async function POST(req: Request) {
   try {
+    // ১. Raw Body নেওয়া (Signature Verification এর জন্য জরুরি)
     const rawBody = await req.text();
     
-    // ১. হেডার চেক করা
+    // ২. হেডার চেক করা
     const signatureHeader =
       req.headers.get("x-duffel-signature") ||
       req.headers.get("X-Duffel-Signature");
+
+    console.log("📨 Duffel Header:", signatureHeader);
 
     if (!signatureHeader) {
       return NextResponse.json({ message: "Missing signature" }, { status: 401 });
@@ -23,29 +26,28 @@ export async function POST(req: Request) {
     const secret = process.env.DUFFEL_WEBHOOK_SECRET;
     if (!secret) {
       console.error("❌ DUFFEL_WEBHOOK_SECRET is missing in .env");
-      return NextResponse.json({ message: "Server config error" }, { status: 500 });
+      return NextResponse.json({ message: "Server configuration error" }, { status: 500 });
     }
 
     // ----------------------------------------------------------------
-    // 🛠️ FIX: Signature Parsing (Space Handling)
+    // 🛠️ FIX: Robust Signature Parsing (Regex)
     // ----------------------------------------------------------------
-    // Duffel হেডার পাঠাতে পারে এভাবে: "t=12345, v1=abcdef" (মাঝখানে স্পেস থাকে)
-    // তাই split করার পর trim() করা খুব জরুরি।
-    const parts = signatureHeader.split(",").map(part => part.trim());
+    // Duffel হেডার ফরম্যাট: "t=123, v1=hash" অথবা "t=123,v1=hash"
+    // Regex স্পেস বা কমার পজিশন ইগনোর করে সঠিক ভ্যালু বের করবে।
+    
+    const timestampMatch = signatureHeader.match(/t=([^,]+)/);
+    const hashMatch = signatureHeader.match(/v1=([^,]+)/);
 
-    const tPart = parts.find((p) => p.startsWith("t="));
-    const v1Part = parts.find((p) => p.startsWith("v1="));
+    const timestamp = timestampMatch ? timestampMatch[1].trim() : null;
+    const receivedHash = hashMatch ? hashMatch[1].trim() : null;
 
-    if (!tPart || !v1Part) {
-      console.error("❌ Invalid Signature Format:", signatureHeader);
+    if (!timestamp || !receivedHash) {
+      console.error("❌ Parsing Failed. Header:", signatureHeader);
       return NextResponse.json({ message: "Invalid signature format" }, { status: 400 });
     }
 
-    const timestamp = tPart.substring(2); // 't=' এর পর থেকে
-    const receivedHash = v1Part.substring(3); // 'v1=' এর পর থেকে
-
     // ----------------------------------------------------------------
-    // 2. Hash Verification
+    // 3. Hash Verification (Security Check)
     // ----------------------------------------------------------------
     const signedPayload = `${timestamp}.${rawBody}`;
     const expectedHash = crypto
@@ -55,11 +57,13 @@ export async function POST(req: Request) {
 
     if (!crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expectedHash))) {
       console.error("❌ Hash Mismatch!");
+      console.log("Expected:", expectedHash);
+      console.log("Received:", receivedHash);
       return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
     }
 
     // ----------------------------------------------------------------
-    // 3. Process Event & Database Update
+    // 4. Process Event & Update Database
     // ----------------------------------------------------------------
     await dbConnect();
 
@@ -71,13 +75,13 @@ export async function POST(req: Request) {
     }
 
     const { type, data } = event;
-    const orderId = data?.order_id || data?.id; // ইভেন্ট ভেদে ID ভিন্ন হতে পারে
+    const orderId = data?.order_id || data?.id;
 
-    console.log(`🔔 Webhook: ${type} | ID: ${orderId}`);
+    console.log(`🔔 Webhook Verified: ${type} | ID: ${orderId}`);
 
     switch (type) {
       
-      // ✅ CASE 1: Ticket Issued (সফল বুকিং)
+      // ✅ CASE 1: Ticket Issued (Success & Email)
       case "order.tickets_issued": {
         const tickets = data.documents?.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
@@ -94,38 +98,32 @@ export async function POST(req: Request) {
               updatedAt: new Date(),
             },
           },
-          { new: true } // আপডেটেড ডাটা রিটার্ন করবে
+          { new: true } // আপডেটেড ডাটা পাওয়ার জন্য
         );
         
-        // 📧 ইমেইল পাঠানো হচ্ছে (ফিক্সড)
+        // 📧 ইমেইল পাঠানো (Email Trigger)
         if (booking) {
             try {
-                // আপনার sendTicketIssuedEmail ফাংশনটি যদি শুধু booking অবজেক্ট নেয়:
+                // আপনার ইউটিলিটি ফাংশনটি কল করা হচ্ছে
                 await sendTicketIssuedEmail(booking);
-                
-                // অথবা যদি (email, booking) এভাবে নেয়, তাহলে নিচের লাইনটি ব্যবহার করুন:
-                // await sendTicketIssuedEmail(booking.contact.email, booking);
-                
-                console.log(`📧 Ticket email sent for PNR: ${booking.pnr}`);
+                console.log(`✅ Ticket email sent for PNR: ${booking.pnr}`);
             } catch (emailError) {
-                console.error(`❌ Failed to send ticket email for PNR: ${booking.pnr}`, emailError);
+                console.error(`❌ Failed to send ticket email:`, emailError);
+                // ইমেইল ফেইল করলেও ওয়েবুক সাকসেস রিটার্ন করবে, যাতে Duffel রিট্রাই না করে
             }
         }
         break;
       }
 
-      // ✅ CASE 2: Order Created (Hold/Instant)
+      // ✅ CASE 2: Order Created (Hold Setup)
       case "order.created": {
         const updateData: any = {};
         
-        // পেমেন্ট ডেডলাইন চেক এবং আপডেট
         if (data.payment_status?.payment_required_by) {
           updateData.paymentDeadline = new Date(data.payment_status.payment_required_by);
-          // যদি আগে স্ট্যাটাস সেট না হয়ে থাকে, তবে held সেট করা
-          updateData.status = "held";
+          updateData.status = "held"; 
         }
         
-        // প্রাইস গ্যারান্টি চেক
         if (data.payment_status?.price_guarantee_expires_at) {
           updateData.priceExpiry = new Date(data.payment_status.price_guarantee_expires_at);
         }
@@ -137,14 +135,14 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 3: Payment Deadline Changed (Airline Update) - খুব জরুরি!
+      // ✅ CASE 3: Payment Deadline Changed (Airline Update)
       case "order.payment_required": {
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id },
           {
             $set: {
               paymentDeadline: new Date(data.payment_status.payment_required_by),
-              adminNotes: `Auto-Update: Airline updated payment deadline to ${data.payment_status.payment_required_by}`,
+              adminNotes: `Auto: Airline updated payment deadline to ${data.payment_status.payment_required_by}`,
               updatedAt: new Date(),
             },
           }
@@ -152,21 +150,18 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 4: Flight Schedule Change (Risk Alert)
+      // ✅ CASE 4: Schedule Change (Risk Alert)
       case "order.airline_initiated_change_detected": {
-        const affectedBooking = await Booking.findOneAndUpdate(
+        await Booking.findOneAndUpdate(
           { duffelOrderId: data.id || data.order_id },
           {
             $set: {
-              airlineInitiatedChanges: data, // পরিবর্তনের ডিটেইলস সেভ রাখা
-              adminNotes: "⚠️ ALERT: Schedule Change Detected! Please Check Duffel.",
+              airlineInitiatedChanges: data,
+              adminNotes: "⚠️ ALERT: Schedule Change Detected via Duffel!",
               updatedAt: new Date(),
             },
           }
         );
-        
-        // 📧 এডমিন বা ইউজারকে নোটিফাই করার জন্য (ফিউচার ইমপ্লিমেন্টেশন)
-        // if (affectedBooking) await sendScheduleChangeEmail(affectedBooking);
         break;
       }
 
