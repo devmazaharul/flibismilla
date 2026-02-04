@@ -4,9 +4,8 @@ import dbConnect from "@/connection/db";
 import Booking from "@/models/Booking.model";
 import { sendTicketIssuedEmail } from "@/app/emails/email";
 
-
-export const runtime = "nodejs";          
-export const dynamic = "force-dynamic";   
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -28,7 +27,6 @@ export async function POST(req: Request) {
     // ----------------------------------------------------------------
     // 🛠️ FIX: Robust Signature Parsing (Regex + v2 Support)
     // ----------------------------------------------------------------
-    // Duffel v2 এখন 'v2=' ব্যবহার করে এবং ফরম্যাটে স্পেস থাকতে পারে
     const timestampMatch = signature.match(/t=([^,]+)/);
     const hashMatch = signature.match(/v2=([^,]+)/);
 
@@ -66,17 +64,27 @@ export async function POST(req: Request) {
 
     // 🛠️ FIX: Data Extraction Logic (Wrapper handling)
     const { type, data: item } = event;
-    // Duffel এর ডাটা 'object' এর ভেতরে থাকে, সেটা চেক করে নেওয়া হচ্ছে
+    // Duffel এর ডাটা 'object' এর ভেতরে থাকে, সেটা চেক করে নেওয়া হচ্ছে
     const data = item?.object ? item.object : item;
     
-    const targetOrderId = data?.order_id || data?.id;
+    // 🛠️ FIX: ID Logic based on Event Type
+    // Order ইভেন্টের জন্য ID হলো data.id
+    // Cancellation/Payment ইভেন্টের জন্য ID হলো data.order_id
+    let orderIdToUpdate = data.id;
+    
+    if (type.startsWith("order_cancellation") || type.startsWith("payment") || type.startsWith("refund")) {
+        orderIdToUpdate = data.order_id;
+    }
 
-    console.log(`🔔 Webhook Verified: ${type} | Order: ${targetOrderId}`);
+    console.log(`🔔 Webhook Verified: ${type} | Order: ${orderIdToUpdate}`);
 
     switch (type) {
       
-      // ✅ CASE 1: Ticket Issued (Success + Email)
+      // ====================================================
+      // ✅ SUCCESS FLOW
+      // ====================================================
       case "order.tickets_issued": {
+        // নোট: এখানে data.id ব্যবহার হবে কারণ এটি অর্ডার অবজেক্ট
         const tickets = data.documents?.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
           type: doc.type,
@@ -84,7 +92,7 @@ export async function POST(req: Request) {
         })) || [];
 
         const booking = await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
+          { duffelOrderId: data.id }, 
           {
             $set: {
               status: "issued",
@@ -106,7 +114,33 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 2: Payment Deadline Changed (Hold Orders)
+      // ====================================================
+      // ✅ PAYMENT FLOW (Added per request)
+      // ====================================================
+      case "payment.succeeded":
+      case "air.payment.succeeded": { // Legacy/Alternative support
+        await Booking.findOneAndUpdate(
+            { duffelOrderId: data.order_id },
+            {
+                $set: {
+                    status: "paid", // টিকেট ইস্যু হওয়ার আগের ধাপ
+                    adminNotes: `Auto: Payment succeeded via Duffel ID: ${data.id}`,
+                    updatedAt: new Date(),
+                }
+            }
+        );
+        break;
+      }
+
+      case "payment.created": {
+        // পেমেন্ট ইনিশিয়েট হয়েছে কিন্তু কমপ্লিট হয়নি
+        console.log(`Payment created for order ${data.order_id}`);
+        break;
+      }
+
+      // ====================================================
+      // ✅ ORDER MODIFICATIONS
+      // ====================================================
       case "order.payment_required": {
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id },
@@ -121,10 +155,9 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 3: Schedule Change (Risk Management)
       case "order.airline_initiated_change_detected": {
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id || data.order_id },
+          { duffelOrderId: data.id },
           {
             $set: {
               airlineInitiatedChanges: data,
@@ -136,11 +169,32 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 4: Cancellations
+      // ====================================================
+      // ✅ CANCELLATION FLOW (Fixed Ignored Event)
+      // ====================================================
+      
+      // 🛠️ FIX: Added order_cancellation.created
+      case "order_cancellation.created": {
+         // ক্যান্সেলেশন রিকোয়েস্ট তৈরি হয়েছে
+         await Booking.findOneAndUpdate(
+          { duffelOrderId: data.order_id },
+          {
+            $set: {
+              // আমরা স্ট্যাটাস পুরোপুরি ক্যান্সেল করছি না যতক্ষণ না কনফার্ম হয়, 
+              // তবে এডমিন নোট দিচ্ছি। অথবা চাইলে 'cancelled' করতে পারেন।
+              adminNotes: `Auto: Cancellation Request Created (ID: ${data.id})`,
+              updatedAt: new Date(),
+            },
+          }
+        );
+        break;
+      }
+
       case "order.cancelled":
-      case "order.cancellation.confirmed": { // Standard Duffel event uses dot notation
+      case "order.cancellation.confirmed": 
+      case "order_cancellation.confirmed": { // Covering all naming conventions
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id || data.order_id },
+          { duffelOrderId: data.id || data.order_id }, // Fallback logic
           {
             $set: {
               status: "cancelled",
@@ -151,7 +205,6 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ✅ CASE 5: Refunded
       case "order.refunded": {
         await Booking.findOneAndUpdate(
           { duffelOrderId: data.id },
