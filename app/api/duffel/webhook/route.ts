@@ -68,15 +68,13 @@ export async function POST(req: Request) {
     const data = item?.object ? item.object : item;
     
     // 🛠️ FIX: ID Logic based on Event Type
-    // Order ইভেন্টের জন্য ID হলো data.id
-    // Cancellation/Payment ইভেন্টের জন্য ID হলো data.order_id
     let orderIdToUpdate = data.id;
     
     if (type.startsWith("order_cancellation") || type.startsWith("payment") || type.startsWith("refund")) {
         orderIdToUpdate = data.order_id;
     }
 
-    console.log(`🔔 Webhook Verified: ${type} | Order: ${orderIdToUpdate}`);
+    console.log(`🔔 Webhook Verified: ${type} | Order: ${data}`);
 
     switch (type) {
       
@@ -84,7 +82,6 @@ export async function POST(req: Request) {
       // ✅ SUCCESS FLOW
       // ====================================================
       case "order.tickets_issued": {
-        // নোট: এখানে data.id ব্যবহার হবে কারণ এটি অর্ডার অবজেক্ট
         const tickets = data.documents?.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
           type: doc.type,

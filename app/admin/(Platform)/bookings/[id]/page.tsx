@@ -85,12 +85,15 @@ interface BookingData {
     fullName: string;
     ticketNumber: string;
     gender: string;
+    dob:string
   }[];
   finance: {
     basePrice: string;
     tax: string;
     clientTotal: string;
     currency: string;
+    yourMarkup:string;
+    duffelTotal:string
   };
   paymentSource?: {
     holderName: string;
@@ -690,6 +693,9 @@ export default function BookingDetailsPage() {
                         Type
                       </th>
                       <th className="px-6 py-3 font-medium tracking-wider">
+                        Date Of Birth
+                      </th>
+                      <th className="px-6 py-3 font-medium tracking-wider">
                         Gender
                       </th>
                       <th className="px-6 py-3 font-medium tracking-wider text-right">
@@ -711,6 +717,9 @@ export default function BookingDetailsPage() {
                         </td>
                         <td className="px-6 py-4 text-gray-500 capitalize">
                           {p.type.replace("_", " ")}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 capitalize">
+                          {p.dob}
                         </td>
                         <td className="px-6 py-4 text-gray-500 capitalize">
                           {p.gender === "m" ? "Male" : "Female"}
@@ -934,14 +943,14 @@ export default function BookingDetailsPage() {
                   <span>Base Fare</span>
                   <span>
                     {data.finance.currency}{" "}
-                    {data.finance.basePrice}
+                    {data.finance.duffelTotal}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Taxes &amp; Fees</span>
                   <span>
                     {data.finance.currency}{" "}
-                    {data.finance.tax}
+                    {data.finance.yourMarkup}
                   </span>
                 </div>
                 <div className="h-px bg-gray-100 my-2" />

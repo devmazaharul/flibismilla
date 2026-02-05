@@ -134,6 +134,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 type: p.type,
                 fullName: `${p.given_name} ${p.family_name}`,
                 gender: p.gender || 'N/A',
+                dob:p.dob,
                 ticketNumber: ticketDoc ? ticketDoc.unique_identifier : 'Not Issued',
             };
         });
