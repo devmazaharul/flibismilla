@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ import {
   ArrowRight,
   RefreshCw,
   XCircle,
-  Wifi
+  Wifi,
 } from "lucide-react";
 import { format, differenceInSeconds, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -55,12 +55,28 @@ interface Segment {
   baggage: string;
 }
 
+type BookingStatus =
+  | "held"
+  | "issued"
+  | "cancelled"
+  | "expired"
+  | "processing"
+  | "failed";
+
+type PaymentStatus =
+  | "pending"
+  | "requires_action"
+  | "authorized"
+  | "captured"
+  | "failed"
+  | "refunded";
+
 interface BookingData {
   id: string;
   bookingRef: string;
   duffelOrderId: string;
   pnr: string;
-  status: "held" | "issued" | "cancelled" | "expired";
+  status: BookingStatus;
   tripType: "one_way" | "round_trip" | "multi_city";
   availableActions: string[];
   policies: {
@@ -85,15 +101,15 @@ interface BookingData {
     fullName: string;
     ticketNumber: string;
     gender: string;
-    dob:string
+    dob: string;
   }[];
   finance: {
     basePrice: string;
     tax: string;
     clientTotal: string;
     currency: string;
-    yourMarkup:string;
-    duffelTotal:string
+    yourMarkup: string;
+    duffelTotal: string;
   };
   paymentSource?: {
     holderName: string;
@@ -103,13 +119,26 @@ interface BookingData {
   };
   documents?: any[];
   timings?: { deadline: string };
+  paymentStatus: PaymentStatus;
+  adminNotes?: string | null;
 }
+
+interface InitiateCardResponse {
+  success: boolean;
+  action: "PROCEED_TO_PAY" | "SHOW_3DS_POPUP";
+  card_id: string;
+  client_token?: string;
+  payment_intent_id?: string;
+  message?: string;
+}
+
+const INITIATE_CARD_URL = "/api/duffel/booking/initiate-card";
 
 // ==========================================
 // 2. HELPER COMPONENTS
 // ==========================================
 
-const StatusBadge = ({ status }: { status: string }) => {
+const StatusBadge = ({ status }: { status: BookingStatus }) => {
   const styles: Record<string, string> = {
     issued:
       "bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/20",
@@ -117,7 +146,11 @@ const StatusBadge = ({ status }: { status: string }) => {
     cancelled:
       "bg-gray-100 text-gray-600 border-gray-200 ring-gray-500/10",
     expired:
-      "bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/20"
+      "bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/20",
+    processing:
+      "bg-blue-50 text-blue-700 border-blue-200 ring-blue-500/20",
+    failed:
+      "bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/20",
   };
   return (
     <span
@@ -127,6 +160,48 @@ const StatusBadge = ({ status }: { status: string }) => {
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
       {status}
+    </span>
+  );
+};
+
+const PaymentStatusBadge = ({ status }: { status: PaymentStatus }) => {
+  const map: Record<
+    PaymentStatus,
+    { label: string; className: string }
+  > = {
+    pending: {
+      label: "Pending",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
+    requires_action: {
+      label: "Requires Action",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
+    authorized: {
+      label: "Authorized",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    captured: {
+      label: "Captured",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    },
+    failed: {
+      label: "Failed",
+      className: "bg-rose-50 text-rose-700 border-rose-200",
+    },
+    refunded: {
+      label: "Refunded",
+      className: "bg-slate-50 text-slate-700 border-slate-200",
+    },
+  };
+
+  const s = map[status] || map.pending;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold border ${s.className}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {s.label}
     </span>
   );
 };
@@ -193,12 +268,10 @@ export default function BookingDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  // Data States
   const [data, setData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCard, setShowCard] = useState(false);
 
-  // Modal States
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<
     "card" | "balance"
@@ -206,7 +279,6 @@ export default function BookingDetailsPage() {
   const [cvv, setCvv] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch Data
   const fetchBooking = async () => {
     try {
       const res = await axios.get(`/api/duffel/booking/${id}`);
@@ -224,11 +296,14 @@ export default function BookingDetailsPage() {
     if (id) fetchBooking();
   }, [id]);
 
-  // Handle Ticket Issue
+  // ই-টিকেট ডকুমেন্ট (electronic_ticket অগ্রাধিকার; না থাকলে ০ নং)
+  const eTicketDoc =
+    data?.documents?.find((doc: any) => doc.type === "electronic_ticket") ||
+    data?.documents?.[0];
+
   const handleIssueTicket = async () => {
     if (!data) return;
 
-    // CVV Validation
     if (paymentMethod === "card" && cvv.length < 3) {
       toast.error("Please enter a valid CVV");
       return;
@@ -237,20 +312,70 @@ export default function BookingDetailsPage() {
     setIsProcessing(true);
 
     try {
-      const res = await axios.post("/api/duffel/booking/issue", {
-        bookingId: data.id,
-        paymentMethod: paymentMethod,
-        cvv: paymentMethod === "card" ? cvv : undefined
-      });
+      // A. Agency Balance দিয়ে ইস্যু
+      if (paymentMethod === "balance") {
+        const res = await axios.post("/api/duffel/booking/issue", {
+          bookingId: data.id,
+          paymentMethod: "balance",
+        });
 
-      if (res.data.success) {
-        toast.success("Ticket Issued Successfully!");
-        setIssueModalOpen(false);
-        fetchBooking(); // Refresh data
+        if (res.data.success) {
+          toast.success("Ticket Issued Successfully!");
+          setIssueModalOpen(false);
+          fetchBooking();
+        } else {
+          toast.error(res.data.message || "Failed to issue ticket");
+        }
+        return;
+      }
+
+      // B. Stored Card + 3DS Flow
+      if (paymentMethod === "card") {
+        if (!data.paymentSource) {
+          toast.error("No stored card information found for this booking.");
+          return;
+        }
+
+        // ১. Card-initiate API: card tokenize + 3DS requirement চেক
+        const initRes = await axios.post<InitiateCardResponse>(
+          INITIATE_CARD_URL,
+          {
+            bookingId: data.id,
+            cvv,
+          }
+        );
+
+        if (!initRes.data.success) {
+          toast.error(initRes.data.message || "Card verification failed");
+          return;
+        }
+
+        if (initRes.data.action === "PROCEED_TO_PAY") {
+          // ২. OTP ছাড়াই accept → এখন issue API কে cardId দিয়ে charge করতে বলবো
+          const res = await axios.post("/api/duffel/booking/issue", {
+            bookingId: data.id,
+            paymentMethod: "card",
+            cardId: initRes.data.card_id,
+          });
+
+          if (res.data.success) {
+            toast.success("Ticket Issued Successfully!");
+            setIssueModalOpen(false);
+            fetchBooking();
+          } else {
+            toast.error(res.data.message || "Failed to issue ticket");
+          }
+        } else if (initRes.data.action === "SHOW_3DS_POPUP") {
+          // ৩. এখানে Duffel 3DS popup ইন্টিগ্রেশন দরকার (client_token দিয়ে)
+          toast.info(
+            "3D Secure verification required. Please complete OTP verification in the payment popup."
+          );
+          // TODO: initRes.data.client_token & payment_intent_id দিয়ে Duffel 3DS JS SDK ইন্টিগ্রেট করো
+        }
       }
     } catch (error: any) {
       const msg =
-        error.response?.data?.message || "Failed to issue ticket";
+        error?.response?.data?.message || "Failed to issue ticket";
       toast.error(msg);
     } finally {
       setIsProcessing(false);
@@ -279,13 +404,11 @@ export default function BookingDetailsPage() {
       </div>
     );
 
-  // Dynamic Actions Check
   const canCancel = data.availableActions.includes("cancel");
   const canChange =
     data.availableActions.includes("change") ||
     data.availableActions.includes("update");
 
-  // Smart Route Calculation
   const routeDisplay = (() => {
     const firstSeg = data.segments[0];
     const lastSeg = data.segments[data.segments.length - 1];
@@ -310,7 +433,6 @@ export default function BookingDetailsPage() {
     return { origin, destination, separator };
   })();
 
-  // Trip meta (duration, dates, passengers)
   const firstDeparture = parseISO(
     data.segments[0].departingAt
   );
@@ -399,15 +521,8 @@ export default function BookingDetailsPage() {
                       <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur-sm">
                         <Calendar className="h-3.5 w-3.5 text-sky-500" />
                         <span className="font-medium">
-                          {format(
-                            firstDeparture,
-                            "EEE, dd MMM"
-                          )}{" "}
-                          –{" "}
-                          {format(
-                            lastArrival,
-                            "EEE, dd MMM"
-                          )}
+                          {format(firstDeparture, "EEE, dd MMM")} –{" "}
+                          {format(lastArrival, "EEE, dd MMM")}
                         </span>
                       </div>
                       <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 border  border-gray-200/70 shadow-2xl shadow-gray-100 backdrop-blur-sm">
@@ -457,7 +572,10 @@ export default function BookingDetailsPage() {
                         Duffel
                       </span>
                       <span className="truncate max-w-[130px]">
-                        <CopyButton text={data.duffelOrderId} label="duffelOrderId" />
+                        <CopyButton
+                          text={data.duffelOrderId}
+                          label="duffelOrderId"
+                        />
                       </span>
                     </div>
                   )}
@@ -480,7 +598,11 @@ export default function BookingDetailsPage() {
                         ? "On hold – not yet ticketed"
                         : data.status === "cancelled"
                         ? "Cancelled"
-                        : "Expired"}
+                        : data.status === "expired"
+                        ? "Expired"
+                        : data.status === "processing"
+                        ? "Processing"
+                        : "Failed"}
                     </p>
                     {data.status === "issued" && (
                       <p className="mt-0.5 text-xs text-emerald-600">
@@ -654,8 +776,7 @@ export default function BookingDetailsPage() {
                     {/* Footer Info */}
                     <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-dashed border-gray-100">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
-                        <User className="w-3 h-3" />{" "}
-                        {seg.cabinClass}
+                        <User className="w-3 h-3" /> {seg.cabinClass}
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
                         <Wallet className="w-3 h-3" /> Baggage:{" "}
@@ -792,10 +913,7 @@ export default function BookingDetailsPage() {
                           Penalty Fee
                         </span>
                         <span className="text-sm font-bold text-gray-900">
-                          {
-                            data.policies.cancellation
-                              .penalty
-                          }
+                          {data.policies.cancellation.penalty}
                         </span>
                       </div>
                     )}
@@ -933,9 +1051,12 @@ export default function BookingDetailsPage() {
                     </h3>
                   </div>
                 </div>
-                <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                  {data.finance.currency}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                    {data.finance.currency}
+                  </span>
+                  <PaymentStatusBadge status={data.paymentStatus} />
+                </div>
               </div>
 
               <div className="space-y-3 mb-5">
@@ -1053,9 +1174,9 @@ export default function BookingDetailsPage() {
                 {data.status === "issued" ? (
                   <>
                     {/* Download Button */}
-                    {data.documents?.[0]?.url && (
+                    {eTicketDoc?.url && (
                       <a
-                        href={data.documents[0].url}
+                        href={eTicketDoc.url}
                         target="_blank"
                         className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-800 transition shadow-lg shadow-gray-200 cursor-pointer"
                       >
@@ -1137,6 +1258,23 @@ export default function BookingDetailsPage() {
                     available.
                   </div>
                 )}
+              </div>
+
+              {/* Admin Notes */}
+              <div className="mt-5 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5 text-xs text-gray-600 flex gap-2">
+                <AlertCircle className="w-3.5 h-3.5 text-gray-400 mt-[2px]" />
+                <div>
+                  <span className="font-semibold text-gray-800">
+                    Admin notes:
+                  </span>{" "}
+                  {data.adminNotes && data.adminNotes.trim().length > 0 ? (
+                    <span>{data.adminNotes}</span>
+                  ) : (
+                    <span className="text-gray-400">
+                      No admin notes added for this booking.
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

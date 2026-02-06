@@ -222,4 +222,4 @@ export const COUNTRY_LIST = [
   { code: 'YE', name: 'Yemen' },
   { code: 'ZM', name: 'Zambia' },
   { code: 'ZW', name: 'Zimbabwe' }
-];
+].sort((a, b) => a.name.localeCompare(b.name));

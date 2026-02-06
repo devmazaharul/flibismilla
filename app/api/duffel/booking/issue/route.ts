@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
         // 🟢 1. Parse Body (cvv comes here)
         const body = await req.json();
-        const { bookingId, paymentMethod, cvv } = body; // paymentMethod: 'card' | 'balance'
+        const { bookingId, paymentMethod, cvv } = body; 
 
         bookingIdForError = bookingId;
 
