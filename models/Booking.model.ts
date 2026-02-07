@@ -134,6 +134,10 @@ const BookingSchema = new Schema(
             type: Date,
         },
         payment_id: String,
+         stripePaymentIntentId: {
+            type: String,
+            default: null,    
+        },
     },
     { timestamps: true },
 );

@@ -34,6 +34,7 @@ export async function GET(request: Request) {
 
     // Duffel API Call
     const response = await duffel.orders.list(options);
+   
 
     const transactions: TransactionData[] = response.data.map((order: any) => {
       // 1. নাম বের করা
@@ -47,17 +48,25 @@ export async function GET(request: Request) {
       const destination = firstSlice?.destination?.iata_code || firstSlice?.destination?.name || '---';
       const airlineName = firstSlice?.segments?.[0]?.operating_carrier?.name || 'Airline';
 
-      // 3. ডাইনামিক স্ট্যাটাস লজিক (Status Logic) ✅
-      let currentStatus = 'Hold'; // ডিফল্ট স্ট্যাটাস Hold
 
+    const payStatus = order.payment_status || {};
+      let currentStatus = 'Hold'; // ডিফল্ট
+
+      // Priority 1: যদি ক্যানসেল হয়ে থাকে
       if (order.cancelled_at) {
         currentStatus = 'Cancelled';
-      } else if (order.documents && order.documents.length > 0) {
-        // যদি টিকেট ডকুমেন্ট থাকে, তার মানে পেমেন্ট কমপ্লিট
+      } 
+      // Priority 2: যদি 'paid_at' এ তারিখ থাকে (মানে পেমেন্ট সাকসেস)
+      else if (payStatus.paid_at) {
         currentStatus = 'Paid';
-      } else if (order.payment_status?.succeeded) {
-        // অথবা যদি পেমেন্ট স্ট্যাটাস সাকসেস থাকে
-        currentStatus = 'Paid';
+      } 
+      // Priority 3: যদি টিকেট ইস্যু হয়ে থাকে (ডকুমেন্ট চেক - ডাবল কনফার্মেশন)
+      else if (order.documents && order.documents.length > 0) {
+        currentStatus = 'Paid'; 
+      }
+      // Priority 4: যদি পেমেন্টের অপেক্ষায় থাকে
+      else if (payStatus.awaiting_payment === true) {
+        currentStatus = 'Hold';
       }
 
       return {

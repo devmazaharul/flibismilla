@@ -32,6 +32,7 @@ import {
 import { format, differenceInSeconds, parseISO } from "date-fns";
 import { toast } from "sonner";
 import axios from "axios";
+import StripeWrapper from "@/app/admin/components/StripeWrapper";
 
 // ==========================================
 // 1. TYPES
@@ -102,6 +103,7 @@ interface BookingData {
     ticketNumber: string;
     gender: string;
     dob: string;
+    carryingInfant: string;
   }[];
   finance: {
     basePrice: string;
@@ -116,20 +118,22 @@ interface BookingData {
     cardNumber: string;
     expiryDate: string;
     cardLast4?: string;
+    billingAddress?: {
+      zipCode?: string;
+    };
   };
   documents?: any[];
   timings?: { deadline: string };
   paymentStatus: PaymentStatus;
   adminNotes?: string | null;
-}
-
-interface InitiateCardResponse {
-  success: boolean;
-  action: "PROCEED_TO_PAY" | "SHOW_3DS_POPUP";
-  card_id: string;
-  client_token?: string;
-  payment_intent_id?: string;
-  message?: string;
+  cancellation?: {
+    cancelled_at: string | null;
+    refund_amount: string | null;
+    refund_currency: string | null;
+    penalty_amount: string | null;
+    penalty_currency: string | null;
+    refunded_at: string | null;
+  } | null;
 }
 
 const INITIATE_CARD_URL = "/api/duffel/booking/initiate-card";
@@ -272,10 +276,43 @@ export default function BookingDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [showCard, setShowCard] = useState(false);
 
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundData, setRefundData] = useState<
+    BookingData["cancellation"] | null
+  >(null);
+
+  useEffect(() => {
+    if (refundModalOpen) {
+      setRefundData(data?.cancellation || null);
+    }
+  }, [refundModalOpen, data]);
+
+  const refreshRefundFromAirline = async () => {
+    if (!data) return;
+    setRefundLoading(true);
+    try {
+      const res = await axios.get(`/api/duffel/booking/${data.id}/refund`);
+      if (res.data.success) {
+        setRefundData(res.data.data);
+        toast.success("Refund information updated from airline");
+      } else {
+        toast.error(res.data.message || "Failed to fetch refund details");
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || "Failed to fetch refund details"
+      );
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<
-    "card" | "balance"
-  >("balance");
+    "stripe" | "balance" | "card"
+  >("stripe");
+
   const [cvv, setCvv] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -285,7 +322,7 @@ export default function BookingDetailsPage() {
       if (res.data.success) {
         setData(res.data.data);
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to load booking details");
     } finally {
       setLoading(false);
@@ -296,7 +333,6 @@ export default function BookingDetailsPage() {
     if (id) fetchBooking();
   }, [id]);
 
-  // ই-টিকেট ডকুমেন্ট (electronic_ticket অগ্রাধিকার; না থাকলে ০ নং)
   const eTicketDoc =
     data?.documents?.find((doc: any) => doc.type === "electronic_ticket") ||
     data?.documents?.[0];
@@ -311,34 +347,41 @@ export default function BookingDetailsPage() {
 
     setIsProcessing(true);
 
-    try {
-      // A. Agency Balance দিয়ে ইস্যু
-      if (paymentMethod === "balance") {
-        const res = await axios.post("/api/duffel/booking/issue", {
-          bookingId: data.id,
-          paymentMethod: "balance",
-        });
+    const finalizeIssue = async (
+      pMethod: "balance" | "card",
+      cardId?: string
+    ) => {
+      const res = await axios.post("/api/duffel/booking/issue", {
+        bookingId: data.id,
+        paymentMethod: pMethod,
+        cardId,
+      });
 
-        if (res.data.success) {
-          toast.success("Ticket Issued Successfully!");
-          setIssueModalOpen(false);
-          fetchBooking();
-        } else {
-          toast.error(res.data.message || "Failed to issue ticket");
-        }
+      if (res.data.success) {
+        toast.success("Ticket Issued Successfully!");
+        setIssueModalOpen(false);
+        fetchBooking();
+      } else {
+        throw new Error(res.data.message || "Failed to issue ticket");
+      }
+    };
+
+    try {
+      // CASE A: Agency Balance
+      if (paymentMethod === "balance") {
+        await finalizeIssue("balance");
         return;
       }
 
-      // B. Stored Card + 3DS Flow
+      // CASE B: Stored Card + simulated 3DS
       if (paymentMethod === "card") {
         if (!data.paymentSource) {
-          toast.error("No stored card information found for this booking.");
+          toast.error("No stored card information found.");
           return;
         }
 
-        // ১. Card-initiate API: card tokenize + 3DS requirement চেক
-        const initRes = await axios.post<InitiateCardResponse>(
-          INITIATE_CARD_URL,
+        const initRes = await axios.post(
+          `${INITIATE_CARD_URL}/test`,
           {
             bookingId: data.id,
             cvv,
@@ -346,36 +389,68 @@ export default function BookingDetailsPage() {
         );
 
         if (!initRes.data.success) {
-          toast.error(initRes.data.message || "Card verification failed");
+          const code = initRes.data.code;
+          const msg =
+            initRes.data.message ||
+            (code === "CARD_DECLINED"
+              ? "Card declined (Mock). Try another card."
+              : "Card verification failed (Mock).");
+          throw new Error(msg);
+        }
+
+        const {
+          action,
+          client_token,
+          card_id,
+          scenario,
+        }: {
+          action: "PROCEED_TO_PAY" | "SHOW_3DS_POPUP";
+          client_token?: string;
+          card_id: string;
+          scenario?: string;
+        } = initRes.data;
+
+        if (action === "SHOW_3DS_POPUP" && client_token) {
+          toast.loading("Simulating bank security check...", {
+            id: "3ds-toast",
+          });
+
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 2500));
+
+            toast.dismiss("3ds-toast");
+            toast.success(
+              "3D Secure verification simulated successfully. Issuing ticket..."
+            );
+
+            // আসলে এখানে finalizeIssue("card", card_id) কল হবে
+            // await finalizeIssue("card", card_id);
+            return;
+          } catch (otpError: any) {
+            console.error("Mock 3DS Error:", otpError);
+            toast.dismiss("3ds-toast");
+            toast.error(
+              "Mock verification failed or cancelled by user."
+            );
+            return;
+          }
+        }
+
+        if (action === "PROCEED_TO_PAY") {
+          await finalizeIssue("card", card_id);
           return;
         }
 
-        if (initRes.data.action === "PROCEED_TO_PAY") {
-          // ২. OTP ছাড়াই accept → এখন issue API কে cardId দিয়ে charge করতে বলবো
-          const res = await axios.post("/api/duffel/booking/issue", {
-            bookingId: data.id,
-            paymentMethod: "card",
-            cardId: initRes.data.card_id,
-          });
-
-          if (res.data.success) {
-            toast.success("Ticket Issued Successfully!");
-            setIssueModalOpen(false);
-            fetchBooking();
-          } else {
-            toast.error(res.data.message || "Failed to issue ticket");
-          }
-        } else if (initRes.data.action === "SHOW_3DS_POPUP") {
-          // ৩. এখানে Duffel 3DS popup ইন্টিগ্রেশন দরকার (client_token দিয়ে)
-          toast.info(
-            "3D Secure verification required. Please complete OTP verification in the payment popup."
-          );
-          // TODO: initRes.data.client_token & payment_intent_id দিয়ে Duffel 3DS JS SDK ইন্টিগ্রেট করো
-        }
+        throw new Error(
+          `Unexpected card-init action: ${action} (scenario: ${scenario})`
+        );
       }
     } catch (error: any) {
+      console.error("Issue Error:", error);
       const msg =
-        error?.response?.data?.message || "Failed to issue ticket";
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to issue ticket";
       toast.error(msg);
     } finally {
       setIsProcessing(false);
@@ -433,16 +508,11 @@ export default function BookingDetailsPage() {
     return { origin, destination, separator };
   })();
 
-  const firstDeparture = parseISO(
-    data.segments[0].departingAt
-  );
+  const firstDeparture = parseISO(data.segments[0].departingAt);
   const lastArrival = parseISO(
     data.segments[data.segments.length - 1].arrivingAt
   );
-  const totalTripSeconds = differenceInSeconds(
-    lastArrival,
-    firstDeparture
-  );
+  const totalTripSeconds = differenceInSeconds(lastArrival, firstDeparture);
   const totalTripHours = Math.floor(totalTripSeconds / 3600);
   const totalTripMinutes = Math.floor(
     (totalTripSeconds % 3600) / 60
@@ -459,7 +529,7 @@ export default function BookingDetailsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 text-gray-900 font-sans pb-24 pt-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* --- Header Section (Hero) --- */}
         <div className="mb-10 space-y-4">
           {/* Breadcrumb / Back */}
@@ -489,7 +559,7 @@ export default function BookingDetailsPage() {
               </span>
               <span className="rounded-full bg-white/80 px-3 py-1 border border-gray-200/70 shadow-2xl shadow-gray-100 ">
                 Booking ID:
-                <span className="font-mono text-xs ml-1">
+                <span title={data.id} className="font-mono text-xs ml-1">
                   {data.id.slice(0, 8)}...
                 </span>
               </span>
@@ -499,7 +569,7 @@ export default function BookingDetailsPage() {
           {/* Hero grid */}
           <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
             {/* Route & meta */}
-            <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-6 py-5   shadow-2xl shadow-gray-100">
+            <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-6 py-5 shadow-2xl shadow-gray-100">
               <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-sky-100/60 blur-3xl" />
               <div className="absolute -left-14 -bottom-20 h-36 w-36 rounded-full bg-indigo-100/50 blur-3xl" />
 
@@ -843,7 +913,14 @@ export default function BookingDetailsPage() {
                           {p.dob}
                         </td>
                         <td className="px-6 py-4 text-gray-500 capitalize">
-                          {p.gender === "m" ? "Male" : "Female"}
+                          <span>
+                            {p.gender === "m" ? "Male" : "Female"}
+                          </span>
+                          {p.carryingInfant && (
+                            <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded bg-amber-50 text-amber-700 text-[9px] border border-amber-200">
+                              Carrying infant: {p.carryingInfant}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-gray-600">
                           {p.ticketNumber !== "Not Issued" ? (
@@ -1055,11 +1132,26 @@ export default function BookingDetailsPage() {
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
                     {data.finance.currency}
                   </span>
-                  <PaymentStatusBadge status={data.paymentStatus} />
                 </div>
               </div>
 
               <div className="space-y-3 mb-5">
+                <div className="flex justify-between items-center text-sm text-gray-500 border-b pb-2 border-gray-100/60 gap-2">
+                  <span>Payment Status</span>
+                  <div className="flex items-center gap-2">
+                    <PaymentStatusBadge status={data.paymentStatus} />
+                    {(data.status === "cancelled" ||
+                      data.paymentStatus === "refunded") && (
+                      <button
+                        onClick={() => setRefundModalOpen(true)}
+                        className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Refund details
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Base Fare</span>
                   <span>
@@ -1068,7 +1160,7 @@ export default function BookingDetailsPage() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>Taxes &amp; Fees</span>
+                  <span>Taxes &amp; Fees / Markup</span>
                   <span>
                     {data.finance.currency}{" "}
                     {data.finance.yourMarkup}
@@ -1173,7 +1265,6 @@ export default function BookingDetailsPage() {
               <div className="space-y-3">
                 {data.status === "issued" ? (
                   <>
-                    {/* Download Button */}
                     {eTicketDoc?.url && (
                       <a
                         href={eTicketDoc.url}
@@ -1281,210 +1372,438 @@ export default function BookingDetailsPage() {
         </div>
       </div>
 
+
+{/* REFUND DETAILS MODAL */}
+{refundModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 py-4">
+    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100 flex flex-col max-h-[90vh] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Refund details
+          </p>
+          <h3 className="mt-1 text-sm font-bold text-slate-900">
+            {data?.bookingRef} • {data?.pnr}
+          </h3>
+        </div>
+        <button
+          onClick={() => setRefundModalOpen(false)}
+          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-900 hover:shadow-sm"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-xs text-slate-800">
+        {!refundData ? (
+          <div className="flex flex-col items-center justify-center py-6 text-slate-500 gap-2">
+            <AlertCircle className="h-5 w-5" />
+            <p>No local refund information found.</p>
+            <button
+              onClick={refreshRefundFromAirline}
+              disabled={refundLoading}
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+            >
+              {refundLoading && (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              )}
+              Refresh from airline
+            </button>
+          </div>
+        ) : (
+          (() => {
+            const raw: any = (refundData as any).raw || {};
+            const refundCurrency =
+              refundData.refund_currency || data?.finance.currency;
+
+            // refund_to mapping
+            const refundTargetLabel = (() => {
+              const t = raw.refund_to;
+              if (t === "balance") return "Agency Duffel balance";
+              if (t === "card") return "Customer card (original payment method)";
+              if (t === "voucher") return "Airline voucher / credit";
+              if (!t) return "Unknown target";
+              return String(t);
+            })();
+
+            const createdAt = raw.created_at
+              ? format(parseISO(raw.created_at), "dd MMM yyyy, hh:mm a")
+              : null;
+
+            const confirmedAt =
+              refundData.refunded_at || raw.confirmed_at
+                ? format(
+                    parseISO(
+                      refundData.refunded_at || raw.confirmed_at,
+                    ),
+                    "dd MMM yyyy, hh:mm a",
+                  )
+                : null;
+
+            const expiresAt = raw.expires_at
+              ? format(parseISO(raw.expires_at), "dd MMM yyyy, hh:mm a")
+              : null;
+
+            // Net refund (refund - penalty)
+            const numericRefund = refundData.refund_amount
+              ? Number(refundData.refund_amount)
+              : null;
+            const numericPenalty = refundData.penalty_amount
+              ? Number(refundData.penalty_amount)
+              : null;
+            const netRefund =
+              numericRefund != null
+                ? numericRefund - (numericPenalty || 0)
+                : null;
+
+            return (
+              <>
+                {/* Top badges */}
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-100">
+                    <AlertCircle className="h-3 w-3" />
+                    Cancelled booking
+                  </span>
+                  {refundData.refunded_at ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+                      <CheckCircle className="h-3 w-3" />
+                      Refunded
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-100">
+                      <Clock className="h-3 w-3" />
+                      Pending refund
+                    </span>
+                  )}
+                </div>
+
+                {/* Amounts */}
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+                      Refund amount
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {refundData.refund_amount
+                        ? `${refundCurrency} ${refundData.refund_amount}`
+                        : "N/A"}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Refunded back to:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {refundTargetLabel}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">
+                      Penalty / fee
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {refundData.penalty_amount
+                        ? `${refundData.penalty_currency || refundCurrency} ${refundData.penalty_amount}`
+                        : "N/A"}
+                    </p>
+                    {netRefund != null && (
+                      <p className="text-[10px] text-emerald-700 mt-0.5">
+                        Net back to you:{" "}
+                        <span className="font-semibold">
+                          {refundCurrency}{" "}
+                          {netRefund.toFixed(2)}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="mt-2 space-y-1">
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Cancelled at:
+                    </span>{" "}
+                    {refundData.cancelled_at
+                      ? format(
+                          parseISO(refundData.cancelled_at),
+                          "dd MMM yyyy, hh:mm a",
+                        )
+                      : "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Refund created:
+                    </span>{" "}
+                    {createdAt || "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Refund status:
+                    </span>{" "}
+                    {confirmedAt
+                      ? `Completed on ${confirmedAt}`
+                      : "In progress (7–15 working days)"}
+                  </p>
+                  {expiresAt && !confirmedAt && (
+                    <p className="text-[10px] text-slate-500">
+                      Airline refund quote valid until:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {expiresAt}
+                      </span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Technical details */}
+                <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 space-y-1 text-[10px] text-slate-500">
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Refund ID:
+                    </span>{" "}
+                    {raw.id || "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Order ID:
+                    </span>{" "}
+                    {raw.order_id || data?.duffelOrderId || "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-600">
+                      Mode:
+                    </span>{" "}
+                    {raw.live_mode === false ? "TEST / Sandbox" : "LIVE"}
+                  </p>
+                  {Array.isArray(raw.airline_credits) &&
+                    raw.airline_credits.length > 0 && (
+                      <p className="text-[10px] text-slate-600">
+                        Airline credits issued (
+                        {raw.airline_credits.length} item
+                        {raw.airline_credits.length > 1 ? "s" : ""})
+                      </p>
+                    )}
+                </div>
+
+                <button
+                  onClick={refreshRefundFromAirline}
+                  disabled={refundLoading}
+                  className="mt-3 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+                >
+                  {refundLoading && (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  )}
+                  Refresh from airline
+                </button>
+              </>
+            );
+          })()
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+
       {/* ISSUE TICKET MODAL */}
       {issueModalOpen && data && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md border border-gray-200 shadow-2xl rounded-xl overflow-hidden animate-in zoom-in-95 duration-200 ring-1 ring-gray-100">
-            {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 py-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100 flex flex-col">
+            {/* Top accent bar */}
+            <div className="pointer-events-none h-1 w-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 pt-4 pb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 tracking-tight">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Ticket issuing
+                </p>
+                <h3 className="mt-1 text-base font-bold text-slate-900 tracking-tight">
                   Issue Ticket
                 </h3>
-                <p className="text-xs text-gray-500 font-mono mt-0.5">
-                  PNR: {data.pnr}
+                <p className="mt-0.5 text-[11px] font-mono text-slate-500">
+                  PNR:{" "}
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+                    {data.pnr}
+                  </span>
                 </p>
               </div>
               <button
                 onClick={() => setIssueModalOpen(false)}
-                className="text-gray-400 cursor-pointer hover:text-black transition p-1 hover:bg-gray-100 rounded-full"
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:text-slate-900 hover:shadow-sm"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-6">
-              {/* Cost Display */}
-              <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 border border-gray-100 rounded-lg">
+            {/* Body (scrollable) */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+              {/* Amount summary */}
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Total Amount
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Total amount
                   </span>
-                  <span className="text-xs text-gray-500 font-medium">
+                  <span className="mt-1 text-[11px] font-medium text-slate-600">
                     {paymentMethod === "balance"
-                      ? "Using Agency Balance"
-                      : "Charging Client Card"}
+                      ? "Using agency balance"
+                      : paymentMethod === "stripe"
+                      ? "Client pays via Stripe"
+                      : "Charging stored client card"}
                   </span>
                 </div>
-                <div className="text-xl font-bold text-gray-900 tracking-tight">
-                  {data.finance.currency}{" "}
-                  {paymentMethod === "balance"
-                    ? data.finance.basePrice
-                    : data.finance.clientTotal}
+                <div className="text-right">
+                  <p className="text-lg font-bold tracking-tight text-slate-900">
+                    {data.finance.currency}{" "}
+                    {paymentMethod === "balance"
+                      ? data.finance.duffelTotal
+                      : data.finance.clientTotal}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Taxes & fees included
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {/* Option 1: Duffel Balance */}
+              <div className="space-y-3">
+                {/* OPTION 1: Stripe */}
                 <div
-                  onClick={() => setPaymentMethod("balance")}
-                  className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    paymentMethod === "balance"
-                      ? "border-black bg-gray-50"
-                      : "border-gray-100 hover:border-gray-200 bg-white"
+                  onClick={() => setPaymentMethod("stripe")}
+                  className={`relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all ${
+                    paymentMethod === "stripe"
+                      ? "border-indigo-500/80 bg-slate-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+
+                  <div className="relative p-3 pt-2.5">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          Pay with Stripe
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Secure card payment with 3D Secure (OTP).
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                          <span className="text-[9px] font-semibold tracking-wide text-white">
+                            STRIPE
+                          </span>
+                        </span>
+                        <span className="text-[9px] font-medium text-slate-400">
+                          Encrypted • PCI compliant
+                        </span>
+                      </div>
+                    </div>
+
+                    {paymentMethod === "stripe" && (
+                      <div
+                        className="mt-2 space-y-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <StripeWrapper
+                          amount={Number(data.finance.clientTotal)}
+                          bookingId={data.id as any}
+                          cardInfo={{
+                            holderName: data.paymentSource?.holderName,
+                            cardNumber: data.paymentSource?.cardNumber,
+                            expiryDate: data.paymentSource?.expiryDate,
+                            zipCode:
+                              data.paymentSource?.billingAddress?.zipCode,
+                          }}
+                          onSuccess={() => {
+                            setIssueModalOpen(false);
+                            fetchBooking();
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* OPTION 2: Duffel Balance */}
+                <div
+                  onClick={() => setPaymentMethod("balance")}
+                  className={`relative cursor-pointer rounded-xl border-2 transition-all ${
+                    paymentMethod === "balance"
+                      ? "border-slate-600/80 bg-slate-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start gap-3 p-3">
                     <div
-                      className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center ${
+                      className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full border ${
                         paymentMethod === "balance"
-                          ? "border-black"
-                          : "border-gray-300"
+                          ? "border-slate-700"
+                          : "border-slate-300"
                       }`}
                     >
                       {paymentMethod === "balance" && (
-                        <div className="w-2 h-2 rounded-full bg-black" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        Duffel Balance
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Deduct funds directly from your agency
-                        wallet.
-                      </p>
-                    </div>
-                    <Wallet
-                      className="ml-auto text-gray-400"
-                      size={18}
-                    />
-                  </div>
-                </div>
-
-                {/* Option 2: Card + CVV Logic */}
-                <div
-                  onClick={() => setPaymentMethod("card")}
-                  className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    paymentMethod === "card"
-                      ? "border-black bg-gray-50"
-                      : "border-gray-100 hover:border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center ${
-                        paymentMethod === "card"
-                          ? "border-black"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {paymentMethod === "card" && (
-                        <div className="w-2 h-2 rounded-full bg-black" />
+                        <div className="h-2 w-2 rounded-full bg-slate-700" />
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between items-start">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">
-                            Stored Card
+                          <p className="text-sm font-semibold text-slate-900">
+                            Duffel balance
                           </p>
-
-                          <div className="mt-1 space-y-0.5">
-                            <p className="text-[10px] font-bold text-gray-600 uppercase">
-                              {data.paymentSource?.holderName ||
-                                "HOLDER NAME"}
-                            </p>
-                            <p className="text-xs text-gray-500 font-mono">
-                              ****{" "}
-                              {data.paymentSource
-                                ?.cardLast4 || "****"}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              Exp:{" "}
-                              <span className="text-gray-600 font-medium">
-                                {data.paymentSource?.expiryDate ||
-                                  "MM/YY"}
-                              </span>
-                            </p>
-                          </div>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Deduct directly from your agency wallet. Good for
+                            net fares or corporate bookings.
+                          </p>
                         </div>
-                        <CreditCard
-                          className="text-gray-400"
-                          size={18}
-                        />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                          <Wallet size={16} />
+                        </div>
                       </div>
-
-                      {paymentMethod === "card" && (
-                        <div
-                          className="mt-4 animate-in slide-in-from-top-2 duration-300"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1">
-                            <Lock size={10} /> Security Code
-                            (CVV)
-                          </label>
-                          <div className="relative max-w-[100px]">
-                            <input
-                              type="text"
-                              maxLength={4}
-                              placeholder="123"
-                              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition placeholder:text-gray-300"
-                              value={cvv}
-                              onChange={(e) =>
-                                setCvv(
-                                  e.target.value.replace(
-                                    /\D/g,
-                                    ""
-                                  )
-                                )
-                              }
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* Stored card option চাইলে এখানে আবার আনতে পারো */}
               </div>
 
               {/* Warning */}
-              <div className="flex gap-3 mt-6 p-4 bg-orange-50/50 border border-orange-100 rounded-lg">
+              <div className="mt-4 flex gap-2.5 rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2.5">
                 <AlertTriangle
                   size={16}
-                  className="text-orange-500 shrink-0 mt-0.5"
+                  className="mt-0.5 shrink-0 text-orange-500"
                 />
-                <p className="text-xs text-orange-800 leading-relaxed">
-                  Confirming this action will immediately issue
-                  the ticket and deduct the amount. This process
-                  cannot be undone.
+                <p className="text-[11px] leading-relaxed text-orange-900">
+                  Confirming this action will immediately issue the ticket and
+                  charge the selected source. This cannot be undone and airline
+                  change/refund rules will apply.
                 </p>
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/90 px-5 py-3 rounded-b-2xl">
               <button
                 onClick={() => setIssueModalOpen(false)}
-                className="px-4 py-2.5 text-xs font-semibold cursor-pointer text-gray-600 hover:text-black transition"
+                className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:text-slate-900 hover:underline"
               >
                 Cancel
               </button>
               <button
                 onClick={handleIssueTicket}
-                disabled={isProcessing}
-                className="px-6 py-2.5 bg-black text-white text-xs cursor-pointer font-bold rounded-lg hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-lg shadow-gray-200"
+                disabled={
+                  isProcessing ||
+                  paymentMethod === "stripe" ||
+                  (paymentMethod === "card" && cvv.length < 3)
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {isProcessing && (
-                  <Loader2
-                    size={14}
-                    className="animate-spin"
-                  />
+                  <Loader2 size={14} className="animate-spin" />
                 )}
-                {isProcessing
-                  ? "Processing..."
-                  : "Confirm & Issue"}
+                {isProcessing ? "Processing..." : "Confirm & Issue"}
               </button>
             </div>
           </div>

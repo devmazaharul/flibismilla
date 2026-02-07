@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import mongoose from 'mongoose';
 import dbConnect from '@/connection/db';
@@ -12,8 +12,8 @@ const duffel = new Duffel({ token: duffelToken || '' });
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await isAdmin();
   if (!auth.success) return auth.response;
@@ -25,77 +25,155 @@ export async function GET(
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, message: 'Invalid Booking ID format' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // ২. Database Connection & Fetch
     await dbConnect();
-    const booking: any = await Booking.findById(id).lean();
+    let booking: any = await Booking.findById(id).lean();
 
     if (!booking) {
       return NextResponse.json(
         { success: false, message: 'Booking not found' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!booking.duffelOrderId) {
       return NextResponse.json(
         { success: false, message: 'No Duffel Order ID found' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ৩. Duffel API Fetch & Database Sync (Core Logic Changed Here)
-    let duffelOrder;
-    let finalDocuments = booking.documents || []; // Default: DB Documents
-    let finalPNR = booking.pnr || null;           // Default: DB PNR
+    // ৩. Duffel API Fetch & Database Sync
+    let duffelOrder: any;
+    let finalDocuments = booking.documents || [];
+    let finalPNR = booking.pnr || null;
+    let finalBooking = booking;
 
     try {
       const res = await duffel.orders.get(booking.duffelOrderId);
       duffelOrder = res.data;
 
-      // 🟢 SYNC LOGIC: Duffel থেকে লেটেস্ট ডকুমেন্ট পেলে ডাটাবেস আপডেট হবে
       const newDocuments = duffelOrder.documents || [];
-      const newPNR = duffelOrder.booking_reference;
+      const newPNR = duffelOrder.booking_reference || booking.pnr;
 
-      // যদি Duffel-এ ডকুমেন্ট থাকে এবং আমাদের ডাটাবেসের সাথে তথ্যের পার্থক্য থাকে, তবে আপডেট করবো
-      if (newDocuments.length > 0) {
-        
-        // ১. ডাটাবেস আপডেট (Background Sync)
-        await Booking.findByIdAndUpdate(id, {
-          $set: {
-            documents: newDocuments,
-            pnr: newPNR,
-            // যদি টিকেট ইস্যু হয়ে থাকে তবে স্ট্যাটাসও আপডেট করে দিচ্ছি সেফটির জন্য
-            status: 'issued' 
+      const cancellation = duffelOrder.cancellation || null;
+      const isCancelledRemote =
+        !!cancellation || !!duffelOrder.cancelled_at;
+
+      const updates: any = {};
+      let needsUpdate = false;
+
+      // 🔴 Cancellation handling
+      if (isCancelledRemote) {
+        const cancelledAtRemote =
+          duffelOrder.cancelled_at ||
+          cancellation?.cancelled_at ||
+          new Date().toISOString();
+
+        updates.status = 'cancelled';
+
+        const notePrefix = `Auto-Sync: Cancelled on Duffel at ${cancelledAtRemote}`;
+        if (!booking.adminNotes) {
+          updates.adminNotes = notePrefix;
+        } else if (!booking.adminNotes.includes('Cancelled on Duffel')) {
+          updates.adminNotes = `${booking.adminNotes}\n${notePrefix}`;
+        }
+
+        // paymentStatus: refunded / failed
+        if (
+          (cancellation?.refund_amount &&
+            Number(cancellation.refund_amount) > 0) ||
+          cancellation?.refunded_at
+        ) {
+          updates.paymentStatus = 'refunded';
+        } else if (
+          booking.paymentStatus === 'pending' ||
+          booking.paymentStatus === 'authorized' ||
+          !booking.paymentStatus
+        ) {
+          updates.paymentStatus = 'failed';
+        }
+
+        // cancellation details log
+        updates.airlineInitiatedChanges = {
+          ...(booking.airlineInitiatedChanges || {}),
+          cancellation: {
+            id: cancellation?.id || null,
+            cancelled_at: cancelledAtRemote,
+            refund_amount: cancellation?.refund_amount || null,
+            refund_currency: cancellation?.refund_currency || null,
+            penalty_amount: cancellation?.penalty_amount || null,
+            penalty_currency: cancellation?.penalty_currency || null,
+            refunded_at: cancellation?.refunded_at || null,
+            raw: cancellation || null,
+          },
+        };
+
+        // documents/pnr sync (tickets historically keep)
+        if (newDocuments.length > 0) {
+          updates.documents = newDocuments;
+          updates.pnr = newPNR;
+        }
+
+        needsUpdate = true;
+      } else {
+        // 🔵 Not cancelled: documents → issued, paymentStatus sync
+        if (newDocuments.length > 0) {
+          updates.documents = newDocuments;
+          updates.pnr = newPNR;
+
+          if (booking.status !== 'issued') {
+            updates.status = 'issued';
           }
-        });
+          if (booking.paymentStatus !== 'captured') {
+            updates.paymentStatus = 'captured';
+          }
 
-        // ২. রেসপন্সের জন্য লেটেস্ট ডাটা সেট করা
-        finalDocuments = newDocuments;
-        finalPNR = newPNR;
+          needsUpdate = true;
+        }
+        // চাইলে এখানে payment_status.paid_at / awaiting_payment ইত্যাদি থেকে held/pending update করতে পারো
       }
 
+      if (needsUpdate) {
+        finalBooking = await Booking.findByIdAndUpdate(
+          id,
+          {
+            $set: updates,
+            $currentDate: { updatedAt: true },
+          },
+          { new: true },
+        ).lean();
+
+        finalDocuments = finalBooking.documents || newDocuments;
+        finalPNR = finalBooking.pnr;
+      } else {
+        finalDocuments = newDocuments.length > 0 ? newDocuments : finalDocuments;
+        finalPNR = newPNR || finalPNR;
+      }
     } catch (error: any) {
-      console.error('⚠️ Duffel Sync Failed, serving from Database:', error.message);
+      console.error(
+        '⚠️ Duffel Sync Failed in details API, serving from Database:',
+        error.message,
+      );
 
       return NextResponse.json(
         {
           success: false,
           message: 'Failed to sync with airline, but fetching local record.',
           debug: error.message,
-          // Fallback data structure (Limited)
           data: {
-             id: booking._id,
-             pnr: finalPNR,
-             documents: finalDocuments,
-             status: booking.status,
-             note: "Shown from Local Database due to API Error"
-          }
+            id: booking._id,
+            pnr: finalPNR,
+            documents: finalDocuments,
+            status: booking.status,
+            note: 'Shown from Local Database due to API Error',
+          },
         },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -116,8 +194,9 @@ export async function GET(
           holderName: cardName || 'N/A',
           cardNumber: decryptedCard,
           expiryDate: expiryDate || 'MM/YY',
-          cvv: null, 
+          cvv: null,
           billingAddress: billingAddress || {},
+          zipCode: billingAddress?.zipCode || null,
         };
       } catch (e) {
         console.error('Payment Processing Error:', e);
@@ -125,8 +204,7 @@ export async function GET(
       }
     }
 
-    // ৫. Flight Segments 
-    // (নোট: Segments বানানোর জন্য duffelOrder প্রয়োজন, তাই API কল বাধ্যতামূলক)
+    // ৫. Flight Segments
     const tripType = booking.flightDetails?.flightType || 'one_way';
 
     const flightSegments = duffelOrder.slices
@@ -162,23 +240,58 @@ export async function GET(
       })
       .flat();
 
-    // ৬. Passengers (UPDATED: Using finalDocuments)
-    // আমরা এখন 'finalDocuments' ব্যবহার করছি যা DB বা Duffel থেকে আসা সেরা ভার্সন
+    // ৬. Passengers + Ticket mapping (FIXED)
+    const docsForMapping: any[] =
+      (duffelOrder.documents && duffelOrder.documents.length > 0
+        ? duffelOrder.documents
+        : finalDocuments) || [];
+
     const passengers = duffelOrder.passengers.map((p: any) => {
-      const ticketDoc = finalDocuments.find(
-        (doc: any) =>
-          doc.type === 'electronic_ticket' &&
-          doc.passenger_ids?.includes(p.id)
-      );
+      // প্রথমে passenger_ids / passenger.id এর উপর ভিত্তি করে ডকুমেন্ট খুঁজি
+      const ticketDoc =
+        docsForMapping.find((doc: any) => {
+          const matchesPassenger =
+            (doc.passenger_ids &&
+              Array.isArray(doc.passenger_ids) &&
+              doc.passenger_ids.includes(p.id)) ||
+            (doc.passenger && doc.passenger.id === p.id);
+
+          if (!matchesPassenger) return false;
+
+          // type থাকলে electronic_ticket/e_ticket প্রাধান্য, না থাকলে যে কোনোটাই চলবে
+          if (!doc.type) return true;
+          return (
+            doc.type === 'electronic_ticket' ||
+            doc.type === 'e_ticket' ||
+            doc.type === 'ticket'
+          );
+        }) ||
+        // যদি একটাও match না পায়, কিন্তু কেবল একটাই ডকুমেন্ট থাকে, সেটাই use করি
+        (docsForMapping.length === 1 ? docsForMapping[0] : null);
+
+      let ticketNumber = 'Not Issued';
+      if (ticketDoc?.unique_identifier) {
+        ticketNumber = ticketDoc.unique_identifier;
+      }
+
+      let infantInfo = null;
+      if (p.infant_passenger_id) {
+        const infant = duffelOrder.passengers.find(
+          (i: any) => i.id === p.infant_passenger_id,
+        );
+        infantInfo = infant
+          ? `${infant.given_name} ${infant.family_name}`
+          : null;
+      }
+
       return {
         id: p.id,
         type: p.type,
         fullName: `${p.given_name} ${p.family_name}`,
         gender: p.gender || 'N/A',
-        dob: p.dob,
-        ticketNumber: ticketDoc
-          ? ticketDoc.unique_identifier
-          : 'Not Issued',
+        dob: p.born_on,
+        ticketNumber,
+        carryingInfant: infantInfo,
       };
     });
 
@@ -188,7 +301,8 @@ export async function GET(
       tax: duffelOrder.tax_amount,
       duffelTotal: duffelOrder.total_amount,
       yourMarkup: booking.pricing?.markup || 0,
-      clientTotal: booking.pricing?.total_amount || duffelOrder.total_amount,
+      clientTotal:
+        booking.pricing?.total_amount || duffelOrder.total_amount,
       currency: duffelOrder.total_currency,
     };
 
@@ -222,11 +336,11 @@ export async function GET(
 
     const refundPolicy = getPolicyInfo(
       conditions.refund_before_departure,
-      'cancel'
+      'cancel',
     );
     const changePolicy = getPolicyInfo(
       conditions.change_before_departure,
-      'change'
+      'change',
     );
 
     const policies = {
@@ -248,38 +362,39 @@ export async function GET(
       },
     };
 
-    // ৯. Response অবজেক্ট (UPDATED: finalPNR & finalDocuments)
+    // ৯. Response অবজেক্ট
     const fullDetails = {
       id: booking._id,
       bookingRef: booking.bookingReference,
       duffelOrderId: booking.duffelOrderId,
-      
-      // ✅ DB বা Duffel থেকে আসা ফাইনাল PNR এবং Documents ব্যবহার হচ্ছে
-      pnr: finalPNR, 
-      documents: finalDocuments, 
-      
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      adminNotes: booking.adminNotes || null,
+      pnr: finalPNR,
+      documents: finalDocuments,
+      status: finalBooking.status,
+      paymentStatus: finalBooking.paymentStatus,
+      adminNotes: finalBooking.adminNotes || null,
       availableActions: availableActions,
-      policies: policies,
-      tripType: tripType,
+      policies,
+      tripType,
       segments: flightSegments,
       contact: booking.contact,
-      passengers: passengers,
+      passengers,
       finance: financialOverview,
       paymentSource: securePaymentInfo,
+      timings: {
+        deadline: finalBooking.paymentDeadline || null,
+      },
     };
 
     return NextResponse.json({ success: true, data: fullDetails });
   } catch (error: any) {
+    console.error('Details API Error:', error);
     return NextResponse.json(
       {
         success: false,
-        message: "Internal Server Error",
+        message: 'Internal Server Error',
         error: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

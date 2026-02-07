@@ -9,6 +9,28 @@ import { decrypt } from '../utils';
 
 export const dynamic = 'force-dynamic';
 
+
+// --- 2. Rate Limiter Helper ---
+const rateLimitMap = new Map<string, { count: number; startTime: number }>();
+
+function isRateLimited(ip: string) {
+    const windowMs = 60 * 1000; // 1 minute
+    const maxRequests = 5;
+    const now = Date.now();
+    const clientData = rateLimitMap.get(ip) || { count: 0, startTime: now };
+
+    if (now - clientData.startTime > windowMs) {
+        clientData.count = 1;
+        clientData.startTime = now;
+    } else {
+        clientData.count++;
+    }
+
+    rateLimitMap.set(ip, clientData);
+    return clientData.count > maxRequests;
+}
+
+
 // Duffel SDK Initialize
 const duffel = new Duffel({ token: process.env.DUFFEL_ACCESS_TOKEN || '' });
 
@@ -16,6 +38,21 @@ export async function POST(req: Request) {
   // ১. অ্যাডমিন অথেনটিকেশন
   const auth = await isAdmin();
   if (!auth.success) return auth.response;
+
+
+          const ip =
+              req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown-ip';
+  
+          if (isRateLimited(ip)) {
+              return NextResponse.json(
+                  {
+                      success: false,
+                      message: 'Too many attempts. Please wait 1 minute.',
+                  },
+                  { status: 429 },
+              );
+          }
+
 
   try {
     const body = await req.json();
@@ -108,6 +145,8 @@ export async function POST(req: Request) {
           'Duffel-Version': 'v2',
           'Content-Type': 'application/json',
         },
+            timeout: 8000,
+
       },
     );
 
