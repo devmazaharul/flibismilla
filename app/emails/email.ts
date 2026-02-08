@@ -304,7 +304,7 @@ export const sendTicketIssuedEmail = async (booking: BookingData) => {
 
 
 export async function sendPackageBookingEmail(data: PackageBookingEmailProps) {
-    const adminEmail = process.env.BOOKING_RECEIVER_EMAIL || websiteDetails.email;
+    const adminEmail = process.env.ADMIN_EMAIL || websiteDetails.email;
 
     // Admin e-mail
     const adminSendPromise = resend.emails.send({
