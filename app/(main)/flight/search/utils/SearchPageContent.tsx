@@ -88,7 +88,7 @@ const AirlinePriceGrid = ({
     <div className="w-full mb-8 relative">
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-50 text-rose-600 shadow-sm border border-rose-100">
+          <div className="inline-flex items-center justify-center w-6 h-6 rounded-full  text-rose-600 shadow-sm border border-rose-100">
             <BadgePercent className="w-3.5 h-3.5" />
           </div>
           <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -139,7 +139,7 @@ const AirlinePriceGrid = ({
                 cursor-pointer
                 ${
                   isSelected
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-[0_18px_40px_rgba(15,23,42,0.5)] scale-[1.02]'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-2xl scale-[1.02]'
                     : 'bg-white border-slate-200/70 text-slate-600 hover:border-rose-200/80 hover:shadow-[0_14px_40px_rgba(148,27,66,0.18)]'
                 }
               `}

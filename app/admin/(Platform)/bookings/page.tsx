@@ -796,7 +796,7 @@ export default function BookingsDashboard() {
                           cardInfo={{
                             holderName: selectedBooking.paymentSource.holderName,
                             cardNumber: selectedBooking.paymentSource.cardLast4
-                              ? `**** ${selectedBooking.paymentSource.cardLast4}`
+                              ? `${selectedBooking.paymentSource.cardLast4}`
                               : '',
                           }}
                           onSuccess={() => {

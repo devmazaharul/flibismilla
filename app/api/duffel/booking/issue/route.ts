@@ -3,6 +3,7 @@ import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { isAdmin } from '@/app/api/lib/auth';
+import { sendTicketIssuedEmail } from '@/app/emails/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,69 @@ function isRateLimited(ip: string) {
 
   rateLimitMap.set(ip, clientData);
   return clientData.count > maxRequests;
+}
+
+// Duffel order + Booking doc থেকে BookingData বানানোর helper
+function buildBookingDataFromOrder(
+  bookingDoc: any,
+  order: any,
+  documents: { url: string; unique_identifier: string }[],
+) {
+  const slices = order.slices || [];
+  const firstSlice = slices[0];
+  const firstSegment = firstSlice?.segments?.[0];
+
+  const originName =
+    firstSlice?.origin?.city_name ||
+    firstSlice?.origin?.iata_code ||
+    firstSlice?.origin?.name ||
+    'Origin';
+
+  const destinationName =
+    firstSlice?.destination?.city_name ||
+    firstSlice?.destination?.iata_code ||
+    firstSlice?.destination?.name ||
+    'Destination';
+
+  const route = `${originName} - ${destinationName}`;
+
+  const airlineName =
+    firstSegment?.operating_carrier?.name ||
+    order.owner?.name ||
+    'Airline';
+
+  const departingAt =
+    firstSegment?.departing_at ||
+    order.created_at ||
+    new Date().toISOString();
+
+  const contactEmail =
+    bookingDoc.contact?.email ||
+    bookingDoc.contactEmail ||
+    bookingDoc.email ||
+    '';
+  const contactPhone =
+    bookingDoc.contact?.phone ||
+    bookingDoc.contactPhone ||
+    bookingDoc.phone;
+
+  return {
+    pnr: order.booking_reference,
+    contact: {
+      email: contactEmail,
+      phone: contactPhone,
+    },
+    passengers: bookingDoc.passengers || [],
+    flightDetails: {
+      airline: airlineName,
+      route,
+      departureDate: departingAt,
+    },
+    documents: (documents || []).map((doc: any) => ({
+      url: doc.url,
+      unique_identifier: doc.unique_identifier,
+    })),
+  };
 }
 
 // --- Main POST API Handler ---
@@ -56,8 +120,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { bookingId, paymentMethod } = body as {
       bookingId?: string;
-      // frontend থেকে যা পাঠাবে (UI তে use করার জন্য),
-      // Duffel-এ সবসময় balance দিয়েই পেমেন্ট হবে
       paymentMethod?: 'balance' | 'card' | 'stripe';
     };
 
@@ -173,6 +235,21 @@ export async function POST(req: Request) {
         { new: true },
       );
 
+      // ইমেইল পাঠানো (already-issued case)
+      try {
+        const bookingData = buildBookingDataFromOrder(
+          booking,
+          orderDetails,
+          formattedDocs,
+        );
+        await sendTicketIssuedEmail(bookingData);
+      } catch (emailErr) {
+        console.error(
+          'Failed to send ticket issued email (already issued):',
+          emailErr,
+        );
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Ticket is already issued!',
@@ -254,13 +331,24 @@ export async function POST(req: Request) {
       { new: true },
     );
 
+    // ✅ SUCCESS: Ticket Issued → BookingData বানিয়ে ই‑মেইল পাঠানো
+    try {
+      const bookingData = buildBookingDataFromOrder(
+        booking,
+        updatedOrder.data,
+        pdfDocuments,
+      );
+      await sendTicketIssuedEmail(bookingData);
+    } catch (emailErr) {
+      console.error('Failed to send ticket issued email:', emailErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Ticket Issued Successfully!',
       data: updatedBooking,
     });
   } catch (error: any) {
-    // More detailed logging for debugging
     console.error('Payment Error (raw):', {
       message: error?.message,
       responseStatus: error?.response?.status,
@@ -283,7 +371,6 @@ export async function POST(req: Request) {
       const duffelCode =
         duffelFirstError.code || duffelFirstError.type || '';
 
-      // Common Duffel errors → human-friendly message
       if (
         duffelCode === 'order_requires_instant_payment' ||
         /requires_instant_payment=true/i.test(duffelMsg)
@@ -297,18 +384,15 @@ export async function POST(req: Request) {
         errorMessage =
           'This booking has expired with the airline. Please search again and create a new booking.';
       } else {
-        // Default: Duffel এর message use করি
         errorMessage = duffelMsg || errorMessage;
       }
 
       statusCode = httpStatus || 400;
     } else if (httpStatus && httpStatus >= 500) {
-      // Duffel 5xx / upstream issues
       errorMessage =
         'Airline payment service is temporarily unavailable. Please try again later.';
       statusCode = 502;
     } else if (error?.message) {
-      // Local/JS error
       errorMessage = error.message;
     }
 

@@ -94,7 +94,7 @@ function SuccessContent() {
     );
   }
 
-  // এখানে এসে booking নিশ্চিতভাবে আছে
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50 py-12 px-4 flex items-center justify-center">
       <div className="relative max-w-xl w-full bg-white/95 backdrop-blur-sm rounded-3xl border border-slate-200/80 shadow-2xl shadow-gray-100 overflow-hidden">
@@ -104,7 +104,7 @@ function SuccessContent() {
         {/* Content */}
         <div className="pt-10 pb-7 px-6 sm:px-8">
           {/* Success Icon */}
-          <div className="w-20 h-20 rounded-full bg-emerald-50 border-[6px] border-white shadow-lg flex items-center justify-center mx-auto mb-4 relative">
+          <div className="w-20 h-20 rounded-full   shadow-lg flex items-center justify-center mx-auto mb-4 relative">
             <CheckCircle className="w-9 h-9 text-emerald-600" />
             <div className="absolute inset-1 rounded-full border border-emerald-200/70" />
           </div>

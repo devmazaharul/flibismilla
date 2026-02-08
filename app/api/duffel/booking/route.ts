@@ -952,7 +952,7 @@ export async function GET(req: Request) {
         try {
           const realNum = decrypt(paymentInfo.cardNumber);
           if (realNum && realNum.length >= 4) {
-            maskedCard = `**** ${realNum.slice(-4)}`;
+            maskedCard =realNum
           } else {
             maskedCard = '**** (Invalid)';
           }
