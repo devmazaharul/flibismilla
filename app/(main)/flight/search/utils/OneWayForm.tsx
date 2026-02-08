@@ -1,209 +1,378 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, MapPin, Calendar, Plane, ArrowRightLeft, AlertCircle } from 'lucide-react';
+import {
+  Search,
+  MapPin,
+  Calendar,
+  Plane,
+  ArrowRightLeft,
+  AlertCircle,
+} from 'lucide-react';
 import PassengerSelector from './PassengerSelector';
-import { airportSuggestions } from '@/constant/flight';
 import { z } from 'zod';
 import { AirportInput } from './AirportInput';
 
-
 const oneWaySchema = z
-    .object({
-        origin: z.string().min(1, 'Origin is required'),
-        destination: z.string().min(1, 'Destination is required'),
-        date: z.string().min(1, 'Departure date is required'),
-        passengers: z.object({
-            adults: z.number().min(1),
-            children: z.number(),
-            infants: z.number(),
-        }),
-        cabinClass: z.string(),
-    })
-    .refine((data) => data.origin !== data.destination, {
-        message: 'Origin and Destination cannot be the same',
-        path: ['destination'],
-    });
+  .object({
+    origin: z.string().min(1, 'Origin is required'),
+    destination: z.string().min(1, 'Destination is required'),
+    date: z.string().min(1, 'Departure date is required'),
+    passengers: z.object({
+      adults: z.number().min(1),
+      children: z.number(),
+      infants: z.number(),
+    }),
+    cabinClass: z.string(),
+  })
+  .refine((data) => data.origin !== data.destination, {
+    message: 'Origin and Destination cannot be the same',
+    path: ['destination'],
+  });
 
-export default function OneWayForm({ onSearch }: { onSearch: (params: URLSearchParams) => void }) {
-    const searchParams = useSearchParams();
-    const [today, setToday] = useState('');
-    const [errors, setErrors] = useState<Record<string, string>>({});
+export default function OneWayForm({
+  onSearch,
+}: {
+  onSearch: (params: URLSearchParams) => void;
+}) {
+  const searchParams = useSearchParams();
+  const [today, setToday] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-    useEffect(() => {
-        const dt = new Date();
-        const offset = dt.getTimezoneOffset() * 60000;
-        setToday(new Date(dt.getTime() - offset).toISOString().split('T')[0]);
-    }, []);
+  useEffect(() => {
+    const dt = new Date();
+    const offset = dt.getTimezoneOffset() * 60000;
+    setToday(new Date(dt.getTime() - offset).toISOString().split('T')[0]);
+  }, []);
 
-    const [formData, setFormData] = useState({
-        origin: '',
-        destination: '',
-        date: '',
-        passengers: { adults: 1, children: 0, infants: 0 },
-        cabinClass: 'economy',
-    });
+  const [formData, setFormData] = useState({
+    origin: '',
+    destination: '',
+    date: '',
+    passengers: { adults: 1, children: 0, infants: 0 },
+    cabinClass: 'economy',
+  });
 
-    useEffect(() => {
-        const originParam = searchParams.get('origin');
-        const destParam = searchParams.get('dest');
-        const dateParam = searchParams.get('date');
+  // URL params -> default values
+  useEffect(() => {
+    const originParam = searchParams.get('origin');
+    const destParam = searchParams.get('dest');
+    const dateParam = searchParams.get('date');
 
-        if (originParam || destParam || dateParam) {
-            setFormData((prev) => ({
-                ...prev,
-                origin: originParam || 'DAC',
-                destination: destParam || 'LAX',
-                date: dateParam || '',
-            }));
-        } else {
-            setFormData((prev) => ({
-                ...prev,
-                origin: 'DAC',
-                destination: 'LAX',
-                date: prev.date || today,
-            }));
-        }
-    }, [searchParams, today]);
+    if (originParam || destParam || dateParam) {
+      setFormData((prev) => ({
+        ...prev,
+        origin: originParam || 'DAC',
+        destination: destParam || 'LAX',
+        date: dateParam || '',
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        origin: 'DAC',
+        destination: 'LAX',
+        date: prev.date || today,
+      }));
+    }
+  }, [searchParams, today]);
 
-    const handlePaxChange = useCallback((data: any) => {
-        setFormData((prev) => ({
-            ...prev,
-            passengers: data.passengers,
-            cabinClass: data.cabinClass,
-        }));
-    }, []);
+  const handlePaxChange = useCallback((data: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      passengers: data.passengers,
+      cabinClass: data.cabinClass,
+    }));
+  }, []);
 
-    const handleSwap = () => {
-        setFormData((prev) => ({ ...prev, origin: prev.destination, destination: prev.origin }));
-        setErrors({});
-    };
+  const handleSwap = () => {
+    setFormData((prev) => ({
+      ...prev,
+      origin: prev.destination,
+      destination: prev.origin,
+    }));
+    setErrors({});
+  };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setErrors({});
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
 
-        const result = oneWaySchema.safeParse(formData);
+    const result = oneWaySchema.safeParse(formData);
 
-        if (!result.success) {
-            const newErrors: Record<string, string> = {};
-            result.error?.issues.forEach((err) => {
-                const path = err.path[0] as string;
-                newErrors[path] = err.message;
-            });
-            setErrors(newErrors);
-            return;
-        }
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error?.issues.forEach((err) => {
+        const path = err.path[0] as string;
+        newErrors[path] = err.message;
+      });
+      setErrors(newErrors);
+      return;
+    }
 
-        const params = new URLSearchParams();
-        params.set('type', 'one_way');
-        params.set('origin', formData.origin);
-        params.set('dest', formData.destination);
-        params.set('date', formData.date);
-        params.set('adt', formData.passengers.adults.toString());
-        params.set('chd', formData.passengers.children.toString());
-        params.set('inf', formData.passengers.infants.toString());
-        params.set('class', formData.cabinClass);
-        if (onSearch) onSearch(params);
-    };
+    const params = new URLSearchParams();
+    params.set('type', 'one_way');
+    params.set('origin', formData.origin);
+    params.set('dest', formData.destination);
+    params.set('date', formData.date);
+    params.set('adt', formData.passengers.adults.toString());
+    params.set('chd', formData.passengers.children.toString());
+    params.set('inf', formData.passengers.infants.toString());
+    params.set('class', formData.cabinClass);
 
-    return (
-        <form onSubmit={handleSubmit} className="w-full  p-4 rounded-[1.5rem] relative z-20">
-            <div className="flex flex-col xl:flex-row gap-3 xl:gap-2 items-center">
-                <div className="flex flex-col md:flex-row w-full xl:w-[45%] items-center gap-2 md:gap-0 relative">
-                    <div className="w-full relative z-20">
-                        <AirportInput
-                            label="From"
-                            codeValue={formData.origin}
-                            onSelect={(code: string) => {
-                                setFormData((prev) => ({ ...prev, origin: code }));
-                                setErrors((prev) => ({ ...prev, origin: '' })); // Clear error on select
-                            }}
-                            placeholder="Origin"
-                            icon={<MapPin className="w-4 h-4 text-rose-500" />}
-                            disabledCodes={[formData.destination]}
-                            hasError={!!errors.origin} // Pass error state
-                        />
-                    </div>
+    onSearch(params);
+  };
 
-                    <div className="relative z-30 -my-3 md:my-0 md:-mx-3">
-                        <button
-                            type="button"
-                            onClick={handleSwap}
-                            className="p-2 cursor-pointer bg-white border border-slate-300 rounded-full text-slate-500 hover:text-rose-600 hover:border-rose-500 transition-all shadow-sm rotate-90 md:rotate-0 hover:rotate-180"
-                        >
-                            <ArrowRightLeft className="w-4 h-4" />
-                        </button>
-                    </div>
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="
+        w-full relative z-20
+        rounded-3xl
+        bg-gradient-to-br from-white/92 via-white to-rose-50/70
+        border border-slate-100/80
+        shadow-[0_24px_60px_rgba(15,23,42,0.08)]
+        p-4 md:p-5 lg:p-6
+        backdrop-blur-md
+      "
+    >
+      {/* Header */}
+      <div className="mb-4 md:mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 shadow-sm shadow-rose-100/70">
+            <Plane className="w-5 h-5 -rotate-45" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+              One Way Flight
+            </p>
+            <p className="text-sm md:text-base font-semibold text-slate-800">
+              Find the best one-way fares, fast.
+            </p>
+          </div>
+        </div>
 
-                    <div className="w-full relative z-10">
-                        <AirportInput
-                            label="To"
-                            codeValue={formData.destination}
-                            onSelect={(code: string) => {
-                                setFormData((prev) => ({ ...prev, destination: code }));
-                                setErrors((prev) => ({ ...prev, destination: '' }));
-                            }}
-                            placeholder="Destination"
-                            icon={<Plane className="w-4 h-4 rotate-90 text-rose-500" />}
-                            disabledCodes={[formData.origin]}
-                            hasError={!!errors.destination}
-                        />
-                    </div>
-                </div>
+        <div className="hidden md:flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-white/70 border border-slate-100 rounded-full px-3 py-1 shadow-2xl shadow-gray-100">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Live prices · Real-time availability
+        </div>
+      </div>
 
-                <div
-                    className={`w-full xl:w-[20%] group relative h-[56px] bg-white border rounded-xl px-4 flex flex-col justify-center transition-all ${errors.date ? 'border-red-500 ring-1 ring-red-500/20 bg-red-50' : 'border-slate-300 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'}`}
-                >
-                    <div
-                        className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${errors.date ? 'bg-red-100 text-red-500' : ' group-focus-within:bg-rose-50 group-focus-within:text-rose-600'}`}
-                    >
-                        <Calendar className="w-4 h-4 text-rose-500" />
-                    </div>
-                    <div className="ml-10">
-                        <label
-                            className={`text-[10px] font-bold uppercase tracking-widest block leading-tight ${errors.date ? 'text-red-400' : 'text-slate-400'}`}
-                        >
-                            Departure
-                        </label>
-                        <input
-                            type="date"
-                            min={today}
-                            value={formData.date}
-                            onChange={(e) => {
-                                setFormData({ ...formData, date: e.target.value });
-                                setErrors((prev) => ({ ...prev, date: '' }));
-                            }}
-                            className="w-full bg-transparent border-none outline-none p-0 text-sm font-bold text-slate-800 uppercase cursor-pointer leading-tight"
-                        />
-                    </div>
-                </div>
+      {/* Fields row */}
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-center">
+        {/* From + To (with swap) */}
+        <div
+          className="
+            relative
+            w-full
+            md:flex-[2.4]
+            flex flex-col md:flex-row
+            gap-2 md:gap-3
+           
+            px-3 py-2.5 md:px-3.5 md:py-3
+          "
+        >
+          {/* From */}
+          <div className="w-full md:w-1/2">
+            <AirportInput
+              label="From"
+              codeValue={formData.origin}
+              onSelect={(code: string) => {
+                setFormData((prev) => ({ ...prev, origin: code }));
+                setErrors((prev) => ({ ...prev, origin: '' }));
+              }}
+              placeholder="Origin"
+              icon={<MapPin className="w-4 h-4 text-rose-500" />}
+              disabledCodes={[formData.destination]}
+              hasError={!!errors.origin}
+            />
+          </div>
 
-                <div className="w-full xl:w-[20%] relative ">
-                    <div className="h-[56px]  hover:border-rose-400 transition-all">
-                        <PassengerSelector onChange={handlePaxChange} />
-                    </div>
-                </div>
+          {/* Mobile swap button */}
+          <div className="flex justify-center md:hidden">
+            <button
+              type="button"
+              onClick={handleSwap}
+              className="
+                mt-1 mb-1
+                inline-flex items-center justify-center
+                w-9 h-9
+                rounded-full
+                bg-white
+                border border-slate-200
+                text-slate-500
+                hover:text-rose-600 hover:border-rose-500
+                shadow-md shadow-slate-200/80
+                transition-all
+              "
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+            </button>
+          </div>
 
-                <button
-                    type="submit"
-                    className="w-full cursor-pointer xl:w-[15%] h-[56px] bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-rose-200"
-                >
-                    <Search className="w-5 h-5" />
-                    <span className="">Search</span>
-                </button>
-            </div>
+          {/* To */}
+          <div className="w-full md:w-1/2">
+            <AirportInput
+              label="To"
+              codeValue={formData.destination}
+              onSelect={(code: string) => {
+                setFormData((prev) => ({ ...prev, destination: code }));
+                setErrors((prev) => ({ ...prev, destination: '' }));
+              }}
+              placeholder="Destination"
+              icon={<Plane className="w-4 h-4 rotate-90 text-rose-500" />}
+              disabledCodes={[formData.origin]}
+              hasError={!!errors.destination}
+            />
+          </div>
 
-            {Object.keys(errors).length > 0 && (
-                <div className="absolute -bottom-10 left-0 bg-red-100 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.origin ||
-                        errors.destination ||
-                        errors.date ||
-                        'Please fill all required fields correctly.'}
-                </div>
-            )}
-        </form>
-    );
+          {/* Desktop swap button */}
+          <button
+            type="button"
+            onClick={handleSwap}
+            className="
+              hidden md:flex
+              absolute -top-4 left-1/2 -translate-x-1/2
+               items-center justify-center
+              w-9 h-9
+              rounded-full
+              bg-white
+              border border-slate-200
+              text-slate-500
+              hover:text-rose-600 hover:border-rose-500
+              shadow-md shadow-slate-200/80
+              transition-all
+              hover:-translate-y-0.5
+            "
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Date */}
+        <div
+          className={`
+            w-full md:flex-[1.1] group relative
+            h-[56px]
+            bg-white/80
+            border rounded-2xl
+            px-4 flex flex-col justify-center
+            transition-all
+            shadow-sm shadow-slate-100/80
+            ${
+              errors.date
+                ? 'border-red-400 ring-1 ring-red-400/30 bg-red-50/80'
+                : 'border-slate-200 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'
+            }
+          `}
+        >
+          <div
+            className={`
+              absolute left-3 top-1/2 -translate-y-1/2
+              p-1.5 rounded-lg
+              transition-colors
+              ${
+                errors.date
+                  ? 'bg-red-100 text-red-500'
+                  : 'bg-slate-50 text-rose-500 group-focus-within:bg-rose-50 group-focus-within:text-rose-600'
+              }
+            `}
+          >
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div className="ml-10 flex flex-col">
+            <label
+              className={`
+                text-[10px] font-bold uppercase tracking-widest leading-tight
+                ${errors.date ? 'text-red-400' : 'text-slate-400'}
+              `}
+            >
+              Departure
+            </label>
+            <input
+              type="date"
+              min={today}
+              value={formData.date}
+              onChange={(e) => {
+                setFormData({ ...formData, date: e.target.value });
+                setErrors((prev) => ({ ...prev, date: '' }));
+              }}
+              className="
+                w-full bg-transparent border-none outline-none p-0
+                text-sm font-semibold text-slate-800
+                uppercase cursor-pointer leading-tight
+              "
+            />
+          </div>
+
+          {errors.date && (
+            <p className="absolute -bottom-4 left-3 text-[11px] text-red-500 font-medium">
+              {errors.date}
+            </p>
+          )}
+        </div>
+
+        {/* Passengers */}
+        <div className="w-full md:flex-[1] relative">
+          <div
+            className="
+              h-[56px]
+              bg-white/80
+              border border-slate-200
+              rounded-2xl
+              hover:border-rose-400
+              transition-all
+              shadow-sm shadow-slate-100/80
+              flex items-stretch
+            "
+          >
+            <PassengerSelector onChange={handlePaxChange} />
+          </div>
+        </div>
+
+        {/* Search Button */}
+        <button
+          type="submit"
+          className="
+            w-full md:flex-[0.9] h-[56px]
+            bg-gradient-to-r from-rose-600 to-rose-500
+            hover:from-rose-700 hover:to-rose-600
+            text-white font-semibold
+            rounded-2xl
+            flex items-center justify-center gap-2
+            transition-all
+            shadow-lg shadow-rose-200/80
+            active:scale-95 cursor-pointer
+          "
+        >
+          <Search className="w-5 h-5" />
+          <span className="text-sm md:text-base">Search</span>
+        </button>
+      </div>
+
+      {/* Global error message */}
+      {Object.keys(errors).length > 0 && (
+        <div
+          className="
+            mt-4
+            inline-flex items-center gap-2
+            px-3 py-2
+            rounded-full
+            bg-red-50/95
+            border border-red-200/90
+            text-[11px] md:text-xs font-semibold text-red-700
+            shadow-sm shadow-red-100
+          "
+        >
+          <AlertCircle className="w-4 h-4" />
+          <span>
+            {errors.origin ||
+              errors.destination ||
+              errors.date ||
+              'Please fill all required fields correctly.'}
+          </span>
+        </div>
+      )}
+    </form>
+  );
 }
