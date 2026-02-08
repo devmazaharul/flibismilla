@@ -6,7 +6,6 @@ import {
   Heading,
   Hr,
   Html,
-  Img,
   Link,
   Preview,
   Section,
@@ -28,109 +27,267 @@ export default function TeamInvite({
   invitedRole = "Admin",
   inviteLink = "https://flybismillah.com/admin",
 }: TeamInviteProps) {
+  const year = new Date().getFullYear();
+
   return (
     <Html>
       <Tailwind>
         <Head />
-        <Preview>Join the Fly Bismillah team</Preview>
-        <Body className="bg-white my-auto mx-auto font-sans px-2 py-10">
-          <Container className="border border-solid border-[#eaeaea] rounded-[24px] mx-auto p-[40px] max-w-[465px] bg-white shadow-sm">
-            
-            {/* 1. Brand Icon (Fixed with Table for Center Alignment) */}
-            <Section>
-              <table align="center" border={0} cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto' }}>
-                <tr>
-                  <td align="center">
-                    <div style={{ 
-                        padding: '10px', 
-                        backgroundColor: '#000', 
-                        borderRadius: '50%',
-                        width: '20px',
-                        height: '20px',
-                        display: 'block'
-                    }}>
-                      <Img 
-                        src="https://img.icons8.com/ios-filled/50/ffffff/airplane-mode-on.png"
-                        width="20"
-                        height="20"
-                        alt="Logo"
-                        style={{ display: 'block', margin: '0 auto', transform: "rotate(-45deg)" }} 
-                      />
-                    </div>
-                  </td>
-                </tr>
-              </table>
+        <Preview>
+          {invitedBy} invited you to join Fly Bismillah as {invitedRole}
+        </Preview>
+
+        <Body className="bg-white font-sans my-0 mx-auto p-0">
+          <Container className="max-w-[560px] mx-auto px-4 py-6">
+            {/* ───── Header ───── */}
+            <Section className="text-center pb-5">
+              <Text className="text-[11px] uppercase tracking-[0.25em] text-slate-400 m-0 mb-2">
+                Fly Bismillah
+              </Text>
+              <Heading className="text-[22px] font-bold text-slate-900 m-0 leading-7">
+                You're Invited! 🎉
+              </Heading>
+              <Text className="text-[13px] text-slate-500 mt-2 mb-0">
+                Join the Fly Bismillah workspace.
+              </Text>
             </Section>
 
-            {/* 2. Heading */}
-            <Heading className="text-black text-[24px] font-bold text-center p-0 mt-6 mb-0 tracking-tight">
-              Join the Team
-            </Heading>
-            <Text className="text-[#666] text-[13px] text-center mt-2 mb-8 uppercase tracking-widest font-medium">
-              Fly Bismillah Workspace
-            </Text>
+            <Hr className="border-slate-200 my-0" />
 
-            {/* 3. Main Text */}
-            <Text className="text-black text-[15px] leading-[24px] text-center mb-6">
-              Hello <strong>{invitedName}</strong>, <br /><strong>{invitedBy}</strong> has invited you to collaborate as a team member.
-            </Text>
-
-            {/* 4. One-Line Compact Role Badge (Fixed Table Layout) */}
-            <Section className="text-center mb-10">
-              <table align="center" border={0} cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto', backgroundColor: '#f9fafb', border: '1px solid #f3f4f6', borderRadius: '50px' }}>
-                <tr>
-                  <td style={{ padding: '6px 12px 6px 16px' }}>
-                    <Text style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#6b7280', margin: 0, letterSpacing: '0.05em' }}>
-                      Role
-                    </Text>
-                  </td>
-                  <td style={{ width: '1px', backgroundColor: '#e5e7eb', height: '14px' }}></td>
-                  <td style={{ padding: '6px 16px 6px 12px' }}>
-                    <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#000', margin: 0, textTransform: 'capitalize' }}>
-                      {invitedRole}
-                    </Text>
-                  </td>
-                </tr>
-              </table>
-            </Section>
-
-            {/* 5. Pill Shaped Button (Guaranteed Centered) */}
-            <Section className="text-center">
-              <Button
-                href={inviteLink}
+            {/* ───── Invite Icon ───── */}
+            <Section className="text-center py-5">
+              <div
+                className="inline-block rounded-full"
                 style={{
-                    backgroundColor: "#000",
-                    color: "#fff",
-                    borderRadius: "50px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    textDecoration: "none",
-                    textAlign: "center",
-                    display: "inline-block",
-                    width: "200px",
-                    padding: "12px 0px"
+                  width: 64,
+                  height: 64,
+                  lineHeight: "64px",
+                  backgroundColor: "#eef2ff",
+                  border: "2px solid #c7d2fe",
+                  textAlign: "center",
                 }}
               >
-                Join Dashboard
-              </Button>
+                <Text
+                  className="text-[32px] m-0 leading-none"
+                  style={{ lineHeight: "64px" }}
+                >
+                  🤝
+                </Text>
+              </div>
             </Section>
 
-            {/* 6. Footer Link */}
-            <Text className="text-[#999] text-[12px] text-center mt-10">
-              or use this link:{" "}
-              <Link href={inviteLink} className="text-blue-500 no-underline font-medium">
-                Accept Invitation
-              </Link>
-            </Text>
+            {/* ───── Greeting ───── */}
+            <Section className="mb-2">
+              <Text className="text-[14px] text-slate-800 leading-[24px] m-0">
+                Hello <span className="font-semibold">{invitedName}</span>,
+              </Text>
+              <Text className="text-[14px] text-slate-600 leading-[24px] mt-3 mb-0">
+                <span className="font-semibold text-slate-800">
+                  {invitedBy}
+                </span>{" "}
+                has invited you to join the{" "}
+                <span className="font-semibold text-slate-800">
+                  Fly Bismillah
+                </span>{" "}
+                team as a collaborator. Accept the invitation below to get
+                started.
+              </Text>
+            </Section>
 
-            <Hr className="border border-solid border-[#f3f4f6] my-8 w-full" />
-            
-            <Text className="text-[#999] text-[11px] text-center leading-[18px]">
-              If you weren't expecting this invite, you can safely ignore this email.
-              <br />
-              © 2026 Fly Bismillah Inc.
-            </Text>
+            {/* ───── Invite Details Card ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 my-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 m-0 mb-3">
+                📋 Invitation Details
+              </Text>
 
+              <table cellPadding={0} cellSpacing={0} width="100%">
+                <tr>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Invited By
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[12px] font-semibold text-slate-800 m-0">
+                      {invitedBy}
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Workspace
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[12px] font-semibold text-slate-800 m-0">
+                      Fly Bismillah
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Your Role
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <span
+                      className="inline-block rounded-full text-[10px] font-bold uppercase px-3 py-1"
+                      style={{
+                        letterSpacing: "0.1em",
+                        backgroundColor:
+                          invitedRole === "Admin"
+                            ? "#eef2ff"
+                            : invitedRole === "Editor"
+                            ? "#ecfdf5"
+                            : "#f8fafb",
+                        color:
+                          invitedRole === "Admin"
+                            ? "#4338ca"
+                            : invitedRole === "Editor"
+                            ? "#065f46"
+                            : "#475569",
+                        border: `1px solid ${
+                          invitedRole === "Admin"
+                            ? "#c7d2fe"
+                            : invitedRole === "Editor"
+                            ? "#a7f3d0"
+                            : "#e2e8f0"
+                        }`,
+                      }}
+                    >
+                      {invitedRole}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </Section>
+
+            {/* ───── What You'll Get ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 mb-5"
+              style={{
+                backgroundColor: "#eef2ff",
+                borderLeft: "3px solid #6366f1",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#4f46e5" }}
+              >
+                🚀 What you'll get access to
+              </Text>
+              <Text
+                className="text-[12px] m-0 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • Manage flight bookings &amp; ticketing.
+              </Text>
+              <Text
+                className="text-[12px] m-0 mt-1 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • View customer records &amp; trip details.
+              </Text>
+              <Text
+                className="text-[12px] m-0 mt-1 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • Collaborate with the team in real-time.
+              </Text>
+            </Section>
+
+            {/* ───── CTA Button ───── */}
+            <Section className="text-center my-6">
+              <Button
+                href={inviteLink}
+                className="rounded-full font-bold text-[14px] text-white px-10 py-4 no-underline inline-block"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
+                }}
+              >
+                ✨ Accept Invitation
+              </Button>
+              <Text className="text-[11px] text-slate-400 mt-3 mb-0">
+                You'll be directed to the admin dashboard.
+              </Text>
+            </Section>
+
+            {/* ───── Fallback Link ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 m-0 mb-2">
+                🔗 Button not working?
+              </Text>
+              <Text className="text-[11px] text-slate-600 m-0 leading-[18px]">
+                Copy and paste this URL into your browser:
+              </Text>
+              <Text className="m-0 mt-2">
+                <Link
+                  href={inviteLink}
+                  className="text-[11px] no-underline break-all"
+                  style={{ color: "#4f46e5" }}
+                >
+                  {inviteLink}
+                </Link>
+              </Text>
+            </Section>
+
+            {/* ───── Ignore Notice ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#fffbeb",
+                borderLeft: "3px solid #f59e0b",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#d97706" }}
+              >
+                💡 Not expecting this?
+              </Text>
+              <Text
+                className="text-[11px] m-0 leading-[18px]"
+                style={{ color: "#92400e" }}
+              >
+                If you weren't expecting this invitation, you can{" "}
+                <span className="font-bold">safely ignore</span> this email. No
+                action will be taken on your behalf.
+              </Text>
+            </Section>
+
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Footer ───── */}
+            <Section className="text-center py-5">
+              <Text className="text-[12px] text-slate-500 m-0">
+                Have questions? Reply to this email or contact our{" "}
+                <span
+                  className="font-semibold"
+                  style={{ color: "#4f46e5" }}
+                >
+                  support team
+                </span>
+                .
+              </Text>
+              <Text className="text-[10px] text-slate-400 mt-4 mb-0">
+                © {year} Fly Bismillah · All rights reserved
+              </Text>
+            </Section>
           </Container>
         </Body>
       </Tailwind>

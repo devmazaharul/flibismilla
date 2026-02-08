@@ -365,7 +365,7 @@ export default function SettingsPage() {
                    
                    {!is2FASetupMode ? (
                       // 1. Normal State (Show Status & Toggle)
-                      <div className="flex items-start justify-between relative z-10">
+                      <div className="flex items-start justify-between relative ">
                         <div className='pr-4'>
                           <Smartphone className="w-8 h-8 opacity-80 mb-4"/>
                           <h4 className="font-bold text-lg">Two-Factor Auth</h4>

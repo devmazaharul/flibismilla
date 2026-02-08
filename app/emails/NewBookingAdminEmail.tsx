@@ -10,8 +10,6 @@ import {
   Heading,
   Tailwind,
   Button,
-  Row,
-  Column,
   Link,
 } from "@react-email/components";
 import * as React from "react";
@@ -37,6 +35,7 @@ export default function NewBookingAdminEmail({
   totalAmount = "120,000",
   bookingId = "123",
 }: NewBookingAdminEmailProps) {
+  const year = new Date().getFullYear();
   const dashboardLink = `${process.env.NEXT_PUBLIC_APP_URL}/admin/bookings/${bookingId}`;
 
   return (
@@ -47,124 +46,337 @@ export default function NewBookingAdminEmail({
           New booking received – {pnr} ({customerName})
         </Preview>
 
-        <Body className="bg-slate-100 font-sans my-0 mx-auto py-6 px-3">
-          <Container className="mx-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white px-6 py-6 shadow-lg">
-            {/* Brand / header */}
-            <Section className="flex items-center">
-              <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold uppercase tracking-wide text-white">
-                BT
-              </div>
-              <div>
-                <Text className="m-0 text-[13px] font-semibold text-slate-900">
-                   Bismillah Travels
-                </Text>
-                <Text className="m-0 mt-0.5 text-[11px] text-slate-500">
-                  Admin booking notification
-                </Text>
-              </div>
-            </Section>
-
-            {/* Accent line */}
-            <Section className="mt-4">
-              <div className="h-px w-full bg-gradient-to-r from-emerald-500/80 via-sky-500/80 to-indigo-500/80" />
-            </Section>
-
-            {/* Status badge */}
-            <Section className="mt-4 mb-1">
-              <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                New booking received
-              </div>
-            </Section>
-
-            {/* Main heading + intro */}
-            <Section>
-              <Heading className="m-0 text-[20px] font-semibold leading-snug text-slate-900">
-                New flight booking alert ✈️
+        <Body className="bg-white font-sans my-0 mx-auto p-0">
+          <Container className="max-w-[560px] mx-auto px-4 py-6">
+            {/* ───── Header ───── */}
+            <Section className="text-center pb-5">
+              <Text className="text-[11px] uppercase tracking-[0.25em] text-slate-400 m-0 mb-2">
+                Fly Bismillah
+              </Text>
+              <Heading className="text-[22px] font-bold text-slate-900 m-0 leading-7">
+                New Booking Received 🎫
               </Heading>
-              <Text className="mt-2 mb-4 text-[13px] leading-[20px] text-slate-600">
-                A new booking has been placed on the website. Please review the
-                details below and take action from the admin dashboard (issue /
-                verify / follow-up).
+              <Text className="text-[13px] text-slate-500 mt-2 mb-0">
+                A customer just placed a flight booking.
               </Text>
             </Section>
 
-            {/* Key details card */}
-            <Section className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-              {/* Top row: customer + PNR */}
-              <Row className="mb-2">
-                <Column>
-                  <Text className="m-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Customer
-                  </Text>
-                  <Text className="m-0 mt-0.5 text-sm font-semibold text-slate-800">
-                    {customerName}
-                  </Text>
-                  <Link
-                    href={`tel:${customerPhone}`}
-                    className="m-0 mt-0.5 text-xs text-indigo-600 underline"
-                  >
-                    {customerPhone}
-                  </Link>
-                </Column>
-                <Column align="right">
-                  <Text className="m-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    PNR / Reference
-                  </Text>
-                  <Text className="m-0 mt-0.5 font-mono text-[15px] font-bold text-slate-900">
-                    {pnr}
-                  </Text>
-                </Column>
-              </Row>
+            <Hr className="border-slate-200 my-0" />
 
-              <Hr className="my-3 border-slate-200" />
-
-              {/* Route, airline, date, amount */}
-              <Row>
-                <Column>
-                  <Text className="m-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Route & airline
-                  </Text>
-                  <Text className="m-0 mt-0.5 text-sm font-medium text-slate-800">
-                    {route}
-                  </Text>
-                  <Text className="m-0 mt-0.5 text-xs text-slate-500">
-                    {airline} • {flightDate}
-                  </Text>
-                </Column>
-                <Column align="right">
-                  <Text className="m-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Total value
-                  </Text>
-                  <Text className="m-0 mt-0.5 text-sm font-bold text-emerald-600">
-                    {totalAmount} USD
-                  </Text>
-                </Column>
-              </Row>
+            {/* ───── PNR ───── */}
+            <Section className="text-center py-4">
+              <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-400 m-0 mb-1">
+                Booking Reference
+              </Text>
+              <Text
+                className="font-mono text-[24px] font-bold m-0"
+                style={{ letterSpacing: "0.12em", color: "#059669" }}
+              >
+                {pnr}
+              </Text>
             </Section>
 
-            {/* CTA */}
-            <Section className="mt-6 text-center">
+            {/* ───── Status Badge ───── */}
+            <Section className="text-center mb-4">
+              <span
+                className="inline-block rounded-full text-[10px] font-bold uppercase px-4 py-2"
+                style={{
+                  letterSpacing: "0.12em",
+                  backgroundColor: "#ecfdf5",
+                  color: "#065f46",
+                  border: "1px solid #a7f3d0",
+                }}
+              >
+                ● New — Action Required
+              </span>
+            </Section>
+
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Route Card ───── */}
+            <Section
+              className="my-5 rounded-xl px-5 py-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <table
+                cellPadding={0}
+                cellSpacing={0}
+                width="100%"
+                style={{ tableLayout: "fixed" }}
+              >
+                <tr>
+                  <td
+                    style={{
+                      width: "38%",
+                      textAlign: "center",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <Text className="text-[10px] uppercase tracking-[0.16em] text-slate-400 m-0 mb-1">
+                      From
+                    </Text>
+                    <Text className="text-[18px] font-bold text-slate-900 m-0">
+                      {route.split("➝")[0]?.trim() || route.split("-")[0]?.trim()}
+                    </Text>
+                  </td>
+                  <td
+                    style={{
+                      width: "24%",
+                      textAlign: "center",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <Text className="text-[20px] m-0 leading-none">✈</Text>
+                    <Text className="text-[10px] text-slate-400 m-0 mt-1">
+                      {airline}
+                    </Text>
+                  </td>
+                  <td
+                    style={{
+                      width: "38%",
+                      textAlign: "center",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <Text className="text-[10px] uppercase tracking-[0.16em] text-slate-400 m-0 mb-1">
+                      To
+                    </Text>
+                    <Text className="text-[18px] font-bold text-slate-900 m-0">
+                      {route.split("➝")[1]?.trim() || route.split("-")[1]?.trim()}
+                    </Text>
+                  </td>
+                </tr>
+              </table>
+
+              <Section className="text-center mt-4">
+                <span
+                  className="inline-block rounded-full px-4 py-1 text-[12px] font-semibold"
+                  style={{ backgroundColor: "#ecfdf5", color: "#065f46" }}
+                >
+                  📅 {flightDate}
+                </span>
+              </Section>
+            </Section>
+
+            {/* ───── Customer Details ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 mb-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 m-0 mb-3">
+                👤 Customer Information
+              </Text>
+
+              <table cellPadding={0} cellSpacing={0} width="100%">
+                <tr>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Name
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[13px] font-semibold text-slate-800 m-0">
+                      {customerName}
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Phone
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Link
+                      href={`tel:${customerPhone}`}
+                      className="text-[13px] font-semibold no-underline"
+                      style={{ color: "#4f46e5" }}
+                    >
+                      {customerPhone}
+                    </Link>
+                  </td>
+                </tr>
+              </table>
+            </Section>
+
+            {/* ───── Booking Details ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 mb-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 m-0 mb-3">
+                📋 Booking Details
+              </Text>
+
+              <table cellPadding={0} cellSpacing={0} width="100%">
+                <tr>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Route
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[13px] font-semibold text-slate-800 m-0">
+                      {route}
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Airline
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[13px] font-semibold text-slate-800 m-0">
+                      {airline}
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Travel Date
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <Text className="text-[13px] font-semibold text-slate-800 m-0">
+                      {flightDate}
+                    </Text>
+                  </td>
+                </tr>
+                <tr style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Text className="text-[12px] text-slate-500 m-0">
+                      Total Value
+                    </Text>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    <span
+                      className="inline-block rounded-full text-[12px] font-bold px-3 py-1"
+                      style={{
+                        backgroundColor: "#ecfdf5",
+                        color: "#059669",
+                        border: "1px solid #a7f3d0",
+                      }}
+                    >
+                      {totalAmount} USD
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </Section>
+
+            {/* ───── Action Required ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 mb-5"
+              style={{
+                backgroundColor: "#eef2ff",
+                borderLeft: "3px solid #6366f1",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#4f46e5" }}
+              >
+                🎯 Next Steps
+              </Text>
+              <Text
+                className="text-[12px] m-0 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • <span className="font-bold">Review</span> the booking details
+                in the dashboard.
+              </Text>
+              <Text
+                className="text-[12px] m-0 mt-1 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • <span className="font-bold">Verify</span> payment and
+                passenger information.
+              </Text>
+              <Text
+                className="text-[12px] m-0 mt-1 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                • <span className="font-bold">Issue</span> the e-ticket or
+                follow up with the customer.
+              </Text>
+            </Section>
+
+            {/* ───── CTA Button ───── */}
+            <Section className="text-center my-6">
               <Button
                 href={dashboardLink}
-                className="rounded-md bg-slate-900 px-6 py-3 text-[14px] font-medium text-white no-underline hover:bg-slate-800"
+                className="rounded-full font-bold text-[14px] text-white px-10 py-4 no-underline inline-block"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+                }}
               >
-                Open booking in dashboard →
+                📂 Open in Dashboard
               </Button>
-              <Text className="mt-3 mb-0 text-center text-[11px] text-slate-500">
-                Or locate this booking manually in the admin panel using PNR:{" "}
-                <span className="font-mono font-semibold text-slate-800">
+              <Text className="text-[11px] text-slate-400 mt-3 mb-0">
+                Or find this booking manually using PNR:{" "}
+                <span
+                  className="font-mono font-bold"
+                  style={{ color: "#059669" }}
+                >
                   {pnr}
                 </span>
               </Text>
             </Section>
 
-            <Hr className="my-6 border-slate-200" />
+            {/* ───── Urgency Reminder ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#fffbeb",
+                borderLeft: "3px solid #f59e0b",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#d97706" }}
+              >
+                ⏰ Reminder
+              </Text>
+              <Text
+                className="text-[11px] m-0 leading-[18px]"
+                style={{ color: "#92400e" }}
+              >
+                • Process this booking within{" "}
+                <span className="font-bold">30-60 minutes</span> for the best
+                customer experience.
+              </Text>
+              <Text
+                className="text-[11px] m-0 mt-1 leading-[18px]"
+                style={{ color: "#92400e" }}
+              >
+                • The customer is{" "}
+                <span className="font-bold">waiting for confirmation</span> and
+                may follow up on phone.
+              </Text>
+            </Section>
 
-            {/* Footer */}
-            <Section className="text-center">
-              <Text className="m-0 text-[11px] leading-[16px] text-slate-400">
-                This email was generated automatically by the Fly Bismillah
-                Travels admin dashboard when a new booking was created.
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Footer ───── */}
+            <Section className="text-center py-5">
+              <Text className="text-[12px] text-slate-500 m-0">
+                Auto-generated from the Fly Bismillah booking system.
+              </Text>
+              <Text className="text-[10px] text-slate-400 mt-4 mb-0">
+                © {year} Fly Bismillah · All rights reserved
               </Text>
             </Section>
           </Container>

@@ -6,13 +6,13 @@ import {
   Heading,
   Hr,
   Html,
-  Img,
   Link,
   Preview,
   Section,
   Text,
   Tailwind,
 } from "@react-email/components";
+import * as React from "react";
 
 interface ForgotPasswordProps {
   userName: string;
@@ -23,101 +23,185 @@ export default function ForgotPassword({
   userName = "Asif",
   resetLink = "https://flybismillah.com/reset-password?token=123",
 }: ForgotPasswordProps) {
+  const year = new Date().getFullYear();
+
   return (
     <Html>
       <Tailwind>
         <Head />
         <Preview>Reset your Fly Bismillah password</Preview>
-        <Body className="bg-white my-auto mx-auto font-sans px-2 py-10">
-          <Container className="border border-solid border-[#eaeaea] rounded-[24px] mx-auto p-[40px] max-w-[465px] bg-white shadow-2xl shadow-gray-100">
-            
-            {/* 1. Brand Icon */}
-            <Section className="text-center mb-8">
-               <div style={{ 
-                   display: 'inline-flex', 
-                   alignItems: 'center', 
-                   justifyContent: 'center', 
-                   width: '40px', 
-                   height: '40px', 
-                   backgroundColor: '#000', 
-                   borderRadius: '50%' 
-               }}>
-                  <Img 
-                    src="https://img.icons8.com/ios-filled/50/ffffff/airplane-mode-on.png"
-                    width="20"
-                    height="20"
-                    alt="Logo"
-                    style={{ transform: "rotate(-45deg)" }} 
-                  />
-               </div>
+
+        <Body className="bg-white font-sans my-0 mx-auto p-0">
+          <Container className="max-w-[560px] mx-auto px-4 py-6">
+            {/* ───── Header ───── */}
+            <Section className="text-center pb-5">
+              <Text className="text-[11px] uppercase tracking-[0.25em] text-slate-400 m-0 mb-2">
+                Fly Bismillah
+              </Text>
+              <Heading className="text-[22px] font-bold text-slate-900 m-0 leading-7">
+                Password Reset 🔐
+              </Heading>
+              <Text className="text-[13px] text-slate-500 mt-2 mb-0">
+                We received a request to reset your password.
+              </Text>
             </Section>
 
-            {/* 2. Heading */}
-            <Heading className="text-black text-[24px] font-bold text-center p-0 my-0 mx-0 tracking-tight">
-              Reset Password
-            </Heading>
-            <Text className="text-[#666] text-[13px] text-center mt-2 mb-8 uppercase tracking-[0.15em] font-medium">
-              Secure Access
-            </Text>
+            <Hr className="border-slate-200 my-0" />
 
-            {/* 3. Main Content */}
-            <Text className="text-black text-[15px] leading-[24px] text-center mb-6">
-              Hello <strong>{userName}</strong>, <br />
-              We received a request to reset your password for your <strong>Fly Bismillah</strong> account.
-            </Text>
-
-            {/* 4. Action Button (Pill-shaped & Centered) */}
-            <Section className="text-center mb-8">
-              <Button
-                href={resetLink}
+            {/* ───── Lock Icon ───── */}
+            <Section className="text-center py-5">
+              <div
+                className="inline-block rounded-full"
                 style={{
-                    backgroundColor: "#000",
-                    color: "#fff",
-                    borderRadius: "50px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    textDecoration: "none",
-                    textAlign: "center",
-                    display: "inline-block",
-                    width: "200px",
-                    padding: "14px 0px"
+                  width: 56,
+                  height: 56,
+                  lineHeight: "56px",
+                  backgroundColor: "#fef2f2",
+                  textAlign: "center",
                 }}
               >
-                Reset Password
+                <Text className="text-[28px] m-0 leading-none" style={{ lineHeight: "56px" }}>
+                  🔑
+                </Text>
+              </div>
+            </Section>
+
+            {/* ───── Greeting ───── */}
+            <Section className="mb-2">
+              <Text className="text-[14px] text-slate-800 leading-[24px] m-0">
+                Hello <span className="font-semibold">{userName}</span>,
+              </Text>
+              <Text className="text-[14px] text-slate-600 leading-[24px] mt-3 mb-0">
+                We received a request to reset the password for your{" "}
+                <span className="font-semibold text-slate-800">
+                  Fly Bismillah
+                </span>{" "}
+                account. Click the button below to set a new password.
+              </Text>
+            </Section>
+
+            {/* ───── CTA Button ───── */}
+            <Section className="text-center my-6">
+              <Button
+                href={resetLink}
+                className="rounded-full font-bold text-[14px] text-white px-10 py-4 no-underline inline-block"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)",
+                }}
+              >
+                🔓 Reset My Password
               </Button>
             </Section>
 
-            {/* 5. Compact Security Warning Badge */}
-            <Section className="text-center mb-10">
-               <div style={{ 
-                   display: 'inline-flex', 
-                   alignItems: 'center', 
-                   backgroundColor: '#fff5f5', 
-                   border: '1px solid #fee2e2', 
-                   borderRadius: '50px', 
-                   padding: '6px 16px' 
-               }}>
-                  <Text className="text-[#c53030] text-[11px] font-bold m-0">
-                    ⚠️ Link expires in 15 minutes
-                  </Text>
-               </div>
+            {/* ───── Expiry Warning ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#fef2f2",
+                borderLeft: "3px solid #ef4444",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#dc2626" }}
+              >
+                ⚠ Important
+              </Text>
+              <Text
+                className="text-[11px] m-0 leading-[18px]"
+                style={{ color: "#991b1b" }}
+              >
+                • This link expires in{" "}
+                <span className="font-bold">15 minutes</span>.
+              </Text>
+              <Text
+                className="text-[11px] m-0 mt-1 leading-[18px]"
+                style={{ color: "#991b1b" }}
+              >
+                • If you didn't request this, you can{" "}
+                <span className="font-bold">safely ignore</span> this email.
+              </Text>
+              <Text
+                className="text-[11px] m-0 mt-1 leading-[18px]"
+                style={{ color: "#991b1b" }}
+              >
+                • Never share this link with anyone.
+              </Text>
             </Section>
 
-            <Text className="text-[#999] text-[13px] text-center mb-8">
-              If you didn't request this, you can safely ignore this email.
-            </Text>
+            {/* ───── Security Tips ───── */}
+            <Section
+              className="rounded-xl px-4 py-4 mb-5"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+              }}
+            >
+              <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 m-0 mb-2">
+                🛡 Security Tips
+              </Text>
+              <Text className="text-[12px] text-slate-600 m-0 leading-[20px]">
+                • Use a <span className="font-semibold text-slate-700">strong, unique</span> password.
+              </Text>
+              <Text className="text-[12px] text-slate-600 m-0 mt-1 leading-[20px]">
+                • Avoid reusing passwords from other sites.
+              </Text>
+              <Text className="text-[12px] text-slate-600 m-0 mt-1 leading-[20px]">
+                • Consider using a{" "}
+                <span className="font-semibold text-slate-700">
+                  password manager
+                </span>
+                .
+              </Text>
+            </Section>
 
-            <Hr className="border border-solid border-[#f3f4f6] my-8 w-full" />
-            
-            {/* 6. Footer Link */}
-            <Text className="text-[#999] text-[11px] text-center leading-[18px]">
-              Trouble with the button? Copy and paste this URL:
-              <br />
-              <Link href={resetLink} className="text-blue-500 no-underline font-medium break-all">
-                {resetLink}
-              </Link>
-            </Text>
+            {/* ───── Fallback Link ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#eef2ff",
+                borderLeft: "3px solid #6366f1",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#4f46e5" }}
+              >
+                🔗 Button not working?
+              </Text>
+              <Text
+                className="text-[11px] m-0 leading-[18px]"
+                style={{ color: "#312e81" }}
+              >
+                Copy and paste this URL into your browser:
+              </Text>
+              <Text className="m-0 mt-2">
+                <Link
+                  href={resetLink}
+                  className="text-[11px] no-underline break-all"
+                  style={{ color: "#4f46e5" }}
+                >
+                  {resetLink}
+                </Link>
+              </Text>
+            </Section>
 
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Footer ───── */}
+            <Section className="text-center py-5">
+              <Text className="text-[12px] text-slate-500 m-0">
+                Need help? Reply to this email or contact our{" "}
+                <span className="font-semibold" style={{ color: "#4f46e5" }}>
+                  24/7 support
+                </span>
+                .
+              </Text>
+              <Text className="text-[10px] text-slate-400 mt-4 mb-0">
+                © {year} Fly Bismillah · All rights reserved
+              </Text>
+            </Section>
           </Container>
         </Body>
       </Tailwind>

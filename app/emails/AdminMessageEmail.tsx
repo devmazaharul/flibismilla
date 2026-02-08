@@ -9,6 +9,7 @@ import {
   Hr,
   Heading,
   Tailwind,
+  Link,
 } from "@react-email/components";
 import * as React from "react";
 
@@ -27,81 +28,144 @@ export default function AdminMessageEmail({
 
   return (
     <Html>
-      <Head />
-      <Preview>{subject}</Preview>
-
       <Tailwind>
-        {/* Outer background + global padding */}
-        <Body className="bg-slate-100 font-sans my-0 mx-auto py-6 px-3">
-          {/* Main email card */}
-          <Container className="mx-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-lg">
-            {/* Brand header */}
-            <Section className="flex items-center">
-              {/* Brand icon */}
-              <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold uppercase tracking-wide text-white">
-               BT
-              </div>
-              <div>
-                <Text className="m-0 text-[13px] font-semibold text-slate-900">
-                  Fly Bismillah Travels
-                </Text>
-                <Text className="m-0 mt-0.5 text-[11px] text-slate-500">
-                  Travel & Flight Management
-                </Text>
-              </div>
-            </Section>
+        <Head />
+        <Preview>
+          ✉️ {subject} — Fly Bismillah Travels
+        </Preview>
 
-            {/* Subtle divider */}
-            <Section className="mt-4">
-              <div className="h-px w-full bg-gradient-to-r from-indigo-500/70 via-sky-400/70 to-emerald-400/70" />
-            </Section>
-
-            {/* Email subject */}
-            <Section className="mt-5">
-              <Heading className="m-0 text-[19px] font-semibold leading-snug text-slate-900">
-                {subject}
+        <Body className="bg-white font-sans my-0 mx-auto p-0">
+          <Container className="max-w-[560px] mx-auto px-4 py-6">
+            {/* ───── Header ───── */}
+            <Section className="text-center pb-5">
+              <Text className="text-[11px] uppercase tracking-[0.25em] text-slate-400 m-0 mb-2">
+                Fly Bismillah
+              </Text>
+              <Heading className="text-[22px] font-bold text-slate-900 m-0 leading-7">
+                Message from Support 💬
               </Heading>
-            </Section>
-
-            {/* Greeting */}
-            <Section className="mt-4">
-              <Text className="m-0 text-[14px] leading-[22px] text-slate-700">
-                Dear {recipientName},
+              <Text className="text-[13px] text-slate-500 mt-2 mb-0">
+                You have a new message from our team.
               </Text>
             </Section>
 
-            {/* Message body */}
-            <Section className="mt-3">
-              <Text className="m-0 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[14px] leading-[24px] text-slate-800 whitespace-pre-wrap">
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Subject ───── */}
+            <Section className="text-center py-4">
+              <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-400 m-0 mb-1">
+                Subject
+              </Text>
+              <Text className="text-[18px] font-bold text-slate-900 m-0 leading-6">
+                {subject}
+              </Text>
+            </Section>
+
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Greeting ───── */}
+            <Section className="mt-5 mb-2">
+              <Text className="text-[14px] text-slate-800 leading-[24px] m-0">
+                Dear{" "}
+                <span className="font-semibold">{recipientName}</span>,
+              </Text>
+            </Section>
+
+            {/* ───── Message Body ───── */}
+            <Section
+              className="rounded-xl px-5 py-4 my-4"
+              style={{
+                backgroundColor: "#f8fafb",
+                border: "1px solid #e8ecf0",
+                borderLeft: "4px solid #6366f1",
+              }}
+            >
+              <Text
+                className="text-[14px] text-slate-700 leading-[26px] m-0"
+                style={{ whiteSpace: "pre-wrap" }}
+              >
                 {message}
               </Text>
             </Section>
 
-            {/* Closing */}
-            <Section className="mt-5">
-              <Text className="m-0 text-[14px] leading-[22px] text-slate-700">
+            {/* ───── Closing ───── */}
+            <Section className="mt-5 mb-5">
+              <Text className="text-[14px] text-slate-600 leading-[22px] m-0">
                 Best regards,
-                <br />
-                <span className="font-semibold text-slate-900">
-                  Support Team
-                </span>
-                <br />
-                <span className="text-slate-500 text-[13px]">
-                  Fly Bismillah Travels
-                </span>
+              </Text>
+              <Text className="text-[14px] font-semibold text-slate-900 m-0 mt-1">
+                Support Team
+              </Text>
+              <Text className="text-[12px] text-slate-400 m-0 mt-0">
+                Fly Bismillah Travels
               </Text>
             </Section>
 
-            <Hr className="my-6 border-slate-200" />
+            <Hr className="border-slate-200 my-0" />
 
-            {/* Footer */}
-            <Section className="text-center">
-              <Text className="m-0 text-[12px] leading-[18px] text-slate-400">
-                © {year} Fly Bismillah Travels. All rights reserved.
+            {/* ───── Reply Prompt ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 my-5"
+              style={{
+                backgroundColor: "#eef2ff",
+                borderLeft: "3px solid #6366f1",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#4f46e5" }}
+              >
+                💡 Want to respond?
               </Text>
-              <Text className="m-0 mt-2 text-[11px] leading-[16px] text-slate-400">
-                This message was sent to you for informational purposes from the
-                Fly Bismillah Travels admin dashboard.
+              <Text
+                className="text-[12px] m-0 leading-[20px]"
+                style={{ color: "#312e81" }}
+              >
+                You can reply directly to this email and our support team will
+                get back to you shortly.
+              </Text>
+            </Section>
+
+            {/* ───── Disclaimer ───── */}
+            <Section
+              className="rounded-xl px-4 py-3 mb-5"
+              style={{
+                backgroundColor: "#fffbeb",
+                borderLeft: "3px solid #f59e0b",
+              }}
+            >
+              <Text
+                className="text-[10px] font-bold uppercase tracking-[0.2em] m-0 mb-2"
+                style={{ color: "#d97706" }}
+              >
+                🛡️ Security Notice
+              </Text>
+              <Text
+                className="text-[11px] m-0 leading-[18px]"
+                style={{ color: "#92400e" }}
+              >
+                This message was sent from the Fly Bismillah admin dashboard.
+                We will <span className="font-bold">never</span> ask for
+                passwords or payment information via email.
+              </Text>
+            </Section>
+
+            <Hr className="border-slate-200 my-0" />
+
+            {/* ───── Footer ───── */}
+            <Section className="text-center py-5">
+              <Text className="text-[12px] text-slate-500 m-0">
+                Need more help? Visit{" "}
+                <Link
+                  href="https://flybismillah.com"
+                  className="font-semibold no-underline"
+                  style={{ color: "#4f46e5" }}
+                >
+                  flybismillah.com
+                </Link>
+              </Text>
+              <Text className="text-[10px] text-slate-400 mt-4 mb-0">
+                © {year} Fly Bismillah · All rights reserved
               </Text>
             </Section>
           </Container>
