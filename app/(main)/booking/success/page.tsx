@@ -97,7 +97,7 @@ function SuccessContent() {
   // এখানে এসে booking নিশ্চিতভাবে আছে
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50 py-12 px-4 flex items-center justify-center">
-      <div className="relative max-w-xl w-full bg-white/95 backdrop-blur-sm rounded-3xl border border-slate-100 shadow-[0_18px_45px_rgba(15,23,42,0.15)] overflow-hidden">
+      <div className="relative max-w-xl w-full bg-white/95 backdrop-blur-sm rounded-3xl border border-slate-200/80 shadow-2xl shadow-gray-100 overflow-hidden">
         {/* Top gradient accent */}
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-sky-500 via-emerald-500 to-emerald-400" />
 
