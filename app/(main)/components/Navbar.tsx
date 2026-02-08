@@ -1,367 +1,621 @@
 'use client';
+
 import Link from 'next/link';
-import { useState, useEffect } from 'react'; // Added useEffect
+import { useState, useEffect } from 'react';
 import { headerData } from '@/constant/data';
 import { appTheme } from '@/constant/theme/global';
 import Image from 'next/image';
-import { usePathname, useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { MdAirplaneTicket, MdOutlineAirplaneTicket } from "react-icons/md";
 
 import {
-    FaPhoneAlt,
-    FaEnvelope,
-    FaBars,
-    FaFacebookF,
-    FaTwitter,
-    FaInstagram,
-    FaChevronRight,
-    FaHome,
-    FaPlaneDeparture,
-    FaHotel,
-    FaKaaba,
-    FaInfoCircle,
-    FaHeadset,
-    FaYoutube,
-    FaPinterest,
-    FaWhatsapp,
+  FaPhoneAlt,
+  FaEnvelope,
+  FaBars,
+  FaFacebookF,
+  FaTwitter,
+  FaInstagram,
+  FaChevronRight,
+  FaHome,
+  FaPlaneDeparture,
+  FaHotel,
+  FaKaaba,
+  FaInfoCircle,
+  FaHeadset,
+  FaYoutube,
+  FaPinterest,
+  FaWhatsapp,
+  FaArrowRight,
+  FaTimes,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 
-// New Icons for Auth
-import { Loader2, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { Loader2, LogOut, User, LayoutDashboard, Shield } from 'lucide-react';
 
-// Shadcn UI Components
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { IoMdArrowDropdown } from 'react-icons/io';
 
 const Navbar = () => {
-    const pathName = usePathname();
-    const searchParams = useSearchParams();
-    const router = useRouter(); // For redirecting after logout
-    const { colors, layout } = appTheme;
+  const pathName = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { colors, layout, button: btnTheme } = appTheme;
 
-    // 🟢 AUTH STATE MANAGEMENT
-    const [user, setUser] = useState<{ name: string } | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-    useEffect(() => {
-        // Check session on mount
-        fetch('/api/auth/me')
-            .then((res) => res.json())
-            .then((data) => {
-                setUser(data.user);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, []);
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            setUser(null);
-            router.push('/access');
-            router.refresh();
-        } catch (error) {
-            console.error('Logout failed', error);
-        }
-    };
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        setUser(data.user);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    // Active Link Logic
-    const isActive = (href: string) => {
-        if (href === '/') return pathName === '/';
-        if (href.includes('?')) {
-            const [basePath, queryString] = href.split('?');
-            const linkParams = new URLSearchParams(queryString);
-            const currentParams = new URLSearchParams(searchParams?.toString() || '');
-            if (pathName !== basePath) return false;
-            for (const [key, value] of Array.from(linkParams.entries())) {
-                if (currentParams.get(key) !== value) return false;
-            }
-            return true;
-        }
-        return pathName === href || (pathName.startsWith(href) && href !== '/');
-    };
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      setShowLogoutModal(false);
+      router.push('/access');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
-    // Social Icons Helper
-    const getIcon = (iconName: string) => {
-        switch (iconName) {
-            case 'whatsapp': return <FaWhatsapp />;
-            case 'facebook': return <FaFacebookF />;
-            case 'twitter': return <FaTwitter />;
-            case 'instagram': return <FaInstagram />;
-            case 'youtube': return <FaYoutube />;
-            default: return <FaPinterest />;
-        }
-    };
+  const isActive = (href: string) => {
+    if (href === '/') return pathName === '/';
+    if (href.includes('?')) {
+      const [basePath, queryString] = href.split('?');
+      const linkParams = new URLSearchParams(queryString);
+      const currentParams = new URLSearchParams(searchParams?.toString() || '');
+      if (pathName !== basePath) return false;
+      for (const [key, value] of Array.from(linkParams.entries())) {
+        if (currentParams.get(key) !== value) return false;
+      }
+      return true;
+    }
+    return pathName === href || (pathName.startsWith(href) && href !== '/');
+  };
 
-    return (
-        <header className="w-full relative bg-white print:hidden">
-            
-            {/* ================= 1. Top Bar (Desktop Only) ================= */}
-            <div className={`${colors.topBar.bg} ${colors.topBar.text} text-[10px] sm:text-xs py-2 hidden md:block border-b border-white/10`}>
-                <div className={`${layout.container} flex justify-between items-center`}>
-                    {/* Contact Info */}
-                    <div className="flex gap-4 lg:gap-6 font-medium">
-                        <a href={`mailto:${headerData.contact.email}`} className="flex items-center gap-2 hover:text-rose-400 transition">
-                            <FaEnvelope className="text-gray-400" /> {headerData.contact.email}
-                        </a>
-                        {headerData.contact.phones.map((item, i) => (
-                            <a key={i} href={`tel:${item}`} className="flex items-center gap-1 hover:text-rose-400 transition">
-                                <FaPhoneAlt className="text-gray-400" /> {item}
-                            </a>
-                        ))}
-                    </div>
-                    {/* Social Icons */}
-                    <div className="flex items-center gap-4">
-                        <span className="text-gray-400 hidden lg:inline-block">Follow Us:</span>
-                        <div className="flex gap-3">
-                            {headerData.socialLinks.map((social, idx) => (
-                                <a key={idx} href={social.href} target="_blank" className="w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full bg-white/10 text-white transition-all hover:bg-rose-600 hover:-translate-y-0.5">
-                                    {getIcon(social.icon)}
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'whatsapp':
+        return <FaWhatsapp />;
+      case 'facebook':
+        return <FaFacebookF />;
+      case 'twitter':
+        return <FaTwitter />;
+      case 'instagram':
+        return <FaInstagram />;
+      case 'youtube':
+        return <FaYoutube />;
+      default:
+        return <FaPinterest />;
+    }
+  };
+
+  const firstLetter = user?.name?.charAt(0)?.toUpperCase() || 'U';
+
+  return (
+    <>
+      <header className="w-full relative bg-white print:hidden z-50">
+        {/* ═══════════ Top Bar ═══════════ */}
+        <div className="bg-gray-950 text-gray-300 hidden md:block">
+          <div className={`${layout.container} flex justify-between items-center h-9`}>
+            <div className="flex items-center divide-x divide-gray-800">
+              <a
+                href={`mailto:${headerData.contact.email}`}
+                className="flex items-center gap-2 pr-4 text-[11px] font-medium hover:text-white transition-colors cursor-pointer"
+              >
+                <FaEnvelope className="text-rose-500 text-[9px]" />
+                {headerData.contact.email}
+              </a>
+              {headerData.contact.phones.map((item, i) => (
+                <a
+                  key={i}
+                  href={`tel:${item}`}
+                  className="flex items-center gap-2 px-4 text-[11px] font-medium hover:text-white transition-colors cursor-pointer"
+                >
+                  <FaPhoneAlt className="text-rose-500 text-[9px]" />
+                  {item}
+                </a>
+              ))}
             </div>
 
-            {/* ================= 2. Main Navigation ================= */}
-            <nav className="w-full bg-white border-b border-gray-100 py-2 md:py-0">
-                <div className={`${layout.container} flex justify-between items-center h-14 md:h-20 lg:h-22`}>
-                    
-                    {/* Logo */}
-                    <Link href="/" className="relative flex items-center h-10 w-32 md:h-12 md:w-44 lg:h-14 lg:w-52 overflow-hidden">
-                        <Image 
-                            src={'/logo.jpg'} 
-                            alt="logo" 
-                            fill 
-                            className="object-contain object-left" 
-                            priority 
-                        />
+            <div className="flex items-center gap-1.5">
+              {headerData.socialLinks.map((social, idx) => (
+                <a
+                  key={idx}
+                  href={social.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-gray-500 hover:text-white hover:bg-white/10 text-[10px] transition-all duration-200 cursor-pointer"
+                >
+                  {getIcon(social.icon)}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════ Main Nav ═══════════ */}
+        <nav
+          className={`w-full bg-white/95 backdrop-blur-xl sticky top-0 z-50 transition-all duration-500 ${
+            scrolled
+              ? 'shadow-[0_4px_30px_rgba(0,0,0,0.06)]'
+              : 'border-b border-gray-100'
+          }`}
+        >
+          <div className={`${layout.container} flex justify-between items-center h-16 md:h-[68px]`}>
+            {/* Logo */}
+            <Link
+              href="/"
+              className="relative flex items-center h-10 w-32 md:h-11 md:w-44 lg:h-12 lg:w-48 overflow-hidden cursor-pointer"
+            >
+              <Image
+                src="/logo.jpg"
+                alt="logo"
+                fill
+                className="object-contain object-left"
+                priority
+              />
+            </Link>
+
+            {/* Desktop Links */}
+            <ul className="hidden lg:flex items-center h-full">
+              {headerData.navLinks.map((link, idx) => {
+                const active = isActive(link.href);
+                return (
+                  <li key={idx} className="relative group h-full flex items-center">
+                    <Link
+                      href={link.href}
+                      className={`relative px-4 h-full flex items-center gap-1 text-[13px] font-bold tracking-wide uppercase transition-all duration-300 cursor-pointer ${
+                        active
+                          ? 'text-rose-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      {link.label}
+                      {link.subMenu && (
+                        <IoMdArrowDropdown className="text-sm text-gray-400 group-hover:text-gray-600 transition-transform group-hover:rotate-180 duration-300" />
+                      )}
+
+                      {/* Active dot */}
+                      {active && (
+                        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-rose-600" />
+                      )}
                     </Link>
 
-                    {/* Desktop Menu */}
-                    <ul className="hidden lg:flex items-center gap-6 xl:gap-8 text-[13px] xl:text-sm font-bold h-full">
-                        {headerData.navLinks.map((link, idx) => {
-                            const active = isActive(link.href);
+                    {/* Dropdown */}
+                    {link.subMenu && (
+                      <div className="absolute top-[85%] left-1/2 -translate-x-1/2 w-52 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:top-full transition-all duration-300 ease-out pt-3 z-50">
+                        <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-100/80 overflow-hidden p-1.5">
+                          {link.subMenu.map((sub, sIdx) => {
+                            const subActive = isActive(sub.href);
                             return (
-                                <li key={idx} className="relative group h-full flex items-center">
-                                    <Link
-                                        href={link.href}
-                                        className={`${active ? 'text-rose-600' : 'text-gray-700'} hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wide`}
-                                    >
-                                        {link.label}
-                                        {link.subMenu && <IoMdArrowDropdown className="text-xl transition-transform group-hover:rotate-180 duration-300" />}
-                                    </Link>                                 
-                                    {/* Desktop Dropdown */}
-                                    {link.subMenu && (
-                                        <div className="absolute top-[90%] left-0 w-60 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:top-full transition-all duration-300 ease-in-out pt-2 z-50">
-                                            <ul className="bg-white shadow-2xl rounded-b-xl border-t-4 border-rose-600 py-2">
-                                                {link.subMenu.map((sub, sIdx) => (
-                                                    <li key={sIdx}>
-                                                        <Link
-                                                            href={sub.href}
-                                                            className={`block px-6 py-3 transition-colors font-medium border-b border-gray-50 last:border-0 ${isActive(sub.href) ? 'text-rose-600 bg-rose-50' : 'text-gray-600 hover:text-rose-600 hover:bg-gray-50'}`}
-                                                        >
-                                                            {sub.label}
-                                                        </Link>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </li>
+                              <Link
+                                key={sIdx}
+                                href={sub.href}
+                                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
+                                  subActive
+                                    ? 'text-rose-600 bg-rose-50'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                }`}
+                              >
+                                <span>{sub.label}</span>
+                                <FaArrowRight
+                                  className={`text-[7px] transition-all duration-200 ${
+                                    subActive
+                                      ? 'text-rose-400'
+                                      : 'text-gray-300 opacity-0 group-hover:opacity-100'
+                                  }`}
+                                />
+                              </Link>
                             );
-                        })}
-                    </ul>
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
 
-                    {/* Right Side Actions */}
-                    <div className="flex items-center gap-2 md:gap-4">
-                        <div className="hidden sm:flex items-center gap-2 md:gap-3">
-                            
-                            {/* 🟢 CONDITIONAL AUTH BUTTONS (Desktop) */}
-                            {loading ? (
-                                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                            ) : user ? (
-                                <div className="flex items-center gap-3">
-                                    <Link href="/admin">
-                                        <Button variant="ghost" className="font-bold cursor-pointer text-gray-700 hover:text-rose-600 hover:bg-rose-50 gap-2">
-                                            <User className="w-4 h-4" />
-                                            <span className="max-w-[100px] truncate">{user.name}</span>
-                                        </Button>
-                                    </Link>
-                                    <Button 
-                                        variant="outline" 
-                                        onClick={handleLogout}
-                                        className="h-9 w-9 p-0 rounded-full cursor-pointer border-gray-200 text-gray-500 hover:text-rose-600 hover:border-rose-200"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                    </Button>
+            {/* Right Side */}
+            <div className="flex items-center gap-2.5">
+              {/* Desktop Auth */}
+              <div className="hidden lg:flex items-center gap-2">
+                {loading ? (
+                  <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                  </div>
+                ) : user ? (
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2.5 pl-1.5 pr-3.5 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 transition-all duration-300 cursor-pointer group"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                        {firstLetter}
+                      </div>
+                      <span className="text-[13px] font-semibold text-gray-700 group-hover:text-gray-900 max-w-[80px] truncate transition-colors">
+                        {user.name}
+                      </span>
+                    </Link>
+
+                    <button
+                      onClick={() => setShowLogoutModal(true)}
+                      className="w-8 h-8 rounded-full bg-gray-50 hover:bg-red-50 border border-gray-100 hover:border-red-200 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all duration-300 cursor-pointer"
+                      title="Logout"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Link href="/access">
+                    <button className="flex items-center gap-2 h-9 px-5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-[12px] font-semibold transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-gray-900/20 hover:-translate-y-px active:scale-[0.98]">
+                      Sign In
+                    </button>
+                  </Link>
+                )}
+              </div>
+
+              {/* Mobile Menu */}
+              <div className="lg:hidden">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button className="w-10 h-10 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95">
+                      <FaBars className="text-gray-600 text-sm" />
+                    </button>
+                  </SheetTrigger>
+
+                  <SheetContent
+                    side="right"
+                    className="bg-white w-[88vw] sm:w-[380px] p-0 flex flex-col h-full border-l-0 z-[110]"
+                  >
+                    <SheetHeader className="px-5 py-4 border-b border-gray-100 bg-white sticky top-0 z-10">
+                      <SheetTitle className="text-left">
+                        <div className="relative h-9 w-28 overflow-hidden">
+                          <Image
+                            src="/logo.jpg"
+                            alt="logo"
+                            fill
+                            className="object-contain object-left"
+                          />
+                        </div>
+                      </SheetTitle>
+                    </SheetHeader>
+
+                    <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+                      {/* Mobile Auth */}
+                      {!loading && (
+                        <div className="mb-5">
+                          {user ? (
+                            <div className="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-100">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white font-bold shadow-lg shadow-rose-500/20">
+                                  {firstLetter}
                                 </div>
-                            ) : (
-                                <Button variant="link" asChild className="font-bold text-gray-700 hover:text-rose-600 hidden md:inline-flex">
-                                    <Link href={'/access'}>Log In</Link>
-                                </Button>
-                            )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                    Welcome back
+                                  </p>
+                                  <p className="text-sm font-bold text-gray-900 truncate">
+                                    {user.name}
+                                  </p>
+                                </div>
+                              </div>
 
-                        </div>
-
-                        {/* Mobile Toggle Button */}
-                        <div className="lg:hidden">
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-gray-200 hover:bg-gray-50">
-                                        <FaBars className="text-lg text-gray-700" />
-                                    </Button>
-                                </SheetTrigger>
-                                
-                                <SheetContent side="right" className="bg-white w-[85vw] sm:w-[380px] p-0 flex flex-col h-full border-l-0 z-[110]">
-                                    <SheetHeader className="p-5 border-b border-gray-50 bg-white sticky top-0 z-10">
-                                        <SheetTitle className="text-left">
-                                            <div className="relative h-10 w-32 overflow-hidden">
-                                                <Image 
-                                                    src={'/logo.jpg'} 
-                                                    alt="logo" 
-                                                    fill 
-                                                    className="object-contain object-left" 
-                                                />
-                                            </div>
-                                        </SheetTitle>
-                                    </SheetHeader>
-
-                                    <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
-                                        <div className="space-y-1">
-                                            {headerData.navLinks.map((link, idx) => (
-                                                <MobileMenuItem key={idx} link={link} subMenu={link.subMenu} isActiveFunc={isActive} />
-                                            ))}
-                                        </div>
-                                        
-                                        <div className="mt-8 space-y-3 px-2">
-                                            {/* 🟢 CONDITIONAL AUTH BUTTONS (Mobile) */}
-                                            {loading ? (
-                                                <div className="flex justify-center py-4">
-                                                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                                                </div>
-                                            ) : user ? (
-                                                <>
-                                                    <div className="p-4 bg-gray-50 rounded-xl mb-4 flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
-                                                            <User className="w-5 h-5" />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-xs text-gray-500 font-medium uppercase">Logged in as</p>
-                                                            <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <Button asChild className="w-full bg-slate-900 hover:bg-black h-12 font-bold">
-                                                        <Link href={'/admin/dashboard'} className="flex items-center gap-2">
-                                                            <LayoutDashboard className="w-4 h-4" />
-                                                            Go to Dashboard
-                                                        </Link>
-                                                    </Button>
-
-                                                    <Button 
-                                                        onClick={handleLogout}
-                                                        variant="outline" 
-                                                        className="w-full h-12 font-bold text-rose-600 border-rose-100 hover:bg-rose-50 flex items-center gap-2"
-                                                    >
-                                                        <LogOut className="w-4 h-4" />
-                                                        Log Out
-                                                    </Button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Button variant="outline" asChild className="w-full h-12 font-bold text-gray-700 border-gray-200">
-                                                        <Link href={'/access'}>Log In</Link>
-                                                    </Button>
-                                                  
-                                                </>
-                                            )}
-                                        </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <Link href="/admin/dashboard" className="col-span-2">
+                                  <button
+                                    className={`w-full h-10 rounded-xl ${btnTheme.primary} text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all`}
+                                  >
+                                    <LayoutDashboard className="w-3.5 h-3.5" />
+                                    Dashboard
+                                  </button>
+                                </Link>
+                                <button
+                                  onClick={() => setShowLogoutModal(true)}
+                                  className="h-10 rounded-xl border border-gray-200 bg-white hover:bg-red-50 hover:border-red-200 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all cursor-pointer active:scale-[0.98]"
+                                >
+                                  <LogOut className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Link href="/access" className="block">
+                              <div className="p-4 rounded-2xl bg-gray-900 hover:bg-gray-800 transition-all group cursor-pointer active:scale-[0.99]">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white">
+                                      <User className="w-4 h-4" />
                                     </div>
-
-                                    <div className="p-6 bg-gray-50/80 border-t border-gray-100">
-                                        <div className="space-y-3">
-                                            <a href={`tel:${headerData.contact.phones[0]}`} className="flex items-center gap-3 text-gray-700 font-semibold group">
-                                                <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
-                                                    <FaPhoneAlt size={14} />
-                                                </div>
-                                                <span className="text-sm">{headerData.contact.phones[0]}</span>
-                                            </a>
-                                            <a href={`mailto:${headerData.contact.email}`} className="flex items-center gap-3 text-gray-700 font-semibold group">
-                                                <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
-                                                    <FaEnvelope size={14} />
-                                                </div>
-                                                <span className="text-sm truncate">{headerData.contact.email}</span>
-                                            </a>
-                                        </div>
+                                    <div>
+                                      <p className="text-sm font-bold text-white">
+                                        Sign In
+                                      </p>
+                                      <p className="text-[11px] text-gray-400">
+                                        Access your account
+                                      </p>
                                     </div>
-                                </SheetContent>
-                            </Sheet>
+                                  </div>
+                                  <FaArrowRight className="text-[10px] text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                                </div>
+                              </div>
+                            </Link>
+                          )}
                         </div>
+                      )}
+
+                      {loading && (
+                        <div className="flex justify-center py-6 mb-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
+                        </div>
+                      )}
+
+                      {/* Menu Label */}
+                      <div className="flex items-center gap-3 mb-3 px-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">
+                          Navigation
+                        </span>
+                        <span className="flex-1 h-px bg-gray-100" />
+                      </div>
+
+                      {/* Nav Items */}
+                      <div className="space-y-0.5">
+                        {headerData.navLinks.map((link, idx) => (
+                          <MobileMenuItem
+                            key={idx}
+                            link={link}
+                            subMenu={link.subMenu}
+                            isActiveFunc={isActive}
+                          />
+                        ))}
+                      </div>
                     </div>
-                </div>
-            </nav>
-        </header>
-    );
+
+                    {/* Footer */}
+                    <div className="p-4 bg-gray-50/60 border-t border-gray-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        {[
+                          {
+                            icon: <FaPhoneAlt className="text-[9px]" />,
+                            href: `tel:${headerData.contact.phones[0]}`,
+                            text: headerData.contact.phones[0],
+                          },
+                          {
+                            icon: <FaEnvelope className="text-[9px]" />,
+                            href: `mailto:${headerData.contact.email}`,
+                            text: headerData.contact.email,
+                          },
+                        ].map((item, i) => (
+                          <a
+                            key={i}
+                            href={item.href}
+                            className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-100 hover:border-gray-200 transition-all cursor-pointer group"
+                          >
+                            <span className="text-rose-500 group-hover:scale-110 transition-transform">
+                              {item.icon}
+                            </span>
+                            <span className="text-[11px] text-gray-600 font-medium truncate">
+                              {item.text}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {headerData.socialLinks.map((social, idx) => (
+                          <a
+                            key={idx}
+                            href={social.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex-1 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-600 hover:border-rose-200 text-[10px] transition-all duration-200 cursor-pointer"
+                          >
+                            {getIcon(social.icon)}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      {/* ═══════════ Logout Confirmation Modal ═══════════ */}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => !loggingOut && setShowLogoutModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-[380px] shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Body */}
+            <div className="p-6 pt-8 text-center">
+              {/* Icon */}
+              <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-5">
+                <Shield className="w-7 h-7 text-red-500" />
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Sign Out?
+              </h3>
+
+              <p className="text-sm text-gray-500 leading-relaxed mb-6 max-w-[280px] mx-auto">
+                You'll need to sign in again to access the admin dashboard and manage bookings.
+              </p>
+
+              {/* Buttons */}
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className={`w-full h-12 rounded-xl font-bold text-sm text-white transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+                    loggingOut
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20 hover:shadow-xl hover:shadow-red-500/25'
+                  }`}
+                >
+                  {loggingOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4" />
+                      Yes, Sign Out
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  disabled={loggingOut}
+                  className="w-full h-12 rounded-xl font-semibold text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 transition-all duration-300 cursor-pointer active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            {/* Footer note */}
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+              <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1.5">
+                <Shield className="w-3 h-3" />
+                Your session data will be cleared securely
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
-// ================= Mobile Helper Component (Unchanged) =================
-
+// ═══════════ Mobile Menu Item ═══════════
 const MobileMenuItem = ({ link, subMenu, isActiveFunc }: any) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const active = isActiveFunc(link.href);
+  const [isOpen, setIsOpen] = useState(false);
+  const active = isActiveFunc(link.href);
 
-    const getLinkIcon = (label: string) => {
-        const l = label.toLowerCase();
-        if (l.includes('home')) return <FaHome />;
-        if (l.includes('flight')) return <FaPlaneDeparture />;
-        if (l.includes('hotel')) return <FaHotel />;
-        if (l.includes('hajj') || l.includes('umrah')) return <FaKaaba />;
-        if (l.includes('about')) return <FaInfoCircle />;
-        if (l.includes('contact')) return <FaHeadset />;
-        return <FaChevronRight className="text-[10px]" />;
-    };
+  const getLinkIcon = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('home')) return <FaHome />;
+    if (l.includes('flight')) return <FaPlaneDeparture />;
+    if (l.includes('hotel')) return <FaHotel />;
+    if (l.includes('hajj') || l.includes('umrah')) return <FaKaaba />;
+    if (l.includes('about')) return <FaInfoCircle />;
+    if (l.includes('contact')) return <FaHeadset />;
+    if (l.includes('booking')) return <MdOutlineAirplaneTicket/>;
+    return <MdAirplaneTicket className="text-[20px]" />;
+  };
 
-    return (
-        <div className="w-full">
-            <div className={`flex items-center justify-between p-2 rounded-xl transition-all duration-200 ${isOpen || active ? 'bg-rose-50/50' : 'hover:bg-gray-50'}`}>
-                <div className="flex items-center gap-3 flex-1">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all ${active || isOpen ? 'bg-rose-600 text-white shadow-md shadow-rose-200' : 'bg-white border border-gray-100 text-gray-400'}`}>
-                        {getLinkIcon(link.label)}
-                    </div>
-                    <Link 
-                        href={link.href} 
-                        className={`text-[15px] font-bold tracking-wide flex-1 ${active || isOpen ? 'text-gray-900' : 'text-gray-600'}`}
-                        onClick={(e) => { if(subMenu) { e.preventDefault(); setIsOpen(!isOpen); } }}
-                    >
-                        {link.label}
-                    </Link>
-                </div>
-                {subMenu && (
-                    <button onClick={() => setIsOpen(!isOpen)} className="p-2">
-                        <IoMdArrowDropdown className={`text-2xl text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-rose-600' : ''}`} />
-                    </button>
-                )}
-            </div>
-
-            {subMenu && (
-                <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[400px] opacity-100 mt-1 mb-2' : 'max-h-0 opacity-0'}`}>
-                    <div className="ml-11 flex flex-col gap-1 border-l-2 border-rose-100">
-                        {subMenu.map((sub: any, idx: number) => (
-                            <Link
-                                key={idx}
-                                href={sub.href}
-                                className={`block py-2.5 px-4 text-[14px] font-medium transition-colors ${isActiveFunc(sub.href) ? 'text-rose-600 font-bold' : 'text-gray-500 hover:text-rose-600'}`}
-                            >
-                                {sub.label}
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            )}
+  return (
+    <div className="w-full">
+      <div
+        className={`flex items-center justify-between px-2.5 py-2 rounded-xl transition-all duration-200 ${
+          isOpen || active ? 'bg-rose-50/50' : 'hover:bg-gray-50'
+        }`}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm transition-all duration-300 ${
+              active || isOpen
+                ? 'bg-gray-900 text-white shadow-md shadow-gray-900/20'
+                : 'bg-gray-100 text-gray-400'
+            }`}
+          >
+            {getLinkIcon(link.label)}
+          </div>
+          <Link
+            href={link.href}
+            className={`text-[14px] font-bold tracking-wide flex-1 transition-colors cursor-pointer ${
+              active || isOpen ? 'text-gray-900' : 'text-gray-600'
+            }`}
+            onClick={(e) => {
+              if (subMenu) {
+                e.preventDefault();
+                setIsOpen(!isOpen);
+              }
+            }}
+          >
+            {link.label}
+          </Link>
         </div>
-    );
+        {subMenu && (
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-all cursor-pointer"
+          >
+            <IoMdArrowDropdown
+              className={`text-lg text-gray-400 transition-transform duration-300 ${
+                isOpen ? 'rotate-180 text-rose-600' : ''
+              }`}
+            />
+          </button>
+        )}
+      </div>
+
+      {subMenu && (
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            isOpen ? 'max-h-[400px] opacity-100 mt-1 mb-1' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="ml-[52px] flex flex-col gap-0.5">
+            {subMenu.map((sub: any, idx: number) => {
+              const subActive = isActiveFunc(sub.href);
+              return (
+                <Link
+                  key={idx}
+                  href={sub.href}
+                  className={`flex items-center justify-between py-2.5 px-3 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
+                    subActive
+                      ? 'text-rose-600 bg-rose-50 font-bold'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{sub.label}</span>
+                  {subActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Navbar;

@@ -194,7 +194,7 @@ export default function RoundTripForm({
   "
 >
   {/* From */}
-  <div className="flex-1 min-w-[160px] relative z-10">
+  <div className="flex-1 min-w-[160px] relative ">
     <AirportInput
       label="From"
       codeValue={formData.origin}
@@ -232,7 +232,7 @@ export default function RoundTripForm({
   </div>
 
   {/* To */}
-  <div className="flex-1 min-w-[160px] relative z-10">
+  <div className="flex-1 min-w-[160px] relative ">
     <AirportInput
       label="To"
       codeValue={formData.destination}
