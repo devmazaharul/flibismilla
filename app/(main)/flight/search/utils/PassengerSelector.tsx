@@ -7,7 +7,6 @@ import {
   Minus,
   Plus,
   Armchair,
-  Info,
 } from 'lucide-react';
 import { MAX_PASSENGERS, MIN_PASSENGERS } from '@/constant/control';
 
@@ -30,9 +29,9 @@ export default function PassengerSelector({ onChange }: Props) {
     children: 0,
     infants: 0,
   });
-  const [cabinClass, setCabinClass] = useState<'economy' | 'business' | 'first'>(
-    'economy',
-  );
+  const [cabinClass, setCabinClass] = useState<
+    'economy' | 'business' | 'first'
+  >('economy');
 
   const MAX_TOTAL_PASSENGERS = MAX_PASSENGERS;
   const LIMITS = { adults: 9, children: 8, infants: 8 };
@@ -65,7 +64,6 @@ export default function PassengerSelector({ onChange }: Props) {
         if (currentTotal >= MAX_TOTAL_PASSENGERS) return prev;
         if (val >= LIMITS[type]) return prev;
         if (type === 'infants' && val >= prev.adults) return prev;
-
         return { ...prev, [type]: val + 1 };
       }
 
@@ -85,183 +83,215 @@ export default function PassengerSelector({ onChange }: Props) {
 
   return (
     <div
-      className={`relative w-full h-full group ${
-        isOpen ? 'z-50' : 'z-0'
-      }`}
+      className={`relative w-full h-full ${isOpen ? 'z-50' : 'z-0'}`}
       ref={dropdownRef}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      {/* Left icon */}
-      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-        <div
-          className={`p-1.5 rounded-lg transition-colors duration-300 ${
-            isOpen
-              ? 'bg-rose-50 text-rose-600'
-              : 'text-slate-500 group-hover:bg-rose-50 group-hover:text-rose-600'
-          }`}
-        >
-          <Users className="w-4 h-4 text-rose-500" />
-        </div>
-      </div>
-
-      {/* Trigger button */}
+      {/* ═══════════ Trigger ═══════════ */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
         className={`
-          flex flex-col justify-center h-[56px] w-full
-          rounded-2xl pl-11 pr-4
+          group
+          flex items-center gap-3
+          h-[56px] w-full
+          rounded-xl px-3.5
           text-left cursor-pointer
-          bg-white/85
-          border
-          transition-all duration-300
-          shadow-sm shadow-slate-100
+          bg-white
+          border transition-all duration-300
           ${
             isOpen
-              ? 'border-rose-500 ring-2 ring-rose-500/20'
-              : 'border-slate-200 hover:border-rose-400 hover:bg-rose-50/40'
+              ? 'border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.04)]'
+              : 'border-gray-200 hover:border-gray-300'
           }
         `}
       >
-        <label
-          className={`text-[10px] font-bold uppercase tracking-widest leading-tight ${
-            isOpen ? 'text-rose-500' : 'text-slate-400'
-          }`}
+        {/* Icon */}
+        <div
+          className={`
+            w-9 h-9 rounded-lg flex items-center justify-center shrink-0
+            transition-all duration-300
+            ${
+              isOpen
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-500'
+            }
+          `}
         >
-          Travelers & Class
-        </label>
-        <div className="flex items-center justify-between w-full">
-          <span className="text-sm font-semibold text-slate-800 truncate">
-            {totalPax} Traveler{totalPax > 1 ? 's' : ''},{' '}
-            <span className="capitalize">{cabinClass}</span>
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${
-              isOpen ? 'rotate-180 text-rose-500' : 'text-slate-400'
-            }`}
-          />
+          <Users className="w-3.5 h-3.5" />
         </div>
+
+        {/* Text */}
+        <div className="flex flex-col justify-center flex-1 min-w-0">
+          <label
+            className={`
+              text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5
+              transition-colors duration-300
+              ${isOpen ? 'text-gray-900' : 'text-gray-400'}
+            `}
+          >
+            Travelers
+          </label>
+          <span className="text-[13px] font-semibold text-gray-900 truncate leading-tight">
+            {totalPax} Guest{totalPax > 1 ? 's' : ''} ·{' '}
+            <span className="capitalize text-gray-500">{cabinClass}</span>
+          </span>
+        </div>
+
+        {/* Chevron */}
+        <ChevronDown
+          className={`w-4 h-4 shrink-0 transition-all duration-300 ${
+            isOpen ? 'rotate-180 text-gray-900' : 'text-gray-300'
+          }`}
+        />
       </button>
 
-      {/* Dropdown */}
+      {/* ═══════════ Dropdown ═══════════ */}
       {isOpen && (
         <div
           className="
-            absolute top-[115%] right-0
+            absolute top-[calc(100%+6px)] right-0
             w-[300px] sm:w-[320px]
-            rounded-3xl
-            border border-slate-100/80
-            bg-gradient-to-b from-white/95 via-white to-slate-50/90
-            shadow-[0_22px_60px_rgba(15,23,42,0.18)]
-            p-5
-            animate-in fade-in zoom-in-95 duration-200
-            backdrop-blur-xl
+            rounded-2xl
+            bg-white
+            shadow-[0_20px_60px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.04)]
+            overflow-hidden
+            animate-in fade-in slide-in-from-top-1 duration-200
             cursor-default
           "
         >
-          {/* Header / Summary */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                Travelers
-              </p>
-              <p className="text-sm font-semibold text-slate-900">
-                {totalPax} guest{totalPax > 1 ? 's' : ''} ·{' '}
-                <span className="capitalize">{cabinClass}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-900 text-[10px] font-medium text-white/90 shadow-sm">
-              <Info className="w-3.5 h-3.5" />
-              <span>
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.16em]">
+                  Passengers
+                </p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  {totalPax} traveler{totalPax > 1 ? 's' : ''} selected
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg">
                 Max {MAX_TOTAL_PASSENGERS}
               </span>
             </div>
+
+            {/* Progress bar */}
+            <div className="mt-3 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: `${(totalPax / MAX_TOTAL_PASSENGERS) * 100}%`,
+                  backgroundColor:
+                    totalPax >= MAX_TOTAL_PASSENGERS ? '#ef4444' : '#111827',
+                }}
+              />
+            </div>
           </div>
 
-          {/* Passenger counters */}
-          <div className="space-y-4">
+          {/* Counters */}
+          <div className="p-5 space-y-1">
             {[
-              { id: 'adults', label: 'Adults', sub: '12+ years' },
-              { id: 'children', label: 'Children', sub: '2–11 years' },
-              { id: 'infants', label: 'Infants', sub: 'Under 2 years' },
+              {
+                id: 'adults',
+                label: 'Adults',
+                sub: '12+ years',
+                emoji: '🧑',
+              },
+              {
+                id: 'children',
+                label: 'Children',
+                sub: '2–11 years',
+                emoji: '👦',
+              },
+              {
+                id: 'infants',
+                label: 'Infants',
+                sub: 'Under 2',
+                emoji: '👶',
+              },
             ].map((item) => {
               const key = item.id as keyof PassengerCounts;
               const value = counts[key];
 
               const minusDisabled =
                 (item.id === 'adults' &&
-                  (counts.adults <= 1 || counts.adults <= counts.infants)) ||
+                  (counts.adults <= 1 ||
+                    counts.adults <= counts.infants)) ||
                 value <= 0;
 
               const plusDisabled =
                 totalPax >= MAX_TOTAL_PASSENGERS ||
                 value >= LIMITS[key] ||
-                (item.id === 'infants' && counts.infants >= counts.adults);
+                (item.id === 'infants' &&
+                  counts.infants >= counts.adults);
 
               return (
                 <div
                   key={item.id}
-                  className="flex justify-between items-center"
+                  className="flex items-center justify-between py-3 group/row"
                 >
-                  <div>
-                    <p className="font-semibold text-sm text-slate-900">
-                      {item.label}
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-400">
-                      {item.sub}
-                    </p>
+                  {/* Left: info */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover/row:bg-gray-200 flex items-center justify-center text-sm transition-colors duration-200">
+                      {item.emoji}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-gray-900">
+                        {item.label}
+                      </p>
+                      <p className="text-[10px] font-medium text-gray-400">
+                        {item.sub}
+                      </p>
+                    </div>
                   </div>
-                  <div
-                    className="
-                      flex items-center gap-3
-                      bg-slate-50/90
-                      rounded-xl
-                      px-2 py-1.5
-                      border border-slate-100
-                    "
-                  >
-                    {/* Minus */}
+
+                  {/* Right: counter */}
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => updateCount(key, 'sub')}
                       disabled={minusDisabled}
                       className="
-                        w-8 h-8 rounded-xl
-                        bg-white
-                        border border-slate-200
+                        w-8 h-8 rounded-lg
+                        bg-white border border-gray-200
                         flex items-center justify-center
-                        text-slate-600
-                        hover:text-rose-600 hover:border-rose-200
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        shadow-sm
-                        transition-all active:scale-95
+                        text-gray-500
+                        hover:border-gray-300 hover:text-gray-900
+                        disabled:opacity-30 disabled:cursor-not-allowed
+                        transition-all duration-200
+                        cursor-pointer active:scale-90
                       "
                     >
-                      <Minus className="w-3.5 h-3.5" />
+                      <Minus className="w-3 h-3" />
                     </button>
 
-                    <span className="font-black text-slate-900 w-5 text-center text-sm">
+                    <span
+                      className={`
+                        w-8 text-center text-sm font-bold
+                        ${value > 0 ? 'text-gray-900' : 'text-gray-300'}
+                      `}
+                    >
                       {value}
                     </span>
 
-                    {/* Plus */}
                     <button
                       type="button"
                       onClick={() => updateCount(key, 'add')}
                       disabled={plusDisabled}
                       className="
-                        w-8 h-8 rounded-xl
-                        bg-slate-900
-                        text-white
+                        w-8 h-8 rounded-lg
+                        bg-gray-900 text-white
                         flex items-center justify-center
-                        hover:bg-rose-600
-                        disabled:bg-slate-300 disabled:cursor-not-allowed
-                        shadow-sm shadow-slate-500/30
-                        transition-all active:scale-95
+                        hover:bg-gray-800
+                        disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed
+                        transition-all duration-200
+                        cursor-pointer active:scale-90
+                        shadow-sm
                       "
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -269,32 +299,29 @@ export default function PassengerSelector({ onChange }: Props) {
             })}
           </div>
 
-          {/* Divider */}
-          <div className="my-5 border-t border-dashed border-slate-200" />
-
-          {/* Cabin class */}
-          <div>
+          {/* Cabin Class */}
+          <div className="px-5 pb-5">
             <div className="flex items-center gap-2 mb-3">
-              <Armchair className="w-4 h-4 text-slate-400" />
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.18em]">
+              <Armchair className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.16em]">
                 Cabin Class
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+
+            <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-gray-100 rounded-xl">
               {(['economy', 'business', 'first'] as const).map((cls) => (
                 <button
                   key={cls}
                   type="button"
                   onClick={() => setCabinClass(cls)}
                   className={`
-                    py-2.5 rounded-xl text-[10px] font-bold uppercase
-                    border
-                    transition-all
+                    py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide
+                    transition-all duration-300
                     cursor-pointer
                     ${
                       cabinClass === cls
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-300/60'
-                        : 'bg-white/90 border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-600'
+                        ? 'bg-gray-900 text-white shadow-md'
+                        : 'bg-transparent text-gray-500 hover:text-gray-900 hover:bg-white'
                     }
                   `}
                 >
@@ -305,22 +332,26 @@ export default function PassengerSelector({ onChange }: Props) {
           </div>
 
           {/* Footer */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="
-              w-full mt-6
-              bg-gradient-to-r from-rose-600 to-rose-500
-              hover:from-rose-700 hover:to-rose-600
-              text-white font-semibold
-              py-3 rounded-2xl text-sm
-              shadow-lg shadow-rose-200
-              transition-all active:scale-95
-              cursor-pointer
-            "
-          >
-            Done
-          </button>
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="
+                w-full h-11
+                bg-gray-900 hover:bg-gray-800
+                text-white font-bold text-sm
+                rounded-xl
+                flex items-center justify-center
+                transition-all duration-300
+                shadow-lg shadow-gray-900/10
+                hover:shadow-xl hover:shadow-gray-900/15
+                active:scale-[0.98]
+                cursor-pointer
+              "
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
     </div>

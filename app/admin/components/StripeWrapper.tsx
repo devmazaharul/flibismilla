@@ -24,6 +24,7 @@ type CardInfo = {
 type CheckoutFormProps = {
   amount: number; // শুধু UI তে দেখানোর জন্য
   bookingId: string;
+  bookRef: string;
   cardInfo?: CardInfo; // client card info (optional)
   onSuccess?: () => void;
 };
@@ -32,6 +33,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   amount,
   bookingId,
   cardInfo,
+  bookRef,
   onSuccess,
 }) => {
   const stripe = useStripe();
@@ -168,8 +170,8 @@ const handleSubmit = async (event: React.FormEvent) => {
             </div>
             <div className="mt-1 text-[11px] text-slate-400">
               Booking ID:{" "}
-              <span className="font-mono text-[11px] text-slate-600">
-                {bookingId}
+              <span className="font-semibold text-[11px] text-slate-600">
+                {bookRef}
               </span>
             </div>
           </div>
@@ -292,6 +294,7 @@ const handleSubmit = async (event: React.FormEvent) => {
 type StripeWrapperProps = {
   amount: number;
   bookingId: string;
+  bookRef: string;
   cardInfo?: CardInfo;
   onSuccess?: () => void;
 };
@@ -299,6 +302,7 @@ type StripeWrapperProps = {
 export default function StripeWrapper({
   amount,
   bookingId,
+  bookRef,
   cardInfo,
   onSuccess,
 }: StripeWrapperProps) {
@@ -306,6 +310,7 @@ export default function StripeWrapper({
     <Elements stripe={stripePromise}>
       <CheckoutForm
         amount={amount}
+        bookRef={bookRef}
         bookingId={bookingId}
         cardInfo={cardInfo}
         onSuccess={onSuccess}

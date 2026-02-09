@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Plane, Repeat } from "lucide-react";
-import { FaLayerGroup } from "react-icons/fa";
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plane, Repeat } from 'lucide-react';
+import { FaLayerGroup } from 'react-icons/fa';
 
-import OneWayForm from "../utils/OneWayForm";
-import RoundTripForm from "../utils/RoundTripForm";
-import MultiCityForm from "../utils/MultiCityForm";
+import OneWayForm from '../utils/OneWayForm';
+import RoundTripForm from '../utils/RoundTripForm';
+import MultiCityForm from '../utils/MultiCityForm';
 
-type TabId = "one_way" | "round_trip" | "multi_city";
+type TabId = 'one_way' | 'round_trip' | 'multi_city';
 
 type Tab = {
   id: TabId;
@@ -20,38 +20,36 @@ type Tab = {
 
 const TABS: Tab[] = [
   {
-    id: "round_trip",
+    id: 'round_trip',
     icon: Repeat,
-    label: "Round Trip",
-    subtitle: "Go and return on selected dates",
+    label: 'Round Trip',
+    subtitle: 'Go and return on selected dates',
   },
   {
-    id: "one_way",
+    id: 'one_way',
     icon: Plane,
-    label: "One Way",
-    subtitle: "Single journey to your destination",
+    label: 'One Way',
+    subtitle: 'Single journey to your destination',
   },
   {
-    id: "multi_city",
+    id: 'multi_city',
     icon: FaLayerGroup,
-    label: "Multi City",
-    subtitle: "Visit multiple cities in one itinerary",
+    label: 'Multi City',
+    subtitle: 'Visit multiple cities in one itinerary',
   },
 ];
 
 export default function FlightSearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabId>("round_trip");
+  const [activeTab, setActiveTab] = useState<TabId>('round_trip');
 
-  // URL থেকে tab sync
   useEffect(() => {
-    const typeParam = searchParams.get("type");
-
+    const typeParam = searchParams.get('type');
     if (
-      typeParam === "one_way" ||
-      typeParam === "round_trip" ||
-      typeParam === "multi_city"
+      typeParam === 'one_way' ||
+      typeParam === 'round_trip' ||
+      typeParam === 'multi_city'
     ) {
       setActiveTab(typeParam);
     }
@@ -59,155 +57,159 @@ export default function FlightSearchForm() {
 
   const activeMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
-  // Tab change করলে শুধু type সেট করব, trigger মুছে দেব
   const handleTabChange = (tabId: TabId) => {
     setActiveTab(tabId);
-
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("type", tabId);
-    nextParams.delete("trigger");
-
+    nextParams.set('type', tabId);
+    nextParams.delete('trigger');
     router.replace(`?${nextParams.toString()}`, { scroll: false });
   };
 
-  // Search বাটনে ক্লিক করলে trigger=1 সহ push করব
   const handleSearchPush = (params: URLSearchParams) => {
-    params.set("trigger", "1");
+    params.set('trigger', '1');
     router.push(`/flight/search?${params.toString()}`, { scroll: false });
   };
 
   return (
-    <div
-      className="
-        w-full
-        rounded-3xl
-        relative z-20
-      "
-    >
-      {/* Top: Header + Big Tabs */}
-      <div className="px-4 md:px-6 pt-4 pb-3 bg-white rounded-t-3xl border-b border-slate-100">
-        <div className="flex flex-col gap-4">
-          {/* Small label row */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 shadow-sm shadow-rose-100/80">
-                <Plane className="w-5 h-5 -rotate-45" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-500">
-                  Flights
-                </p>
-                <p className="text-xs md:text-sm font-semibold text-slate-900">
-                  Choose your trip type
-                </p>
-              </div>
+    <div className="w-full rounded-3xl relative z-20   shadow-xl shadow-gray-200/40 border border-gray-100/80">
+      {/* ═══════════ Header ═══════════ */}
+      <div className="bg-white rounded-3xl px-5 md:px-7 pt-5 pb-4">
+        {/* Top row */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center shadow-sm">
+              <Plane className="w-4 h-4 text-white -rotate-45" />
             </div>
-
-            <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-slate-50 text-[10px] font-medium shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Live availability
+            <div>
+              <h3 className="text-sm md:text-[15px] font-bold text-gray-900 leading-tight">
+                Search Flights
+              </h3>
+              <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                Find the best deals worldwide
+              </p>
             </div>
           </div>
 
-          {/* Big pill tabs */}
-          <div className="w-full bg-slate-50 rounded-2xl border border-slate-100 p-1.5 shadow-sm shadow-slate-100">
-            <div
-              className="grid grid-cols-3 gap-1.5"
-              role="tablist"
-              aria-label="Flight type"
-            >
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
+          <div className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-semibold text-emerald-700">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            Live Prices
+          </div>
+        </div>
 
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => handleTabChange(tab.id)}
-                    role="tab"
-                    aria-selected={isActive}
+        {/* ═══════════ Tabs ═══════════ */}
+        <div
+          className="grid grid-cols-3 gap-2 p-1.5 bg-gray-50 rounded-2xl border border-gray-100"
+          role="tablist"
+          aria-label="Flight type"
+        >
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                role="tab"
+                aria-selected={isActive}
+                className={`
+                  relative flex items-center gap-2.5
+                  px-3 md:px-4 py-3 md:py-3.5
+                  rounded-xl
+                  text-left
+                  transition-all duration-300 ease-out
+                  cursor-pointer
+                  ${
+                    isActive
+                      ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20'
+                      : ' bg-gray-100 text-gray-600 hover:bg-white hover:shadow-sm'
+                  }
+                `}
+              >
+                {/* Icon */}
+                <div
+                  className={`
+                    w-8 h-8 rounded-lg flex items-center justify-center shrink-0
+                    transition-all duration-300
+                    ${
+                      isActive
+                        ? 'bg-white/15'
+                        : 'bg-gray-100 group-hover:bg-gray-200'
+                    }
+                  `}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 ${
+                      isActive ? 'text-white' : 'text-gray-500'
+                    }`}
+                  />
+                </div>
+
+                {/* Text */}
+                <div className="flex flex-col min-w-0">
+                  <span
                     className={`
-                      relative
-                      flex items-center justify-start gap-3
-                      px-4 md:px-5
-                      h-12 md:h-14
-                      rounded-2xl
-                      text-left
-                      transition-all duration-200 ease-out
-                      cursor-pointer
-                      border
-                      ${
-                        isActive
-                          ? "bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-300/70 scale-[1.02]"
-                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                      }
+                      text-[11px] md:text-xs font-bold tracking-wide
+                      ${isActive ? 'text-white' : 'text-gray-800'}
                     `}
                   >
-                    <div
-                      className={`
-                        inline-flex items-center justify-center
-                        w-8 h-8 rounded-full
-                        text-sm
-                        ${
-                          isActive
-                            ? "bg-white/15 text-white"
-                            : "bg-rose-50 text-rose-600"
-                        }
-                      `}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span
-                        className={`
-                          text-[11px] md:text-xs font-bold uppercase tracking-[0.16em]
-                          ${isActive ? "text-white" : "text-slate-700"}
-                        `}
-                      >
-                        {tab.label}
-                      </span>
-                      <span
-                        className={`
-                          text-[10px] md:text-[11px] font-medium truncate
-                          ${
-                            isActive ? "text-rose-50/90" : "text-slate-400"
-                          }
-                        `}
-                      >
-                        {tab.subtitle}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    {tab.label}
+                  </span>
+                  <span
+                    className={`
+                      text-[9px] md:text-[10px] font-medium truncate hidden sm:block
+                      ${isActive ? 'text-gray-300' : 'text-gray-400'}
+                    `}
+                  >
+                    {tab.subtitle}
+                  </span>
+                </div>
 
-          {/* Active tab subtitle নিচে */}
-          <p className="text-[11px] md:text-xs text-slate-500 font-medium px-1">
+                {/* Active dot indicator */}
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full bg-rose-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active subtitle (mobile) */}
+        <div className="mt-3 flex items-center gap-2 px-1 sm:hidden">
+          <span className="w-1 h-1 rounded-full bg-rose-500" />
+          <p className="text-[11px] text-gray-500 font-medium">
             {activeMeta.subtitle}
           </p>
         </div>
       </div>
 
-      {/* Forms */}
-      <div className="bg-white rounded-b-3xl min-h-[150px]">
-        <div className="animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300">
-          {activeTab === "one_way" && (
-            <div className="transition-opacity duration-300 relative z-30">
+      {/* ═══════════ Divider ═══════════ */}
+      <div className="h-px bg-gray-100" />
+
+      {/* ═══════════ Form Area ═══════════ */}
+      <div className="bg-white rounded-b-3xl">
+        <div
+          key={activeTab}
+          className="animate-in fade-in duration-300"
+        >
+          {activeTab === 'one_way' && (
+            <div className="relative z-30">
               <OneWayForm onSearch={handleSearchPush} />
             </div>
           )}
 
-          {activeTab === "round_trip" && (
-            <div className="transition-opacity duration-300 relative z-30">
+          {activeTab === 'round_trip' && (
+            <div className="relative z-30">
               <RoundTripForm onSearch={handleSearchPush} />
             </div>
           )}
 
-          {activeTab === "multi_city" && (
-            <div className="transition-opacity duration-300 relative z-30">
+          {activeTab === 'multi_city' && (
+            <div className="relative z-30">
               <MultiCityForm onSearch={handleSearchPush} />
             </div>
           )}

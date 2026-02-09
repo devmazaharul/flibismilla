@@ -7,14 +7,13 @@ import {
   MapPin,
   Calendar,
   Plane,
-  ArrowRightLeft,
+  ArrowLeftRight,
   AlertCircle,
 } from 'lucide-react';
 import PassengerSelector from './PassengerSelector';
 import { z } from 'zod';
 import { AirportInput } from './AirportInput';
 
-// Schema Definition
 const roundTripSchema = z
   .object({
     origin: z.string().min(1, 'Origin is required'),
@@ -32,7 +31,7 @@ const roundTripSchema = z
     if (data.origin === data.destination) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Origin and Destination cannot be the same',
+        message: 'Origin and destination cannot be the same',
         path: ['destination'],
       });
     }
@@ -73,7 +72,6 @@ export default function RoundTripForm({
     cabinClass: 'economy',
   });
 
-  // Populate from URL
   useEffect(() => {
     const originParam = searchParams.get('origin');
     const destParam = searchParams.get('dest');
@@ -145,271 +143,189 @@ export default function RoundTripForm({
     onSearch(params);
   };
 
+  const hasErrors = Object.values(errors).some((e) => e);
+
+  // Reusable date field
+  const DateField = ({
+    label,
+    value,
+    min,
+    error,
+    onChange,
+  }: {
+    label: string;
+    value: string;
+    min: string;
+    error?: string;
+    onChange: (val: string) => void;
+  }) => (
+    <div className="flex-1 lg:min-w-0">
+      <div
+        className={`
+          group relative
+          h-[56px] w-full
+          bg-white rounded-xl
+          border transition-all duration-300
+          flex items-center gap-3
+          px-3.5
+          cursor-pointer
+          ${
+            error
+              ? 'border-red-300 bg-red-50/30'
+              : 'border-gray-200 hover:border-gray-300 focus-within:border-gray-900 focus-within:shadow-[0_0_0_3px_rgba(0,0,0,0.04)]'
+          }
+        `}
+      >
+        <div
+          className={`
+            w-9 h-9 rounded-lg flex items-center justify-center shrink-0
+            transition-all duration-300
+            ${
+              error
+                ? 'bg-red-100 text-red-500'
+                : 'bg-gray-100 text-gray-400 group-focus-within:bg-gray-900 group-focus-within:text-white'
+            }
+          `}
+        >
+          <Calendar className="w-3.5 h-3.5" />
+        </div>
+
+        <div className="flex flex-col justify-center flex-1 min-w-0">
+          <label
+            className={`
+              text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5
+              transition-colors duration-300
+              ${
+                error
+                  ? 'text-red-400'
+                  : 'text-gray-400 group-focus-within:text-gray-900'
+              }
+            `}
+          >
+            {label}
+          </label>
+          <input
+            type="date"
+            min={min}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="
+              w-full bg-transparent border-none outline-none p-0
+              text-[13px] font-semibold text-gray-900
+              uppercase cursor-pointer leading-tight
+            "
+          />
+        </div>
+
+        {value && !error && (
+          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="
-        w-full relative z-20
-        rounded-3xl
-        bg-gradient-to-br from-white/90 via-white to-rose-50/70
-        border border-slate-100/80
-        shadow-[0_24px_60px_rgba(15,23,42,0.08)]
-        p-4 md:p-5 lg:p-6
-        backdrop-blur-md
-      "
+      className="w-full relative z-20 bg-white p-4 md:p-5 rounded-b-3xl"
     >
-      {/* Header */}
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 shadow-sm shadow-rose-100/70">
-            <ArrowRightLeft className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-              Round Trip
-            </p>
-            <p className="text-sm md:text-base font-semibold text-slate-800">
-              Plan your perfect return journey.
-            </p>
-          </div>
+      {/* ═══════════ Single row on desktop ═══════════ */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-0">
+        {/* ── From ── */}
+        <div className="flex-[1.2] lg:min-w-0">
+          <AirportInput
+            label="From"
+            codeValue={formData.origin}
+            onSelect={(code: string) => {
+              setFormData((prev) => ({ ...prev, origin: code }));
+              setErrors((prev) => ({ ...prev, origin: '' }));
+            }}
+            placeholder="City or airport"
+            icon={<MapPin className="w-3.5 h-3.5" />}
+            disabledCodes={[formData.destination]}
+            hasError={!!errors.origin}
+          />
         </div>
 
-        <div className="hidden md:flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-white/70 border border-slate-200 rounded-full px-3 py-1 shadow-2xl shadow-gray-100">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Flexible dates · Best return fares
-        </div>
-      </div>
-
-      {/* Fields row */}
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-   {/* Locations block (From + To) */}
-<div
-  className="
-    relative
-    w-full
-   
- 
-    flex flex-col md:flex-row
-    gap-3
-  "
->
-  {/* From */}
-  <div className="flex-1 min-w-[160px] relative ">
-    <AirportInput
-      label="From"
-      codeValue={formData.origin}
-      onSelect={(code: string) => {
-        setFormData((prev) => ({ ...prev, origin: code }));
-        setErrors((prev) => ({ ...prev, origin: '' }));
-      }}
-      placeholder="Origin"
-      icon={<MapPin className="w-4 h-4 text-rose-500" />}
-      disabledCodes={[formData.destination]}
-      hasError={!!errors.origin}
-    />
-  </div>
-
-  {/* Mobile swap button: মাঝে, দুই ফিল্ডের মধ্যে */}
-  <div className="flex justify-center md:hidden">
-    <button
-      type="button"
-      onClick={handleSwap}
-      className="
-        mt-1 mb-1
-        inline-flex cursor-pointer items-center justify-center
-        w-9 h-9
-        rounded-full
-        bg-white
-        border border-slate-200
-        text-slate-500
-        hover:text-rose-600 hover:border-rose-500
-        shadow-md shadow-slate-200/80
-        transition-all
-      "
-    >
-      <ArrowRightLeft className="w-4 h-4 cursor-pointer" />
-    </button>
-  </div>
-
-  {/* To */}
-  <div className="flex-1 min-w-[160px] relative ">
-    <AirportInput
-      label="To"
-      codeValue={formData.destination}
-      onSelect={(code: string) => {
-        setFormData((prev) => ({ ...prev, destination: code }));
-        setErrors((prev) => ({ ...prev, destination: '' }));
-      }}
-      placeholder="Destination"
-      icon={<Plane className="w-4 h-4 rotate-90 text-rose-500" />}
-      disabledCodes={[formData.origin]}
-      hasError={!!errors.destination}
-    />
-  </div>
-
-  {/* Desktop swap button: দুই ফিল্ডের উপর, একদম মাঝখানে */}
-  <button
-    type="button"
-    onClick={handleSwap}
-    className="
-      hidden md:flex
-      absolute -top-4 cursor-pointer left-1/2 -translate-x-1/2
-      z-20
-   items-center justify-center
-      w-9 h-9
-      rounded-full
-      bg-white
-      border border-slate-200
-      text-slate-500
-      hover:text-rose-600 hover:border-rose-500
-      shadow-md shadow-slate-200/80
-      transition-all
-      hover:-translate-y-0.5
-    "
-  >
-    <ArrowRightLeft className="w-4 h-4" />
-  </button>
-
-
-</div>
-
-        {/* Departure Date */}
-        <div
-          className={`
-            w-full md:basis-[14%]
-            group relative
-            h-[56px]
-            bg-white/80
-            border rounded-2xl
-            px-4 flex flex-col justify-center
-            transition-all
-            shadow-sm shadow-slate-100/80
-            ${
-              errors.departureDate
-                ? 'border-red-400 ring-1 ring-red-400/30 bg-red-50/80'
-                : 'border-slate-200 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'
-            }
-          `}
-        >
-          <div
-            className={`
-              absolute left-3 top-1/2 -translate-y-1/2
-              p-1.5 rounded-lg
-              transition-colors
-              ${
-                errors.departureDate
-                  ? 'bg-red-100 text-red-500'
-                  : 'bg-slate-50 text-rose-500 group-focus-within:bg-rose-50 group-focus-within:text-rose-600'
-              }
-            `}
+        {/* ── Swap ── */}
+        <div className="flex items-center justify-center lg:mx-[-6px] z-10 -my-1 lg:my-0">
+          <button
+            type="button"
+            onClick={handleSwap}
+            className="
+              w-7 h-7 lg:w-8 lg:h-8 rounded-full
+              bg-white border border-gray-200
+              text-gray-400
+              hover:text-gray-900 hover:border-gray-300
+              lg:hover:bg-gray-900 lg:hover:text-white lg:hover:border-gray-900
+              flex items-center justify-center
+              shadow-sm transition-all duration-300
+              cursor-pointer active:scale-90
+              lg:hover:-translate-y-px
+            "
+            title="Swap"
           >
-            <Calendar className="w-4 h-4" />
-          </div>
-          <div className="ml-10 flex flex-col">
-            <label
-              className={`
-                text-[10px] font-bold uppercase tracking-widest leading-tight
-                ${errors.departureDate ? 'text-red-400' : 'text-slate-400'}
-              `}
-            >
-              Departure
-            </label>
-            <input
-              type="date"
-              min={today}
-              value={formData.departureDate}
-              onChange={(e) => {
-                setFormData({ ...formData, departureDate: e.target.value });
-                setErrors((prev) => ({ ...prev, departureDate: '' }));
-              }}
-              className="
-                w-full bg-transparent border-none outline-none p-0
-                text-sm font-semibold text-slate-800
-                uppercase cursor-pointer leading-tight
-              "
-            />
-          </div>
-          {errors.departureDate && (
-            <p className="absolute -bottom-4 left-3 text-[11px] text-red-500 font-medium">
-              {errors.departureDate}
-            </p>
-          )}
+            <ArrowLeftRight className="w-3 h-3" />
+          </button>
         </div>
 
-        {/* Return Date */}
-        <div
-          className={`
-            w-full md:basis-[14%]
-            group relative
-            h-[56px]
-            bg-white/80
-            border rounded-2xl
-            px-4 flex flex-col justify-center
-            transition-all
-            shadow-sm shadow-slate-100/80
-            ${
-              errors.returnDate
-                ? 'border-red-400 ring-1 ring-red-400/30 bg-red-50/80'
-                : 'border-slate-200 hover:border-rose-400 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500'
-            }
-          `}
-        >
-          <div
-            className={`
-              absolute left-3 top-1/2 -translate-y-1/2
-              p-1.5 rounded-lg
-              transition-colors
-              ${
-                errors.returnDate
-                  ? 'bg-red-100 text-red-500'
-                  : 'bg-slate-50 text-rose-500 group-focus-within:bg-rose-50 group-focus-within:text-rose-600'
-              }
-            `}
-          >
-            <Calendar className="w-4 h-4" />
-          </div>
-          <div className="ml-10 flex flex-col">
-            <label
-              className={`
-                text-[10px] font-bold uppercase tracking-widest leading-tight
-                ${errors.returnDate ? 'text-red-400' : 'text-slate-400'}
-              `}
-            >
-              Return
-            </label>
-            <input
-              type="date"
-              min={formData.departureDate || today}
-              value={formData.returnDate}
-              onChange={(e) => {
-                setFormData({ ...formData, returnDate: e.target.value });
-                setErrors((prev) => ({ ...prev, returnDate: '' }));
-              }}
-              className="
-                w-full bg-transparent border-none outline-none p-0
-                text-sm font-semibold text-slate-800
-                uppercase cursor-pointer leading-tight
-              "
-            />
-          </div>
-          {errors.returnDate && (
-            <p className="absolute -bottom-4 left-3 text-[11px] text-red-500 font-medium">
-              {errors.returnDate}
-            </p>
-          )}
+        {/* ── To ── */}
+        <div className="flex-[1.2] lg:min-w-0">
+          <AirportInput
+            label="To"
+            codeValue={formData.destination}
+            onSelect={(code: string) => {
+              setFormData((prev) => ({ ...prev, destination: code }));
+              setErrors((prev) => ({ ...prev, destination: '' }));
+            }}
+            placeholder="City or airport"
+            icon={<Plane className="w-3.5 h-3.5" />}
+            disabledCodes={[formData.origin]}
+            hasError={!!errors.destination}
+          />
         </div>
 
-        {/* Travelers */}
-        <div className="w-full md:basis-[14%] relative">
+        {/* ── Divider ── */}
+        <div className="hidden lg:block w-px h-8 bg-gray-200 mx-3 shrink-0" />
+
+        {/* ── Departure ── */}
+        <DateField
+          label="Departure"
+          value={formData.departureDate}
+          min={today}
+          error={errors.departureDate}
+          onChange={(val) => {
+            setFormData((prev) => ({ ...prev, departureDate: val }));
+            setErrors((prev) => ({ ...prev, departureDate: '' }));
+          }}
+        />
+
+        {/* ── Return ── */}
+        <div className="hidden lg:block w-2 shrink-0" />
+
+        <DateField
+          label="Return"
+          value={formData.returnDate}
+          min={formData.departureDate || today}
+          error={errors.returnDate}
+          onChange={(val) => {
+            setFormData((prev) => ({ ...prev, returnDate: val }));
+            setErrors((prev) => ({ ...prev, returnDate: '' }));
+          }}
+        />
+
+        {/* ── Divider ── */}
+        <div className="hidden lg:block w-px h-8 bg-gray-200 mx-3 shrink-0" />
+
+        {/* ── Passengers ── */}
+        <div className="flex-1 lg:min-w-0">
           <div
             className="
-              h-[56px]
-              bg-white/80
-              border border-slate-200
-              rounded-2xl
-              hover:border-rose-400
-              transition-all
-              shadow-sm shadow-slate-100/80
+              h-[56px] w-full
+              bg-white rounded-xl
+              border border-gray-200
+              hover:border-gray-300
+              transition-all duration-300
               flex items-stretch
             "
           >
@@ -417,49 +333,47 @@ export default function RoundTripForm({
           </div>
         </div>
 
-        {/* Search Button */}
-        <button
-          type="submit"
-          className="
-            w-full md:basis-[14%] h-[56px]
-            bg-gradient-to-r from-rose-600 to-rose-500
-            hover:from-rose-700 hover:to-rose-600
-            text-white font-semibold
-            rounded-2xl
-            flex items-center justify-center gap-2
-            transition-all
-            shadow-lg shadow-rose-200/80
-            active:scale-95
-            cursor-pointer
-          "
-        >
-          <Search className="w-5 h-5" />
-         
-        </button>
+        {/* ── Divider ── */}
+        <div className="hidden lg:block w-3 shrink-0" />
+
+        {/* ── Search ── */}
+        <div className="lg:shrink-0">
+          <button
+            type="submit"
+            className="
+              w-full lg:w-auto h-[56px]
+              bg-rose-600 hover:bg-rose-700
+              text-white font-bold text-sm
+              rounded-xl
+              px-6
+              flex items-center justify-center gap-2
+              transition-all duration-300
+              shadow-lg shadow-gray-900/10
+              hover:shadow-xl hover:shadow-gray-900/15
+              hover:-translate-y-px
+              active:scale-[0.98]
+              cursor-pointer
+            "
+          >
+            <Search className="w-4 h-4" />
+            <span className="lg:hidden xl:inline">Search</span>
+          </button>
+        </div>
       </div>
 
-      {/* Global Error */}
-      {Object.keys(errors).length > 0 && (
-        <div
-          className="
-            mt-4
-            inline-flex items-center gap-2
-            px-3 py-2
-            rounded-full
-            bg-red-50/95
-            border border-red-200/90
-            text-[11px] md:text-xs font-semibold text-red-700
-            shadow-sm shadow-red-100
-          "
-        >
-          <AlertCircle className="w-4 h-4" />
-          <span>
+      {/* ═══════════ Error ═══════════ */}
+      {hasErrors && (
+        <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-3 h-3 text-red-500" />
+          </div>
+          <p className="text-[11px] font-semibold text-red-600">
             {errors.origin ||
               errors.destination ||
               errors.departureDate ||
               errors.returnDate ||
-              'Please check all fields.'}
-          </span>
+              'Please fill all required fields.'}
+          </p>
         </div>
       )}
     </form>

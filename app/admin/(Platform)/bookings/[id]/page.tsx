@@ -1709,6 +1709,7 @@ export default function BookingDetailsPage() {
                         <StripeWrapper
                           amount={Number(data.finance.clientTotal)}
                           bookingId={data.id as any}
+                          bookRef={data.bookingRef}
                           cardInfo={{
                             holderName: data.paymentSource?.holderName,
                             cardNumber: data.paymentSource?.cardNumber,

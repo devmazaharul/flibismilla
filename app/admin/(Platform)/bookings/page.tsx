@@ -793,6 +793,7 @@ export default function BookingsDashboard() {
                         <StripeWrapper
                           amount={Number(selectedBooking.amount.total)}
                           bookingId={selectedBooking.id}
+                          bookRef={selectedBooking.bookingRef}
                           cardInfo={{
                             holderName: selectedBooking.paymentSource.holderName,
                             cardNumber: selectedBooking.paymentSource.cardLast4
