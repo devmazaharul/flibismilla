@@ -54,7 +54,7 @@ export default function NewBookingAdminEmail({
                 Fly Bismillah
               </Text>
               <Heading className="text-[22px] font-bold text-slate-900 m-0 leading-7">
-                New Booking Received 🎫
+                New Booking Received 
               </Heading>
               <Text className="text-[13px] text-slate-500 mt-2 mb-0">
                 A customer just placed a flight booking.

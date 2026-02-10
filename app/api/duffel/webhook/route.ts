@@ -53,8 +53,8 @@ export async function POST(req: Request) {
     // ----------------------------------------------------------------
     // 3. Event Processing
     // ----------------------------------------------------------------
-    await dbConnect();
-
+await dbConnect();
+    
     let event: any;
     try {
       event = JSON.parse(rawBody);
@@ -62,131 +62,137 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
     }
 
-    // 🛠️ FIX: Data Extraction Logic (Wrapper handling)
-    const { type, data: item } = event;
-    // Duffel এর ডাটা 'object' এর ভেতরে থাকে, সেটা চেক করে নেওয়া হচ্ছে
-    const data = item?.object ? item.object : item;
-    
-    // 🛠️ FIX: ID Logic based on Event Type
-    // Order ইভেন্টের জন্য ID হলো data.id
-    // Cancellation/Payment ইভেন্টের জন্য ID হলো data.order_id
-    let orderIdToUpdate = data.id;
-    
-    if (type.startsWith("order_cancellation") || type.startsWith("payment") || type.startsWith("refund")) {
-        orderIdToUpdate = data.order_id;
-    }
+    const { type, data: rawData } = event;
+    // Duffel sometimes wraps data in 'object'
+    const data = rawData?.object ? rawData.object : rawData;
 
-    console.log(`🔔 Webhook Verified: ${type} | Order: ${orderIdToUpdate}`);
+    console.log(`🔔 Webhook Logic: ${type} | ID: ${data.id}`);
 
+    // ----------------------------------------------------------------
+    // 🔄 Step 3: Handle All Selected Events
+    // ----------------------------------------------------------------
     switch (type) {
-      
+
       // ====================================================
-      // ✅ SUCCESS FLOW
+      // 1. ORDER CREATED (Covers both Issued & Held)
       // ====================================================
-      case "order.tickets_issued": {
-        // নোট: এখানে data.id ব্যবহার হবে কারণ এটি অর্ডার অবজেক্ট
-        const tickets = data.documents?.map((doc: any) => ({
+      case "order.created": {
+        const orderId = data.id;
+        
+        // 🔍 Check if tickets exist in the payload
+        const hasTickets = data.documents && data.documents.length > 0;
+
+        // Map tickets if available
+        const tickets = hasTickets ? data.documents.map((doc: any) => ({
           unique_identifier: doc.unique_identifier,
           type: doc.type,
           url: doc.url,
-        })) || [];
+        })) : [];
+
+        // Decide Status: 'issued' if tickets exist, otherwise 'held'
+        const newStatus = hasTickets ? "issued" : "held";
 
         const booking = await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id }, 
+          { duffelOrderId: orderId },
           {
             $set: {
-              status: "issued",
+              status: newStatus,
               documents: tickets,
+              pnr: data.synced_at ? data.booking_reference : null,
               updatedAt: new Date(),
+              adminNotes: `Auto: Order Created (${newStatus})`,
+              // If it's held, update the deadline
+              ...(newStatus === "held" && data.payment_status?.payment_required_by && {
+                 paymentDeadline: new Date(data.payment_status.payment_required_by)
+              })
             },
           },
           { new: true }
         );
 
-        if (booking) {
+        // Send Email ONLY if Issued
+        if (booking && newStatus === "issued") {
           try {
             await sendTicketIssuedEmail(booking);
-            console.log(`📧 Ticket email sent for PNR: ${booking.pnr}`);
-          } catch (emailError) {
-            console.error(`❌ Failed to send ticket email:`, emailError);
+            console.log(`📧 Ticket email sent for PNR: ${booking.bookingReference}`);
+          } catch (err) {
+            console.error("❌ Email Error:", err);
           }
         }
         break;
       }
 
       // ====================================================
-      // ✅ PAYMENT FLOW (Added per request)
+      // 2. ORDER FAILED
       // ====================================================
-      case "payment.succeeded":
-      case "air.payment.succeeded": { // Legacy/Alternative support
-
-        const tickets = data.documents?.map((doc: any) => ({
-          unique_identifier: doc.unique_identifier,
-          type: doc.type,
-          url: doc.url,
-        })) || [];
-
-        const booking = await Booking.findOneAndUpdate(
-          { payment_id: data?.payment_id},
-          {
-            $set: {
-              status: "issued",
-              documents: tickets,
-              updatedAt: new Date(),
-                  adminNotes: `Auto: Payment succeeded via Duffel Payment ID: ${data.payment_id}`,
-            },
-          },
-          { new: true }
-        );
-
-        if (booking) {
-          try {
-            await sendTicketIssuedEmail(booking);
-            console.log(`📧 Ticket email sent for PNR: ${booking.pnr}`);
-          } catch (emailError) {
-            console.error(`❌ Failed to send ticket email:`, emailError);
-          }
-        }
-
-        break;
+      case "order.creation_failed": {
+         // Usually happens if payment fails during creation or inventory lost
+         // Try to find by Offer ID (since Order ID might not exist yet) or Metadata
+         // For now, we log it. It's hard to update DB without an Order ID.
+         console.warn(`⚠️ Order Creation Failed!`);
+         break;
       }
 
-      case "payment.created": {
-     
-        console.log(`Payment created for order ${data.order_id}`);
-         await Booking.findOneAndUpdate(
-            { duffelOrderId: data.order_id },
-            {
-                $set: {
-                    adminNotes: `Auto: Payment Created`,
-                    updatedAt: new Date(),
-                    payment_id:data?.id
-                }
+      // ====================================================
+      // 3. PAYMENT EVENTS (Success, Pending, Failed)
+      // ====================================================
+      case "air.payment.succeeded":
+      case "payment.succeeded": {
+        const orderId = data.order_id; // Payment links to Order ID
+        
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              paymentStatus: "succeeded", // 'authorized' or 'captured' logic can be here
+              payment_id: data.id,
+              updatedAt: new Date(),
+              adminNotes: `Auto: Payment Succeeded (${data.amount} ${data.currency})`
             }
-        );
-        break;
-      }
-
-      // ====================================================
-      // ✅ ORDER MODIFICATIONS
-      // ====================================================
-      case "order.payment_required": {
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
-          {
-            $set: {
-              paymentDeadline: new Date(data.payment_status.payment_required_by),
-              adminNotes: `Auto: Airline updated deadline to ${data.payment_status.payment_required_by}`,
-              updatedAt: new Date(),
-            },
           }
         );
         break;
       }
 
-      case "order.airline_initiated_change_detected": {
+      case "air.payment.failed":
+      case "payment.failed": {
+        const orderId = data.order_id;
         await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              paymentStatus: "failed",
+              updatedAt: new Date(),
+              adminNotes: `⚠️ Auto: Payment Failed!`
+            }
+          }
+        );
+        break;
+      }
+      
+      case "payment.created":
+      case "air.payment.pending": {
+         const orderId = data.order_id;
+         await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              paymentStatus: "pending",
+              payment_id: data.id,
+              updatedAt: new Date(),
+            }
+          }
+        );
+        break;
+      }
+
+      // ====================================================
+      // 4. SCHEDULE CHANGES (Crucial)
+      // ====================================================
+      case "order.airline_initiated_change_detected": {
+        const orderId = data.id;
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
           {
             $set: {
               airlineInitiatedChanges: data,
@@ -199,48 +205,31 @@ export async function POST(req: Request) {
       }
 
       // ====================================================
-      // ✅ CANCELLATION FLOW (Fixed Ignored Event)
+      // 5. CANCELLATIONS
       // ====================================================
-      
-      // 🛠️ FIX: Added order_cancellation.created
+      case "order_cancellation.confirmed":
+      case "order.cancelled": {
+        const orderId = data.order_id || data.id;
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              status: "cancelled",
+              adminNotes: "Auto: Order Cancelled via Duffel",
+              updatedAt: new Date(),
+            },
+          }
+        );
+        break;
+      }
+
       case "order_cancellation.created": {
-         // ক্যান্সেলেশন রিকোয়েস্ট তৈরি হয়েছে
+         const orderId = data.order_id;
          await Booking.findOneAndUpdate(
-          { duffelOrderId: data.order_id },
+          { duffelOrderId: orderId },
           {
             $set: {
-              // আমরা স্ট্যাটাস পুরোপুরি ক্যান্সেল করছি না যতক্ষণ না কনফার্ম হয়, 
-              // তবে এডমিন নোট দিচ্ছি। অথবা চাইলে 'cancelled' করতে পারেন।
-              adminNotes: `Auto: Cancellation Request Created (ID: ${data.id})`,
-              updatedAt: new Date(),
-            },
-          }
-        );
-        break;
-      }
-
-      case "order.cancelled":
-      case "order.cancellation.confirmed": 
-      case "order_cancellation.confirmed": { // Covering all naming conventions
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderIdToUpdate}, // Fallback logic
-          {
-            $set: {
-              status: "cancelled",
-              updatedAt: new Date(),
-            },
-          }
-        );
-        break;
-      }
-
-      case "order.refunded": {
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: data.id },
-          {
-            $set: {
-              status: "cancelled",
-              adminNotes: "Auto: Order refunded via Duffel",
+              adminNotes: `Auto: Cancellation Request Initiated (ID: ${data.id})`,
               updatedAt: new Date(),
             },
           }
@@ -249,7 +238,7 @@ export async function POST(req: Request) {
       }
 
       default: {
-        console.log(`ℹ️ Ignored Event: ${type}`);
+        console.log(`ℹ️ Unhandled Event: ${type}`);
       }
     }
 
@@ -257,9 +246,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("🔥 Webhook Fatal Error:", error.message);
-    return NextResponse.json(
-      { success: false, message: "Internal Server Error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }

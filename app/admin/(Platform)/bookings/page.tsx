@@ -874,7 +874,7 @@ export default function BookingsDashboard() {
               <button
                 onClick={handleIssueTicket}
                 disabled={isProcessing || paymentMethod === 'stripe'}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {isProcessing && (
                   <Loader2 size={14} className="animate-spin" />
