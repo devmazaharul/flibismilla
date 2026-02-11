@@ -50,10 +50,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
     }
 
+   // ----------------------------------------------------------------
+    // 🔄 2. EVENT PROCESSING
     // ----------------------------------------------------------------
-    // 3. Event Processing
-    // ----------------------------------------------------------------
-await dbConnect();
+ await dbConnect();
     
     let event: any;
     try {
@@ -63,88 +63,95 @@ await dbConnect();
     }
 
     const { type, data: rawData } = event;
-    // Duffel sometimes wraps data in 'object'
+    // Duffel sometimes wraps the actual data inside an 'object' property
     const data = rawData?.object ? rawData.object : rawData;
 
-    console.log(`🔔 Webhook Logic: ${type} | ID: ${data.id}`);
+    console.log(`🔔 Webhook Event: ${type} | ID: ${data.id}`);
 
-    // ----------------------------------------------------------------
-    // 🔄 Step 3: Handle All Selected Events
-    // ----------------------------------------------------------------
     switch (type) {
 
       // ====================================================
-      // 1. ORDER CREATED (Covers both Issued & Held)
+      // CASE 1: ORDER CREATED (Issued or Held)
       // ====================================================
       case "order.created": {
         const orderId = data.id;
+
+        // 🔍 Check existing booking
+        const existingBooking = await Booking.findOne({ duffelOrderId: orderId });
         
-        // 🔍 Check if tickets exist in the payload
+        if (!existingBooking) {
+          console.warn(`⚠️ Booking not found in DB for Order ID: ${orderId}`);
+          break; 
+        }
+
+        // Idempotency: Already issued? Stop here.
+        if (existingBooking.status === "issued") {
+          console.log(`ℹ️ Booking ${orderId} is already ISSUED. Skipping.`);
+          return NextResponse.json({ received: true });
+        }
+
+        // 📄 Ticket Documents Handling (Based on your Schema)
         const hasTickets = data.documents && data.documents.length > 0;
+        
+        let formattedDocuments = [];
+        if (hasTickets) {
+            formattedDocuments = data.documents.map((doc: any) => ({
+                unique_identifier: doc.unique_identifier,
+                type: doc.type,
+                url: doc.url
+            }));
+        }
 
-        // Map tickets if available
-        const tickets = hasTickets ? data.documents.map((doc: any) => ({
-          unique_identifier: doc.unique_identifier,
-          type: doc.type,
-          url: doc.url,
-        })) : [];
-
-        // Decide Status: 'issued' if tickets exist, otherwise 'held'
+        // Determine Status (Enum: 'issued' | 'held')
         const newStatus = hasTickets ? "issued" : "held";
 
-        const booking = await Booking.findOneAndUpdate(
+        // Update Database
+        const updatedBooking = await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
               status: newStatus,
-              documents: tickets,
-              pnr: data.synced_at ? data.booking_reference : null,
+              documents: formattedDocuments, // Saving tickets
+              pnr: data.synced_at ? data.booking_reference : existingBooking.pnr,
+              
+              // 🟢 Set Payment Deadline if it exists (For Hold Orders)
+              ...(data.payment_status?.payment_required_by && {
+                  paymentDeadline: new Date(data.payment_status.payment_required_by)
+              }),
+
               updatedAt: new Date(),
-              adminNotes: `Auto: Order Created (${newStatus})`,
-              // If it's held, update the deadline
-              ...(newStatus === "held" && data.payment_status?.payment_required_by && {
-                 paymentDeadline: new Date(data.payment_status.payment_required_by)
-              })
+              adminNotes: `Auto: Order Created (${newStatus}) via Webhook`
             },
           },
           { new: true }
         );
 
-        // Send Email ONLY if Issued
-        if (booking && newStatus === "issued") {
+        // 📧 Send Email ONLY if Issued
+        if (updatedBooking && newStatus === "issued") {
           try {
-            await sendTicketIssuedEmail(booking);
-            console.log(`📧 Ticket email sent for PNR: ${booking.bookingReference}`);
+            await sendTicketIssuedEmail(updatedBooking);
+            console.log(`✅ Ticket Email Sent for PNR: ${updatedBooking.pnr}`);
           } catch (err) {
-            console.error("❌ Email Error:", err);
+            console.error("❌ Email Sending Failed:", err);
           }
         }
         break;
       }
 
       // ====================================================
-      // 2. ORDER FAILED
+      // CASE 2: PAYMENT SUCCEEDED
       // ====================================================
-      case "order.creation_failed": {
-         // Usually happens if payment fails during creation or inventory lost
-         // Try to find by Offer ID (since Order ID might not exist yet) or Metadata
-         // For now, we log it. It's hard to update DB without an Order ID.
-         console.warn(`⚠️ Order Creation Failed!`);
-         break;
-      }
+      case "air.payment.succeeded": {
+        const orderId = data.order_id;
 
-      // ====================================================
-      // 3. PAYMENT EVENTS (Success, Pending, Failed)
-      // ====================================================
-      case "air.payment.succeeded":
-      case "payment.succeeded": {
-        const orderId = data.order_id; // Payment links to Order ID
-        
         await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
-              paymentStatus: "succeeded", // 'authorized' or 'captured' logic can be here
+              // 🟢 Schema Enum Matches: 'captured' or 'authorized'. 
+              // 'captured' is best for successful payments.
+              paymentStatus: "captured", 
+              
               payment_id: data.id,
               updatedAt: new Date(),
               adminNotes: `Auto: Payment Succeeded (${data.amount} ${data.currency})`
@@ -154,32 +161,21 @@ await dbConnect();
         break;
       }
 
+      // ====================================================
+      // CASE 3: PAYMENT FAILED / CANCELLED
+      // ====================================================
       case "air.payment.failed":
-      case "payment.failed": {
+      case "air.payment.cancelled": {
         const orderId = data.order_id;
+        
         await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
+              // 🟢 Schema Enum Match
               paymentStatus: "failed",
               updatedAt: new Date(),
-              adminNotes: `⚠️ Auto: Payment Failed!`
-            }
-          }
-        );
-        break;
-      }
-      
-      case "payment.created":
-      case "air.payment.pending": {
-         const orderId = data.order_id;
-         await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              paymentStatus: "pending",
-              payment_id: data.id,
-              updatedAt: new Date(),
+              adminNotes: `⚠️ Auto: Payment Failed via Webhook`
             }
           }
         );
@@ -187,7 +183,48 @@ await dbConnect();
       }
 
       // ====================================================
-      // 4. SCHEDULE CHANGES (Crucial)
+      // CASE 4: PAYMENT PENDING
+      // ====================================================
+      case "payment.created":
+      case "air.payment.pending": {
+        const orderId = data.order_id;
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              // 🟢 Schema Enum Match
+              paymentStatus: "pending",
+              payment_id: data.id,
+              updatedAt: new Date()
+            }
+          }
+        );
+        break;
+      }
+
+      // ====================================================
+      // CASE 5: CANCELLATIONS (Confirmed)
+      // ====================================================
+      case "order_cancellation.confirmed": {
+        const orderId = data.order_id;
+        await Booking.findOneAndUpdate(
+          { duffelOrderId: orderId },
+          {
+            $set: {
+              // 🟢 Schema Enum Match
+              status: "cancelled",
+              // Refund logic: usually implies refunded
+              paymentStatus: "refunded", 
+              adminNotes: `Auto: Cancellation Confirmed. Refund: ${data.refund_amount} ${data.refund_currency}`,
+              updatedAt: new Date()
+            }
+          }
+        );
+        break;
+      }
+
+      // ====================================================
+      // CASE 6: SCHEDULE CHANGES
       // ====================================================
       case "order.airline_initiated_change_detected": {
         const orderId = data.id;
@@ -195,43 +232,11 @@ await dbConnect();
           { duffelOrderId: orderId },
           {
             $set: {
+              // 🟢 Saving the Mixed type object
               airlineInitiatedChanges: data,
               adminNotes: "⚠️ ALERT: Schedule Change Detected!",
               updatedAt: new Date(),
-            },
-          }
-        );
-        break;
-      }
-
-      // ====================================================
-      // 5. CANCELLATIONS
-      // ====================================================
-      case "order_cancellation.confirmed":
-      case "order.cancelled": {
-        const orderId = data.order_id || data.id;
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              status: "cancelled",
-              adminNotes: "Auto: Order Cancelled via Duffel",
-              updatedAt: new Date(),
-            },
-          }
-        );
-        break;
-      }
-
-      case "order_cancellation.created": {
-         const orderId = data.order_id;
-         await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              adminNotes: `Auto: Cancellation Request Initiated (ID: ${data.id})`,
-              updatedAt: new Date(),
-            },
+            }
           }
         );
         break;
