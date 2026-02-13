@@ -20,3 +20,4 @@ export const MAX_PASSENGERS = 9; // Max 9 Passengers per Booking
 export const MIN_PASSENGERS = 1; // Min 1 Passenger per Booking
 export const WEBSITE_NAME = 'FlyBismillah';
 export const WEBSITE_URL = 'https://www.flybismillah.com';
+export const RESULTS_PER_PAGE = 25;

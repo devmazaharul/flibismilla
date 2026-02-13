@@ -30,11 +30,14 @@ import { FlightSearchSkleton } from './FlightSearchSkeleton';
 import { PriceValidityNotice } from '@/app/(main)/flight/search/utils/PriceValidityNotice';
 import { FlightResultCard } from './FlightResultCard';
 
-// ✅ Shared type import
 import type { FlightOffer } from './types';
+import { RESULTS_PER_PAGE } from '@/constant/control';
+
+// ✅ How many results to show per batch
+
 
 // ----------------------------------------------------------------------
-// Filter Content — extracted to prevent re-creation
+// Filter Content
 // ----------------------------------------------------------------------
 const FilterContent = ({
     selectedStops,
@@ -54,7 +57,6 @@ const FilterContent = ({
     toggleAirline: (name: string) => void;
 }) => (
     <div className="space-y-7">
-        {/* Stops */}
         <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.16em] mb-3">
                 Stops
@@ -109,7 +111,6 @@ const FilterContent = ({
             </div>
         </div>
 
-        {/* Airlines */}
         <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.16em] mb-3">
                 Airlines
@@ -517,7 +518,6 @@ const AirlinePriceGrid = ({
                 </div>
             </div>
 
-            {/* Selected airline tags */}
             {selectedAirlines.length > 0 && (
                 <div className="mt-3 flex items-center gap-2 flex-wrap animate-in fade-in slide-in-from-top-1 duration-200">
                     <span className="text-[11px] font-medium text-gray-400">
@@ -581,15 +581,18 @@ function SearchPageContent() {
     );
     const [selectedStops, setSelectedStops] = useState<string[]>([]);
 
-    // ✅ Active filter count
+    // ✅ Load More state
+    const [visibleCount, setVisibleCount] = useState(RESULTS_PER_PAGE);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     const activeFilterCount =
         selectedAirlines.length + selectedStops.length;
 
-    // ✅ useCallback — prevents re-creation
     const handleResetFilters = useCallback(() => {
         setSelectedAirlines([]);
         setSelectedStops([]);
         setSortBy('best');
+        setVisibleCount(RESULTS_PER_PAGE); // ✅ Reset visible on filter reset
     }, []);
 
     const toggleAirline = useCallback((airline: string) => {
@@ -598,6 +601,7 @@ function SearchPageContent() {
                 ? prev.filter((a) => a !== airline)
                 : [...prev, airline]
         );
+        setVisibleCount(RESULTS_PER_PAGE); // ✅ Reset on filter change
     }, []);
 
     const toggleStop = useCallback((stopType: string) => {
@@ -606,7 +610,23 @@ function SearchPageContent() {
                 ? prev.filter((s) => s !== stopType)
                 : [...prev, stopType]
         );
+        setVisibleCount(RESULTS_PER_PAGE); // ✅ Reset on filter change
     }, []);
+
+    // ✅ Load More handler with smooth animation
+    const handleLoadMore = useCallback(() => {
+        setLoadingMore(true);
+        // Small delay for smooth UX
+        setTimeout(() => {
+            setVisibleCount((prev) => prev + RESULTS_PER_PAGE);
+            setLoadingMore(false);
+        }, 400);
+    }, []);
+
+    // ✅ Reset visible count when sort changes
+    useEffect(() => {
+        setVisibleCount(RESULTS_PER_PAGE);
+    }, [sortBy]);
 
     // ✅ Fetch flights
     useEffect(() => {
@@ -619,10 +639,10 @@ function SearchPageContent() {
             setError('');
             setLoading(true);
 
-            // Reset filters on new search
             setSelectedAirlines([]);
             setSelectedStops([]);
             setSortBy('best');
+            setVisibleCount(RESULTS_PER_PAGE); // ✅ Reset on new search
 
             try {
                 let payload: Record<string, unknown> = {
@@ -670,7 +690,6 @@ function SearchPageContent() {
 
                 setRawResults(responseData.data || []);
 
-                // ✅ Scroll to results after data loads
                 setTimeout(() => {
                     resultsRef.current?.scrollIntoView({
                         behavior: 'smooth',
@@ -692,7 +711,7 @@ function SearchPageContent() {
         fetchFlights();
     }, [searchParams]);
 
-    // ✅ Filter & Sort — memoized
+    // ✅ Filter & Sort — memoized (full list)
     const filteredResults = useMemo(() => {
         let res = [...rawResults];
 
@@ -754,6 +773,15 @@ function SearchPageContent() {
         return res;
     }, [rawResults, selectedAirlines, selectedStops, sortBy]);
 
+    // ✅ Sliced results for display
+    const visibleResults = useMemo(
+        () => filteredResults.slice(0, visibleCount),
+        [filteredResults, visibleCount]
+    );
+
+    const hasMore = visibleCount < filteredResults.length;
+    const remainingCount = filteredResults.length - visibleCount;
+
     // ✅ Counts — memoized
     const { airlineCounts, stopCounts, uniqueAirlines } = useMemo(() => {
         const aCounts: Record<string, number> = {};
@@ -782,7 +810,6 @@ function SearchPageContent() {
         };
     }, [rawResults]);
 
-    // ✅ Shared filter props
     const filterProps = {
         selectedStops,
         selectedAirlines,
@@ -803,7 +830,6 @@ function SearchPageContent() {
                         onClick={() => setShowMobileFilter(false)}
                     />
                     <div className="bg-white rounded-t-3xl w-full max-h-[85vh] overflow-y-auto relative z-10 animate-in slide-in-from-bottom-10 duration-300 shadow-2xl">
-                        {/* Modal header */}
                         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
@@ -838,7 +864,6 @@ function SearchPageContent() {
                             <FilterContent {...filterProps} />
                         </div>
 
-                        {/* Modal footer */}
                         <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-4 flex items-center gap-3">
                             {activeFilterCount > 0 && (
                                 <button
@@ -1034,6 +1059,21 @@ function SearchPageContent() {
                                                             'class'
                                                         ) || 'Economy'}
                                                     </span>
+                                                    {/* ✅ Showing count badge */}
+                                                    {filteredResults.length >
+                                                        RESULTS_PER_PAGE && (
+                                                        <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                                                            Showing{' '}
+                                                            {Math.min(
+                                                                visibleCount,
+                                                                filteredResults.length
+                                                            )}{' '}
+                                                            of{' '}
+                                                            {
+                                                                filteredResults.length
+                                                            }
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-[12px] text-gray-400 mt-1.5 flex items-center gap-1.5 flex-wrap font-medium">
                                                     <span>
@@ -1081,7 +1121,6 @@ function SearchPageContent() {
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                {/* Mobile filter */}
                                                 <button
                                                     onClick={() =>
                                                         setShowMobileFilter(
@@ -1109,7 +1148,6 @@ function SearchPageContent() {
                                                     )}
                                                 </button>
 
-                                                {/* Sort */}
                                                 <div className="relative">
                                                     <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                                         <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
@@ -1152,18 +1190,147 @@ function SearchPageContent() {
                                             </div>
                                         </div>
 
-                                        {/* ✅ Flight Cards */}
+                                        {/* ✅ Flight Cards — sliced */}
                                         <div className="space-y-4">
-                                            {filteredResults.length >
+                                            {visibleResults.length >
                                             0 ? (
-                                                filteredResults.map(
-                                                    (f) => (
-                                                        <FlightResultCard
-                                                            key={f.id}
-                                                            flight={f}
-                                                        />
-                                                    )
-                                                )
+                                                <>
+                                                    {visibleResults.map(
+                                                        (f) => (
+                                                            <FlightResultCard
+                                                                key={
+                                                                    f.id
+                                                                }
+                                                                flight={
+                                                                    f
+                                                                }
+                                                            />
+                                                        )
+                                                    )}
+
+                                                    {/* ✅ LOAD MORE BUTTON */}
+                                                    {hasMore && (
+                                                        <div className="pt-4 pb-2">
+                                                            <div className="relative">
+                                                                {/* Progress bar */}
+                                                                <div className="flex items-center justify-center gap-3 mb-4">
+                                                                    <div className="h-px flex-1 bg-gray-200" />
+                                                                    <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap">
+                                                                        {Math.min(
+                                                                            visibleCount,
+                                                                            filteredResults.length
+                                                                        )}{' '}
+                                                                        of{' '}
+                                                                        {
+                                                                            filteredResults.length
+                                                                        }{' '}
+                                                                        flights
+                                                                    </span>
+                                                                    <div className="h-px flex-1 bg-gray-200" />
+                                                                </div>
+
+                                                                {/* Progress visual */}
+                                                                <div className="w-full max-w-xs mx-auto mb-5">
+                                                                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-gray-900 rounded-full transition-all duration-700 ease-out"
+                                                                            style={{
+                                                                                width: `${Math.min(
+                                                                                    (visibleCount /
+                                                                                        filteredResults.length) *
+                                                                                        100,
+                                                                                    100
+                                                                                )}%`,
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex justify-center">
+                                                                    <button
+                                                                        onClick={
+                                                                            handleLoadMore
+                                                                        }
+                                                                        disabled={
+                                                                            loadingMore
+                                                                        }
+                                                                        className="
+                                                                            group relative
+                                                                            h-12 px-8 rounded-xl
+                                                                            bg-gray-900 hover:bg-gray-800
+                                                                            text-white text-sm font-bold
+                                                                            flex items-center justify-center gap-2.5
+                                                                            shadow-lg shadow-gray-900/10
+                                                                            hover:shadow-xl hover:shadow-gray-900/15
+                                                                            transition-all duration-300
+                                                                            cursor-pointer active:scale-[0.97]
+                                                                            disabled:opacity-70 disabled:cursor-wait
+                                                                        "
+                                                                    >
+                                                                        {loadingMore ? (
+                                                                            <>
+                                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                                                <span>
+                                                                                    Loading...
+                                                                                </span>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <span>
+                                                                                    Load
+                                                                                    More
+                                                                                    Flights
+                                                                                </span>
+                                                                                <span className="text-[10px] font-semibold text-gray-400 bg-white/10 px-2 py-0.5 rounded-md">
+                                                                                    +{Math.min(
+                                                                                        remainingCount,
+                                                                                        RESULTS_PER_PAGE
+                                                                                    )}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+
+                                                                <p className="text-center text-[10px] text-gray-400 mt-3 font-medium">
+                                                                    {
+                                                                        remainingCount
+                                                                    }{' '}
+                                                                    more
+                                                                    flight
+                                                                    {remainingCount >
+                                                                    1
+                                                                        ? 's'
+                                                                        : ''}{' '}
+                                                                    available
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* ✅ All loaded message */}
+                                                    {!hasMore &&
+                                                        filteredResults.length >
+                                                            RESULTS_PER_PAGE && (
+                                                            <div className="pt-4 pb-2">
+                                                                <div className="flex items-center justify-center gap-3">
+                                                                    <div className="h-px flex-1 bg-gray-200" />
+                                                                    <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400">
+                                                                        <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                                            <Check className="w-2.5 h-2.5 text-emerald-600" />
+                                                                        </div>
+                                                                        All{' '}
+                                                                        {
+                                                                            filteredResults.length
+                                                                        }{' '}
+                                                                        flights
+                                                                        loaded
+                                                                    </div>
+                                                                    <div className="h-px flex-1 bg-gray-200" />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                </>
                                             ) : (
                                                 <div className="text-center py-16 rounded-2xl border border-dashed border-gray-200 bg-gray-50/50">
                                                     <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
