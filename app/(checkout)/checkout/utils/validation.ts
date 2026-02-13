@@ -41,13 +41,35 @@ export const bookingSchema = z.object({
       lastName: z.string().min(2).regex(/^[a-zA-Z\s]+$/, "Only letters allowed"),
       dob: z.string().min(1).refine((d) => !isNaN(new Date(d).getTime()), "Invalid date"),
       gender: z.enum(["male", "female"]),
-      
-      // Passport Info
-      passportNumber: z.string().toUpperCase().regex(/^[A-Z0-9]{6,9}$/, "Invalid Passport format").optional().or(z.literal('')), 
-      passportExpiry: z.string().optional().or(z.literal('')),
-      
-      // 🟢 FIXED: Added here correctly
-      passportCountry: z.string().length(2, "Invalid Country Code").optional().or(z.literal('')), 
+      passportNumber: z
+      .string()
+      .min(1, "Passport number is required") 
+      .toUpperCase()
+      .regex(/^[A-Z0-9]{6,9}$/, "Invalid Passport format (6-9 alphanumeric characters)"),
+
+    // 2. Passport Expiry (Required & Must be valid for at least 6 months)
+    passportExpiry: z
+      .string()
+      .min(1, "Passport expiry date is required")
+      .refine((dateString) => {
+        const expiry = new Date(dateString);
+        const today = new Date();
+        
+        // আজকের তারিখ থেকে ৬ মাস যোগ করা হলো
+        const sixMonthsFromNow = new Date();
+        sixMonthsFromNow.setMonth(today.getMonth() + 6);
+        
+        // তুলনা (Expiry অবশ্যই ৬ মাস পরের তারিখ হতে হবে)
+        return expiry > sixMonthsFromNow;
+      }, {
+        message: "Passport must be valid for at least 6 months from today",
+      }),
+
+    // 3. Passport Country (Required & 2 Letter Code)
+    passportCountry: z
+      .string()
+      .min(1, "Country code is required")
+      .length(2, "Invalid Country Code (must be 2 characters)"),
     })
     .superRefine((data, ctx) => {
         const birthDate = new Date(data.dob);

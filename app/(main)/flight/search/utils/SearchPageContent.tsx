@@ -27,7 +27,7 @@ import { HiOutlineSparkles } from 'react-icons/hi2';
 
 import FlightSearchForm from './FlightSearchForm';
 import { FlightSearchSkleton } from './FlightSearchSkeleton';
-import { PriceValidityNotice } from '@/app/(main)/components/PriceValidityNotice';
+import { PriceValidityNotice } from '@/app/(main)/flight/search/utils/PriceValidityNotice';
 import { FlightResultCard } from './FlightResultCard';
 
 // ✅ Shared type import

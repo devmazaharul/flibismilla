@@ -93,73 +93,7 @@ export default function NewBookingAdminEmail({
 
             <Hr className="border-slate-200 my-0" />
 
-            {/* ───── Route Card ───── */}
-            <Section
-              className="my-5 rounded-xl px-5 py-5"
-              style={{
-                backgroundColor: "#f8fafb",
-                border: "1px solid #e8ecf0",
-              }}
-            >
-              <table
-                cellPadding={0}
-                cellSpacing={0}
-                width="100%"
-                style={{ tableLayout: "fixed" }}
-              >
-                <tr>
-                  <td
-                    style={{
-                      width: "38%",
-                      textAlign: "center",
-                      verticalAlign: "top",
-                    }}
-                  >
-                    <Text className="text-[10px] uppercase tracking-[0.16em] text-slate-400 m-0 mb-1">
-                      From
-                    </Text>
-                    <Text className="text-[18px] font-bold text-slate-900 m-0">
-                      {route.split("➝")[0]?.trim() || route.split("-")[0]?.trim()}
-                    </Text>
-                  </td>
-                  <td
-                    style={{
-                      width: "24%",
-                      textAlign: "center",
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    <Text className="text-[20px] m-0 leading-none">✈</Text>
-                    <Text className="text-[10px] text-slate-400 m-0 mt-1">
-                      {airline}
-                    </Text>
-                  </td>
-                  <td
-                    style={{
-                      width: "38%",
-                      textAlign: "center",
-                      verticalAlign: "top",
-                    }}
-                  >
-                    <Text className="text-[10px] uppercase tracking-[0.16em] text-slate-400 m-0 mb-1">
-                      To
-                    </Text>
-                    <Text className="text-[18px] font-bold text-slate-900 m-0">
-                      {route.split("➝")[1]?.trim() || route.split("-")[1]?.trim()}
-                    </Text>
-                  </td>
-                </tr>
-              </table>
-
-              <Section className="text-center mt-4">
-                <span
-                  className="inline-block rounded-full px-4 py-1 text-[12px] font-semibold"
-                  style={{ backgroundColor: "#ecfdf5", color: "#065f46" }}
-                >
-                  📅 {flightDate}
-                </span>
-              </Section>
-            </Section>
+     
 
             {/* ───── Customer Details ───── */}
             <Section

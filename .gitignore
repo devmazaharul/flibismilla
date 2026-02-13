@@ -10,7 +10,7 @@ docker-compose.yaml
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
+voter.bat
 # testing
 /coverage
 

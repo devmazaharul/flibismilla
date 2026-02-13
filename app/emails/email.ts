@@ -172,8 +172,7 @@ interface ProcessingEmailParams {
     to: string;
     customerName: string;
     bookingReference: string;
-    origin: string;
-    destination: string;
+    route: string;
     flightDate: string;
 }
 
@@ -182,8 +181,7 @@ export const sendBookingProcessingEmail = async ({
     to,
     customerName,
     bookingReference,
-    origin,
-    destination,
+    route,
     flightDate,
 }: ProcessingEmailParams) => {
     try {
@@ -194,8 +192,7 @@ export const sendBookingProcessingEmail = async ({
             react: BookingProcessingEmail({
                 customerName,
                 bookingReference,
-                origin,
-                destination,
+                route,
                 flightDate,
             }),
         });

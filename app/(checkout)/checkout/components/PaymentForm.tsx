@@ -16,10 +16,11 @@ import {
   Hash,
   Home,
   ChevronDown,
+  Shield,
+  Sparkles,
 } from 'lucide-react';
 import { BookingFormData } from '../utils/validation';
 
-// 🟢 Country list with ISO 2-letter codes (name দেখাবে, value হবে code)
 const COUNTRIES = [
   { name: 'Afghanistan', code: 'AF' },
   { name: 'Albania', code: 'AL' },
@@ -235,7 +236,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   setValue,
   amount,
 }) => {
-  // Card Number auto-format
   const handleCardNumberChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -246,7 +246,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     setValue('payment.cardNumber', formatted, { shouldValidate: true });
   };
 
-  // Expiry auto-format (MM/YY)
   const handleExpiryChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -259,221 +258,321 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     setValue('payment.expiryDate', val, { shouldValidate: true });
   };
 
-  const inputClass = (error?: any) => `
-    w-full bg-white text-sm font-medium text-gray-900 placeholder:text-gray-400
-    border rounded-xl px-3 py-3 transition-all duration-200 outline-none
+  const inputBase = (hasError?: any) => `
+    w-full bg-gray-50/80 text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal
+    border rounded-2xl px-4 py-3.5 transition-all duration-300 outline-none
+    backdrop-blur-sm
     ${
-      error
-        ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
-        : 'border-gray-200 hover:border-gray-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900'
+      hasError
+        ? 'border-red-300 bg-red-50/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:bg-white'
+        : 'border-gray-100 hover:border-rose-200 hover:bg-white focus:border-rose-500 focus:ring-1 focus:ring-rose-500 focus:bg-white'
     }
   `;
 
   return (
-    <div className="w-full space-y-6 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-gray-100 border border-gray-200">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-slate-100 rounded-full text-slate-700">
-            <CreditCard className="w-5 h-5" />
-          </div>
-          <h3 className="text-lg font-black text-gray-900">
-            Payment Details
-          </h3>
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide">
-          <Lock className="w-3 h-3" />
-          <span>SSL Secured</span>
-        </div>
+    <div className="relative w-full overflow-hidden">
+      {/* Gradient border wrapper */}
+      <div className="absolute inset-0 rounded-3xl p-[1.5px]">
+        <div className="h-full w-full rounded-3xl bg-white" />
       </div>
 
-      {amount && (
-        <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-lg shadow-slate-200">
-          <span className="text-sm font-medium text-slate-300">
-            Amount to Pay
-          </span>
-          <span className="text-xl font-bold font-mono">
-            {amount}
-          </span>
-        </div>
-      )}
-
-      <div className="space-y-5">
-        {/* Card Number */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-            Card Number
-          </label>
-          <div className="relative group">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <CreditCard className="w-4 h-4 text-gray-400 group-focus-within:text-slate-900 transition-colors" />
-            </div>
-            <input
-              {...register('payment.cardNumber')}
-              onChange={handleCardNumberChange}
-              placeholder="0000 0000 0000 0000"
-              maxLength={23}
-              className={`${inputClass(
-                errors.payment?.cardNumber
-              )} pl-10 font-mono tracking-widest`}
-            />
-          </div>
-          {errors.payment?.cardNumber && (
-            <p className="text-[11px] text-red-600 mt-1 font-bold">
-              {errors.payment.cardNumber.message}
-            </p>
-          )}
-        </div>
-
-        {/* Grid: Name, Expiry */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Name */}
-          <div className="col-span-12 md:col-span-6 space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-              Cardholder Name
-            </label>
-            <div className="relative group">
-              <User className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 group-focus-within:text-slate-900" />
-              <input
-                {...register('payment.cardName')}
-                placeholder="NAME ON CARD"
-                className={`${inputClass(
-                  errors.payment?.cardName
-                )} pl-10 uppercase`}
-              />
-            </div>
-            {errors.payment?.cardName && (
-              <p className="text-[11px] text-red-600 mt-1 font-bold">
-                {errors.payment.cardName.message}
-              </p>
-            )}
-          </div>
-
-          {/* Expiry */}
-          <div className="col-span-6 md:col-span-3 space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-              Expiry
-            </label>
+      <div className="relative z-10 p-6 md:p-10 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <div className="relative">
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
-              <input
-                {...register('payment.expiryDate')}
-                onChange={handleExpiryChange}
-                placeholder="MM/YY"
-                maxLength={5}
-                className={`${inputClass(
-                  errors.payment?.expiryDate
-                )} pl-9 text-center`}
-              />
-            </div>
-            {errors.payment?.expiryDate && (
-              <p className="text-[11px] text-red-600 mt-1 font-bold">
-                Invalid
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="w-full h-px bg-gray-100" />
-
-      {/* --- Billing Address --- */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-rose-500" /> Billing Address
-        </h3>
-
-        {/* Street Address */}
-        <div className="space-y-1">
-          <div className="relative group">
-            <Home className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 group-focus-within:text-slate-900" />
-            <input
-              {...register('payment.billingAddress.street')}
-              placeholder="Street Address"
-              className={`${inputClass(
-                errors.payment?.billingAddress?.street
-              )} pl-10`}
-            />
-          </div>
-          {errors.payment?.billingAddress?.street && (
-            <p className="text-[11px] text-red-600 font-bold">
-              {errors.payment.billingAddress.street.message}
-            </p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-12 gap-4">
-          {/* City */}
-          <div className="col-span-6 space-y-1">
-            <input
-              {...register('payment.billingAddress.city')}
-              placeholder="City"
-              className={inputClass(
-                errors.payment?.billingAddress?.city
-              )}
-            />
-          </div>
-
-          {/* State */}
-          <div className="col-span-6 space-y-1">
-            <input
-              {...register('payment.billingAddress.state')}
-              placeholder="State"
-              className={inputClass(
-                errors.payment?.billingAddress?.state
-              )}
-            />
-          </div>
-
-          {/* Zip */}
-          <div className="col-span-6 space-y-1">
-            <div className="relative group">
-              <Hash className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
-              <input
-                {...register('payment.billingAddress.zipCode')}
-                placeholder="Zip Code"
-                className={`${inputClass(
-                  errors.payment?.billingAddress?.zipCode
-                )} pl-9`}
-              />
-            </div>
-            {errors.payment?.billingAddress?.zipCode && (
-              <p className="text-[11px] text-red-600 font-bold">
-                {errors.payment.billingAddress.zipCode.message}
-              </p>
-            )}
-          </div>
-
-          {/* Country Dropdown */}
-          <div className="col-span-6 space-y-1">
-            <div className="relative group">
-              <Globe className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3.5 z-10" />
-              <select
-                {...register('payment.billingAddress.country')}
-                defaultValue="US"
-                className={`${inputClass(
-                  errors.payment?.billingAddress?.country
-                )} pl-9 pr-8 appearance-none cursor-pointer`}
-              >
-                <option value="" disabled>
-                  Select Country
-                </option>
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name} ({c.code})
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                <ChevronDown className="w-4 h-4" />
+              <div className="absolute inset-0  rounded-2xl blur-md opacity-40" />
+              <div className="relative p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-500/25">
+                <CreditCard className="w-5 h-5" />
               </div>
             </div>
-            {errors.payment?.billingAddress?.country && (
-              <p className="text-[11px] text-red-600 font-bold">
-                {errors.payment.billingAddress.country.message}
+            <div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                Payment Details
+              </h3>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Enter your card information securely
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-extrabold text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 rounded-2xl border border-emerald-200/60 uppercase tracking-widest shadow-2xl shadow-gray-100">
+            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+            <span>256-bit SSL</span>
+          </div>
+        </div>
+
+        {/* Amount Banner */}
+        {amount && (
+          <div className="relative overflow-hidden rounded-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9zdmc+')] opacity-60" />
+            <div className="relative flex justify-between items-center p-5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-200" />
+                <span className="text-sm font-semibold text-indigo-100">
+                  Total Amount
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-lg">
+                  {amount}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Card Details Section */}
+        <div className="space-y-5">
+          {/* Card Number */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+              <CreditCard className="w-3 h-3" />
+              Card Number
+            </label>
+            <div className="relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300">
+                <CreditCard className="w-4.5 h-4.5 text-gray-300 group-focus-within:text-indigo-500" />
+              </div>
+              <input
+                {...register('payment.cardNumber')}
+                onChange={handleCardNumberChange}
+                placeholder="0000 0000 0000 0000"
+                maxLength={23}
+                className={`${inputBase(
+                  errors.payment?.cardNumber
+                )} pl-12 font-mono tracking-[0.2em] text-base`}
+              />
+              {/* Card type indicators */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1.5 opacity-30">
+                <div className="w-8 h-5 bg-gradient-to-br from-blue-600 to-blue-800 rounded-md" />
+                <div className="w-8 h-5 bg-gradient-to-br from-red-500 to-orange-500 rounded-md" />
+              </div>
+            </div>
+            {errors.payment?.cardNumber && (
+              <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold animate-pulse">
+                <span className="w-1 h-1 bg-red-500 rounded-full" />
+                {errors.payment.cardNumber.message}
               </p>
             )}
           </div>
+
+          {/* Name + Expiry Row */}
+          <div className="grid grid-cols-12 gap-4">
+            {/* Cardholder Name */}
+            <div className="col-span-12 md:col-span-7 space-y-2">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                <User className="w-3 h-3" />
+                Cardholder Name
+              </label>
+              <div className="relative group">
+                <User className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-rose-500 transition-colors duration-300" />
+                <input
+                  {...register('payment.cardName')}
+                  placeholder="Full name on card"
+                  className={`${inputBase(
+                    errors.payment?.cardName
+                  )} pl-12 uppercase tracking-wide`}
+                />
+              </div>
+              {errors.payment?.cardName && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  {errors.payment.cardName.message}
+                </p>
+              )}
+            </div>
+
+            {/* Expiry */}
+            <div className="col-span-6 md:col-span-5 space-y-2">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                <Calendar className="w-3 h-3" />
+                Expiry Date
+              </label>
+              <div className="relative group">
+                <Calendar className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <input
+                  {...register('payment.expiryDate')}
+                  onChange={handleExpiryChange}
+                  placeholder="MM / YY"
+                  maxLength={5}
+                  className={`${inputBase(
+                    errors.payment?.expiryDate
+                  )} pl-12 text-center tracking-[0.3em] font-mono`}
+                />
+              </div>
+              {errors.payment?.expiryDate && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  Invalid
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t-2 border-dashed border-gray-100" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-white px-4 py-1">
+              <MapPin className="w-4 h-4 text-indigo-400" />
+            </span>
+          </div>
+        </div>
+
+        {/* Billing Address Section */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+              <MapPin className="w-4 h-4 text-rose-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                Billing Address
+              </h3>
+              <p className="text-[10px] text-gray-400 font-medium">
+                Must match your card statement address
+              </p>
+            </div>
+          </div>
+
+          {/* Street */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+              <Home className="w-3 h-3" />
+              Street Address
+            </label>
+            <div className="relative group">
+              <Home className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+              <input
+                {...register('payment.billingAddress.street')}
+                placeholder="123 Main Street, Apt 4B"
+                className={`${inputBase(
+                  errors.payment?.billingAddress?.street
+                )} pl-12`}
+              />
+            </div>
+            {errors.payment?.billingAddress?.street && (
+              <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                <span className="w-1 h-1 bg-red-500 rounded-full" />
+                {errors.payment.billingAddress.street.message}
+              </p>
+            )}
+          </div>
+
+          {/* City + State */}
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-6 space-y-2">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                City
+              </label>
+              <input
+                {...register('payment.billingAddress.city')}
+                placeholder="New York"
+                className={inputBase(
+                  errors.payment?.billingAddress?.city
+                )}
+              />
+              {errors.payment?.billingAddress?.city && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  Required
+                </p>
+              )}
+            </div>
+
+            <div className="col-span-6 space-y-2">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                State / Province
+              </label>
+              <input
+                {...register('payment.billingAddress.state')}
+                placeholder="NY"
+                className={inputBase(
+                  errors.payment?.billingAddress?.state
+                )}
+              />
+              {errors.payment?.billingAddress?.state && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  Required
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Zip + Country */}
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-6 space-y-2">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                <Hash className="w-3 h-3" />
+                Zip / Postal Code
+              </label>
+              <div className="relative group">
+                <Hash className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <input
+                  {...register('payment.billingAddress.zipCode')}
+                  placeholder="10001"
+                  className={`${inputBase(
+                    errors.payment?.billingAddress?.zipCode
+                  )} pl-12 font-mono`}
+                />
+              </div>
+              {errors.payment?.billingAddress?.zipCode && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  {errors.payment.billingAddress.zipCode.message}
+                </p>
+              )}
+            </div>
+
+            <div className="col-span-6 space-y-2">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                <Globe className="w-3 h-3" />
+                Country
+              </label>
+              <div className="relative group">
+                <Globe className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 z-10 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <select
+                  {...register('payment.billingAddress.country')}
+                  defaultValue="US"
+                  className={`${inputBase(
+                    errors.payment?.billingAddress?.country
+                  )} pl-12 pr-10 appearance-none cursor-pointer`}
+                >
+                  <option value="" disabled>
+                    Select Country
+                  </option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <ChevronDown className="w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                </div>
+              </div>
+              {errors.payment?.billingAddress?.country && (
+                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                  {errors.payment.billingAddress.country.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Trust Badge */}
+        <div className="flex items-center justify-center gap-2 pt-2 text-[10px] text-gray-400 font-medium">
+          <Lock className="w-3 h-3" />
+          <span>
+            Your payment information is encrypted and secure. We never store
+            your card details.
+          </span>
         </div>
       </div>
     </div>

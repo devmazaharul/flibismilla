@@ -471,6 +471,7 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
       const firstLeg = (finalRoute || '').split('|')[0] || finalRoute;
       const routeParts = (firstLeg || '').split('➝');
 
+
       const emailOrigin = routeParts[0]?.trim() || 'Origin';
       const emailDest =
         routeParts[routeParts.length - 1]?.trim() || 'Destination';
@@ -488,8 +489,7 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
           to: contact.email,
           customerName: primaryPassengerName,
           bookingReference: order.data.booking_reference,
-          origin: emailOrigin,
-          destination: emailDest,
+          route:finalRoute,
           flightDate: emailDate,
         });
       } else {
