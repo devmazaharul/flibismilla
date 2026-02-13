@@ -94,7 +94,7 @@ export default function SignupPage() {
               <div className="relative">
                 <input
                   {...register('name')}
-                  placeholder="e.g. Mazaharul Islam"
+                  placeholder="e.g. John Doe"
                   className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black focus:bg-white transition-all outline-none"
                 />
               </div>

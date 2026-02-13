@@ -315,8 +315,8 @@ export const contactPageData = {
             {
                 id: 'email',
                 label: 'Email Us',
-                value: 'Murad.usa09@gmail.com',
-                link: 'mailto:Murad.usa09@gmail.com',
+                value: 'murad.usa09@gmail.com',
+                link: 'mailto:murad.usa09@gmail.com',
                 icon: 'email',
             },
             {

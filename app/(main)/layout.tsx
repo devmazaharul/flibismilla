@@ -42,7 +42,7 @@ export const metadata: Metadata = {
         'Bismillah Travels',
         'Tour Operator',
     ],
-    authors: [{ name: 'Mazaharul Islam' }],
+    authors: [{ name: 'fly bismillah' }],
     openGraph: {
         title: 'Bismillah Travels & Tours - Your Best Travel Partner',
         description: 'Book affordable Hajj, Umrah, and Tour packages with world-class service.',
