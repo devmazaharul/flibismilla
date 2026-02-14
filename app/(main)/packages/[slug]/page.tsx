@@ -568,230 +568,292 @@ const PackageDetails = () => {
         </div>
       </div>
 
-      {/* ═══════════ 4. Booking Modal ═══════════ */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+   {/* ═══════════ 4. Booking Modal ═══════════ */}
+{isModalOpen && (
+  <div
+    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+    onClick={() => setIsModalOpen(false)}
+  >
+    <div
+      className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Modal Header */}
+      <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-start">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            Book Your Trip
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+            <FaMapMarkerAlt className="text-rose-500 text-[10px]" />
+            {pkg.title}
+          </p>
+        </div>
+        <button
           onClick={() => setIsModalOpen(false)}
+          className="w-9 h-9 rounded-xl cursor-pointer bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-200"
         >
-          <div
-            className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Book Your Trip
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
-                  <FaMapMarkerAlt className="text-rose-500 text-[10px]" />
-                  {pkg.title}
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-200"
-              >
-                <FaTimes className="text-sm" />
-              </button>
-            </div>
+          <FaTimes className="text-sm " />
+        </button>
+      </div>
 
-            {/* Modal Form */}
-            <form
-              onSubmit={handleSubmit}
-              className="p-6 space-y-4 max-h-[75vh] overflow-y-auto"
-            >
-              {/* Name */}
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
-                  <FaUser className="text-gray-400 text-[10px]" /> Full Name
-                  <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                  className={`${inputBase} ${inputFocus} capitalize`}
-                />
-              </div>
+      {/* Modal Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="p-6 space-y-4 max-h-[75vh] overflow-y-auto overflow-x-hidden"
+      >
+        {/* Name */}
+        <div className="space-y-1.5 min-w-0">
+          <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
+            <FaUser className="text-gray-400 text-[10px]" /> Full Name
+            <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="name"
+            required
+            value={formData.name}
+            onChange={handleInputChange}
+            placeholder="John Doe"
+            className={`${inputBase} ${inputFocus} capitalize`}
+          />
+        </div>
 
-              {/* Phone & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
-                    <FaPhone className="text-gray-400 text-[10px]" /> Phone
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="+880 1XXX..."
-                    className={`${inputBase} ${inputFocus}`}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
-                    <FaEnvelope className="text-gray-400 text-[10px]" /> Email
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="you@example.com"
-                    className={`${inputBase} ${inputFocus} lowercase`}
-                  />
-                </div>
-              </div>
-
-              {/* Travel & Return Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
-                    <FaCalendarAlt className="text-gray-400 text-[10px]" />{' '}
-                    Travel Date
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="travelDate"
-                    required
-                    min={today}
-                    value={formData.travelDate}
-                    onChange={handleInputChange}
-                    className={`${inputBase} ${inputFocus} text-gray-600`}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
-                    <FaCalendarAlt className="text-gray-400 text-[10px]" />{' '}
-                    Return Date
-                    <span className="text-gray-400 font-normal text-[10px]">
-                      (Optional)
-                    </span>
-                  </label>
-                  <input
-                    type="date"
-                    name="returnDate"
-                    min={formData.travelDate || today}
-                    value={formData.returnDate}
-                    onChange={handleInputChange}
-                    className={`${inputBase} ${inputFocus} text-gray-600`}
-                  />
-                </div>
-              </div>
-
-              {/* Guests */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700">
-                    Adults{' '}
-                    <span className="text-gray-400 font-normal">(Max 10)</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="adults"
-                    min="1"
-                    max="10"
-                    value={formData.adults}
-                    onChange={handleInputChange}
-                    className={`${inputBase} ${inputFocus} text-center font-bold`}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold text-gray-700">
-                    Children{' '}
-                    <span className="text-gray-400 font-normal">(Max 8)</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="children"
-                    min="0"
-                    max="8"
-                    value={formData.children}
-                    onChange={handleInputChange}
-                    className={`${inputBase} ${inputFocus} text-center font-bold`}
-                  />
-                </div>
-              </div>
-
-              {/* Message */}
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold text-gray-700 flex items-center justify-between">
-                  <span>Additional Notes</span>
-                  <span className="text-gray-400 font-normal text-[10px]">
-                    {formData.message.length}/200
-                  </span>
-                </label>
-                <textarea
-                  name="message"
-                  rows={3}
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  placeholder="Any specific requirements or preferences?"
-                  className="w-full p-4 rounded-xl border bg-white text-gray-900 placeholder:text-gray-400 text-sm font-medium outline-none transition-all duration-300 border-gray-200 hover:border-gray-300 focus:border-gray-900 focus:ring-[3px] focus:ring-gray-900/5 resize-none"
-                />
-              </div>
-
-              {/* Submit */}
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full h-13 text-[15px] cursor-pointer font-bold rounded-xl ${button.primary} shadow-lg shadow-rose-500/15 transition-all duration-300 ${
-                  isSubmitting
-                    ? 'opacity-70'
-                    : 'hover:shadow-xl hover:shadow-rose-500/20 hover:-translate-y-0.5'
-                }`}
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Sending Request...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    Confirm Booking Request
-                    <FaPaperPlane className="text-xs" />
-                  </span>
-                )}
-              </Button>
-
-              <p className="text-[10px] text-center text-gray-400 leading-relaxed">
-                🔒 Your information is secure and will never be shared with
-                third parties.
-              </p>
-            </form>
+        {/* Phone & Email */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
+              <FaPhone className="text-gray-400 text-[10px]" /> Phone
+              <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              required
+              value={formData.phone}
+              onChange={handleInputChange}
+              placeholder="+880 1XXX..."
+              className={`${inputBase} ${inputFocus}`}
+            />
+          </div>
+          <div className="space-y-1.5 min-w-0">
+            <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
+              <FaEnvelope className="text-gray-400 text-[10px]" /> Email
+              <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="you@example.com"
+              className={`${inputBase} ${inputFocus} lowercase`}
+            />
           </div>
         </div>
-      )}
+
+        {/* ✅ Travel & Return Date — iOS Fixed */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-hidden">
+          {/* Travel Date */}
+          <div className="space-y-1.5 min-w-0 overflow-hidden">
+            <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
+              <FaCalendarAlt className="text-gray-400 text-[10px]" />
+              Travel Date
+              <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative w-full overflow-hidden rounded-xl">
+              <input
+                type="date"
+                name="travelDate"
+                required
+                min={today}
+                value={formData.travelDate}
+                onChange={handleInputChange}
+                className={`
+                  ${inputBase} ${inputFocus}
+                  text-gray-600
+                  w-full min-w-0 box-border
+                  appearance-none
+                  [-webkit-appearance:none]
+                  [-moz-appearance:none]
+                  [&::-webkit-date-and-time-value]:text-left
+                  [&::-webkit-date-and-time-value]:text-sm
+                  [&::-webkit-datetime-edit]:p-0
+                  [&::-webkit-datetime-edit]:text-sm
+                  [&::-webkit-datetime-edit-fields-wrapper]:p-0
+                  [&::-webkit-calendar-picker-indicator]:opacity-0
+                  [&::-webkit-calendar-picker-indicator]:absolute
+                  [&::-webkit-calendar-picker-indicator]:inset-0
+                  [&::-webkit-calendar-picker-indicator]:w-full
+                  [&::-webkit-calendar-picker-indicator]:h-full
+                  [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                `}
+                style={{
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                }}
+              />
+              {/* Custom calendar icon */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <FaCalendarAlt className="text-gray-400 text-xs" />
+              </div>
+            </div>
+          </div>
+
+          {/* Return Date */}
+          <div className="space-y-1.5 min-w-0 overflow-hidden">
+            <label className="text-[12px] font-semibold text-gray-700 flex items-center gap-1.5">
+              <FaCalendarAlt className="text-gray-400 text-[10px]" />
+              Return Date
+              <span className="text-gray-400 font-normal text-[10px]">
+                (Optional)
+              </span>
+            </label>
+            <div className="relative w-full overflow-hidden rounded-xl">
+              <input
+                type="date"
+                name="returnDate"
+                min={formData.travelDate || today}
+                value={formData.returnDate}
+                onChange={handleInputChange}
+                className={`
+                  ${inputBase} ${inputFocus}
+                  text-gray-600
+                  w-full min-w-0 box-border
+                  appearance-none
+                  [-webkit-appearance:none]
+                  [-moz-appearance:none]
+                  [&::-webkit-date-and-time-value]:text-left
+                  [&::-webkit-date-and-time-value]:text-sm
+                  [&::-webkit-datetime-edit]:p-0
+                  [&::-webkit-datetime-edit]:text-sm
+                  [&::-webkit-datetime-edit-fields-wrapper]:p-0
+                  [&::-webkit-calendar-picker-indicator]:opacity-0
+                  [&::-webkit-calendar-picker-indicator]:absolute
+                  [&::-webkit-calendar-picker-indicator]:inset-0
+                  [&::-webkit-calendar-picker-indicator]:w-full
+                  [&::-webkit-calendar-picker-indicator]:h-full
+                  [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                `}
+                style={{
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                }}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <FaCalendarAlt className="text-gray-400 text-xs" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Guests */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <label className="text-[12px] font-semibold text-gray-700">
+              Adults{' '}
+              <span className="text-gray-400 font-normal">(Max 10)</span>
+            </label>
+            <input
+              type="number"
+              name="adults"
+              min="1"
+              max="10"
+              value={formData.adults}
+              onChange={handleInputChange}
+              className={`${inputBase} ${inputFocus} text-center font-bold`}
+            />
+          </div>
+          <div className="space-y-1.5 min-w-0">
+            <label className="text-[12px] font-semibold text-gray-700">
+              Children{' '}
+              <span className="text-gray-400 font-normal">(Max 8)</span>
+            </label>
+            <input
+              type="number"
+              name="children"
+              min="0"
+              max="8"
+              value={formData.children}
+              onChange={handleInputChange}
+              className={`${inputBase} ${inputFocus} text-center font-bold`}
+            />
+          </div>
+        </div>
+
+        {/* Message */}
+        <div className="space-y-1.5 min-w-0">
+          <label className="text-[12px] font-semibold text-gray-700 flex items-center justify-between">
+            <span>Additional Notes</span>
+            <span className="text-gray-400 font-normal text-[10px]">
+              {formData.message.length}/200
+            </span>
+          </label>
+          <textarea
+            name="message"
+            rows={3}
+            value={formData.message}
+            onChange={handleInputChange}
+            placeholder="Any specific requirements or preferences?"
+            className="w-full min-w-0 box-border p-4 rounded-xl border bg-white text-gray-900 placeholder:text-gray-400 text-sm font-medium outline-none transition-all duration-300 border-gray-200 hover:border-gray-300 focus:border-gray-900 focus:ring-[3px] focus:ring-gray-900/5 resize-none"
+          />
+        </div>
+
+        {/* Submit */}
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full h-13 text-[15px] cursor-pointer font-bold rounded-xl ${button.primary} shadow-lg shadow-rose-500/15 transition-all duration-300 ${
+            isSubmitting
+              ? 'opacity-70'
+              : 'hover:shadow-xl hover:shadow-rose-500/20 hover:-translate-y-0.5'
+          }`}
+        >
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Sending Request...
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              Confirm Booking Request
+              <FaPaperPlane className="text-xs" />
+            </span>
+          )}
+        </Button>
+
+        <p className="text-[10px] text-center text-gray-400 leading-relaxed">
+          🔒 Your information is secure and will never be shared with
+          third parties.
+        </p>
+      </form>
+    </div>
+  </div>
+)}
     </main>
   );
 };

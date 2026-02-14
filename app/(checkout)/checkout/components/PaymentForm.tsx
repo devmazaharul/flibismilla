@@ -259,9 +259,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   };
 
   const inputBase = (hasError?: any) => `
-    w-full bg-gray-50/80 text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal
-    border rounded-2xl px-4 py-3.5 transition-all duration-300 outline-none
-    backdrop-blur-sm
+    w-full min-w-0 bg-gray-50/80 text-sm font-semibold text-gray-900
+    placeholder:text-gray-400 placeholder:font-normal
+    border rounded-xl sm:rounded-2xl px-3 sm:px-4 py-3 sm:py-3.5
+    transition-all duration-300 outline-none box-border
     ${
       hasError
         ? 'border-red-300 bg-red-50/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:bg-white'
@@ -270,140 +271,124 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   `;
 
   return (
-    <div className="relative w-full overflow-hidden">
-      {/* Gradient border wrapper */}
-      <div className="absolute inset-0 rounded-3xl p-[1.5px]">
-        <div className="h-full w-full rounded-3xl bg-white" />
-      </div>
-
-      <div className="relative z-10 p-6 md:p-10 space-y-8">
+    <div className="w-full overflow-hidden bg-white rounded-2xl">
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0  rounded-2xl blur-md opacity-40" />
-              <div className="relative p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-500/25">
-                <CreditCard className="w-5 h-5" />
-              </div>
+            <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl text-white shadow-lg shadow-indigo-500/25 shrink-0">
+              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-xl font-black text-gray-900 tracking-tight">
                 Payment Details
               </h3>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
+              <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5">
                 Enter your card information securely
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-extrabold text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 rounded-2xl border border-emerald-200/60 uppercase tracking-widest shadow-2xl shadow-gray-100">
-            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-emerald-200/60 uppercase tracking-widest shrink-0">
+            <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500" />
             <span>256-bit SSL</span>
           </div>
         </div>
 
         {/* Amount Banner */}
         {amount && (
-          <div className="relative overflow-hidden rounded-2xl">
+          <div className="relative overflow-hidden rounded-xl sm:rounded-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9zdmc+')] opacity-60" />
-            <div className="relative flex justify-between items-center p-5">
+            <div className="relative flex justify-between items-center p-4 sm:p-5">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-200" />
-                <span className="text-sm font-semibold text-indigo-100">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-200" />
+                <span className="text-xs sm:text-sm font-semibold text-indigo-100">
                   Total Amount
                 </span>
               </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-lg">
-                  {amount}
-                </span>
-              </div>
+              <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                {amount}
+              </span>
             </div>
           </div>
         )}
 
-        {/* Card Details Section */}
-        <div className="space-y-5">
+        {/* Card Details */}
+        <div className="space-y-4 sm:space-y-5">
           {/* Card Number */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+          <div className="space-y-1.5 sm:space-y-2 min-w-0">
+            <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
               <CreditCard className="w-3 h-3" />
               Card Number
             </label>
             <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300">
-                <CreditCard className="w-4.5 h-4.5 text-gray-300 group-focus-within:text-indigo-500" />
-              </div>
+              <CreditCard className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-indigo-500 transition-colors duration-300 pointer-events-none" />
               <input
                 {...register('payment.cardNumber')}
                 onChange={handleCardNumberChange}
                 placeholder="0000 0000 0000 0000"
                 maxLength={23}
+                inputMode="numeric"
                 className={`${inputBase(
                   errors.payment?.cardNumber
-                )} pl-12 font-mono tracking-[0.2em] text-base`}
+                )} pl-10 sm:pl-12 font-mono tracking-[0.12em] sm:tracking-[0.2em] text-sm sm:text-base`}
               />
-              {/* Card type indicators */}
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1.5 opacity-30">
-                <div className="w-8 h-5 bg-gradient-to-br from-blue-600 to-blue-800 rounded-md" />
-                <div className="w-8 h-5 bg-gradient-to-br from-red-500 to-orange-500 rounded-md" />
-              </div>
             </div>
             {errors.payment?.cardNumber && (
-              <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold animate-pulse">
-                <span className="w-1 h-1 bg-red-500 rounded-full" />
+              <p className="flex items-center gap-1 text-[10px] sm:text-[11px] text-red-500 font-bold">
+                <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                 {errors.payment.cardNumber.message}
               </p>
             )}
           </div>
 
-          {/* Name + Expiry Row */}
-          <div className="grid grid-cols-12 gap-4">
+          {/* Name + Expiry */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-4">
             {/* Cardholder Name */}
-            <div className="col-span-12 md:col-span-7 space-y-2">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            <div className="sm:col-span-7 space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 <User className="w-3 h-3" />
                 Cardholder Name
               </label>
               <div className="relative group">
-                <User className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-rose-500 transition-colors duration-300" />
+                <User className="w-4 h-4 text-gray-300 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 group-focus-within:text-rose-500 transition-colors duration-300 pointer-events-none" />
                 <input
                   {...register('payment.cardName')}
                   placeholder="Full name on card"
                   className={`${inputBase(
                     errors.payment?.cardName
-                  )} pl-12 uppercase tracking-wide`}
+                  )} pl-10 sm:pl-12 uppercase tracking-wide`}
                 />
               </div>
               {errors.payment?.cardName && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] sm:text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   {errors.payment.cardName.message}
                 </p>
               )}
             </div>
 
             {/* Expiry */}
-            <div className="col-span-6 md:col-span-5 space-y-2">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            <div className="sm:col-span-5 space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 <Calendar className="w-3 h-3" />
                 Expiry Date
               </label>
               <div className="relative group">
-                <Calendar className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <Calendar className="w-4 h-4 text-gray-300 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300 pointer-events-none" />
                 <input
                   {...register('payment.expiryDate')}
                   onChange={handleExpiryChange}
                   placeholder="MM / YY"
                   maxLength={5}
+                  inputMode="numeric"
                   className={`${inputBase(
                     errors.payment?.expiryDate
-                  )} pl-12 text-center tracking-[0.3em] font-mono`}
+                  )} pl-10 sm:pl-12 text-center tracking-[0.2em] sm:tracking-[0.3em] font-mono`}
                 />
               </div>
               {errors.payment?.expiryDate && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] sm:text-[11px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   Invalid
                 </p>
               )}
@@ -423,13 +408,13 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
         </div>
 
-        {/* Billing Address Section */}
-        <div className="space-y-5">
+        {/* Billing Address */}
+        <div className="space-y-4 sm:space-y-5">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+            <div className="p-2 bg-rose-50 rounded-xl border border-rose-100 shrink-0">
               <MapPin className="w-4 h-4 text-rose-500" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
                 Billing Address
               </h3>
@@ -440,33 +425,33 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
 
           {/* Street */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+          <div className="space-y-1.5 sm:space-y-2 min-w-0">
+            <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
               <Home className="w-3 h-3" />
               Street Address
             </label>
             <div className="relative group">
-              <Home className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+              <Home className="w-4 h-4 text-gray-300 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300 pointer-events-none" />
               <input
                 {...register('payment.billingAddress.street')}
                 placeholder="123 Main Street, Apt 4B"
                 className={`${inputBase(
                   errors.payment?.billingAddress?.street
-                )} pl-12`}
+                )} pl-10 sm:pl-12`}
               />
             </div>
             {errors.payment?.billingAddress?.street && (
-              <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                <span className="w-1 h-1 bg-red-500 rounded-full" />
+              <p className="flex items-center gap-1 text-[10px] sm:text-[11px] text-red-500 font-bold">
+                <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                 {errors.payment.billingAddress.street.message}
               </p>
             )}
           </div>
 
           {/* City + State */}
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-6 space-y-2">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 City
               </label>
               <input
@@ -477,15 +462,15 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 )}
               />
               {errors.payment?.billingAddress?.city && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   Required
                 </p>
               )}
             </div>
 
-            <div className="col-span-6 space-y-2">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            <div className="space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 State / Province
               </label>
               <input
@@ -496,8 +481,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 )}
               />
               {errors.payment?.billingAddress?.state && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   Required
                 </p>
               )}
@@ -505,46 +490,47 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
 
           {/* Zip + Country */}
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-6 space-y-2">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 <Hash className="w-3 h-3" />
-                Zip / Postal Code
+                Zip Code
               </label>
               <div className="relative group">
-                <Hash className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <Hash className="w-4 h-4 text-gray-300 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-500 transition-colors duration-300 pointer-events-none" />
                 <input
                   {...register('payment.billingAddress.zipCode')}
                   placeholder="10001"
+                  inputMode="numeric"
                   className={`${inputBase(
                     errors.payment?.billingAddress?.zipCode
-                  )} pl-12 font-mono`}
+                  )} pl-10 sm:pl-12 font-mono`}
                 />
               </div>
               {errors.payment?.billingAddress?.zipCode && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   {errors.payment.billingAddress.zipCode.message}
                 </p>
               )}
             </div>
 
-            <div className="col-span-6 space-y-2">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            <div className="space-y-1.5 sm:space-y-2 min-w-0">
+              <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                 <Globe className="w-3 h-3" />
                 Country
               </label>
               <div className="relative group">
-                <Globe className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 z-10 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <Globe className="w-4 h-4 text-gray-300 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-10 group-focus-within:text-indigo-500 transition-colors duration-300 pointer-events-none" />
                 <select
                   {...register('payment.billingAddress.country')}
                   defaultValue="US"
                   className={`${inputBase(
                     errors.payment?.billingAddress?.country
-                  )} pl-12 pr-10 appearance-none cursor-pointer`}
+                  )} pl-10 sm:pl-12 pr-8 sm:pr-10 appearance-none cursor-pointer`}
                 >
                   <option value="" disabled>
-                    Select Country
+                    Select
                   </option>
                   {COUNTRIES.map((c) => (
                     <option key={c.code} value={c.code}>
@@ -552,13 +538,13 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <ChevronDown className="w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
                 </div>
               </div>
               {errors.payment?.billingAddress?.country && (
-                <p className="flex items-center gap-1 text-[11px] text-red-500 font-bold">
-                  <span className="w-1 h-1 bg-red-500 rounded-full" />
+                <p className="flex items-center gap-1 text-[10px] text-red-500 font-bold">
+                  <span className="w-1 h-1 bg-red-500 rounded-full shrink-0" />
                   {errors.payment.billingAddress.country.message}
                 </p>
               )}
@@ -566,12 +552,11 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
         </div>
 
-        {/* Footer Trust Badge */}
-        <div className="flex items-center justify-center gap-2 pt-2 text-[10px] text-gray-400 font-medium">
-          <Lock className="w-3 h-3" />
+        {/* Footer */}
+        <div className="flex items-center justify-center gap-2 pt-2 text-[9px] sm:text-[10px] text-gray-400 font-medium text-center">
+          <Lock className="w-3 h-3 shrink-0" />
           <span>
-            Your payment information is encrypted and secure. We never store
-            your card details.
+            Your payment information is encrypted and secure. We never store your card details.
           </span>
         </div>
       </div>
