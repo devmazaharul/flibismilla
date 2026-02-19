@@ -194,7 +194,7 @@ const Footer = () => {
               target="_blank"
               className="text-gray-400 hover:text-white font-semibold transition-colors"
             >
-              Maza IT
+              MazaSoft
             </Link>
           </p>
 
