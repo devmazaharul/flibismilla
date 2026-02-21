@@ -6,7 +6,7 @@ import { headerData } from '@/constant/data';
 import { appTheme } from '@/constant/theme/global';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { MdAirplaneTicket, MdOutlineAirplaneTicket } from "react-icons/md";
+import { MdAirplaneTicket, MdOutlineAirplaneTicket } from 'react-icons/md';
 
 import {
   FaPhoneAlt,
@@ -28,6 +28,11 @@ import {
   FaArrowRight,
   FaTimes,
   FaExclamationTriangle,
+  FaGlobeAmericas,
+  FaSuitcaseRolling,
+  FaConciergeBell,
+  FaPassport,
+  FaMapMarkedAlt,
 } from 'react-icons/fa';
 
 import { Loader2, LogOut, User, LayoutDashboard, Shield } from 'lucide-react';
@@ -53,6 +58,9 @@ const Navbar = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // ✅ Sheet open state for controlling mobile menu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
@@ -75,6 +83,7 @@ const Navbar = () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
       setShowLogoutModal(false);
+      setMobileMenuOpen(false); // ✅ Close mobile menu on logout
       router.push('/access');
       router.refresh();
     } catch (error) {
@@ -82,6 +91,11 @@ const Navbar = () => {
     } finally {
       setLoggingOut(false);
     }
+  };
+
+  // ✅ Function to close mobile menu
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
   };
 
   const isActive = (href: string) => {
@@ -123,7 +137,9 @@ const Navbar = () => {
       <header className="w-full relative bg-white print:hidden z-50">
         {/* ═══════════ Top Bar ═══════════ */}
         <div className="bg-gray-950 text-gray-300 hidden md:block">
-          <div className={`${layout.container} flex justify-between items-center h-9`}>
+          <div
+            className={`${layout.container} flex justify-between items-center h-9`}
+          >
             <div className="flex items-center divide-x divide-gray-800">
               <a
                 href={`mailto:${headerData.contact.email}`}
@@ -168,7 +184,9 @@ const Navbar = () => {
               : 'border-b border-gray-100'
           }`}
         >
-          <div className={`${layout.container} flex justify-between items-center h-16 md:h-[68px]`}>
+          <div
+            className={`${layout.container} flex justify-between items-center h-16 md:h-[68px]`}
+          >
             {/* Logo */}
             <Link
               href="/"
@@ -188,7 +206,10 @@ const Navbar = () => {
               {headerData.navLinks.map((link, idx) => {
                 const active = isActive(link.href);
                 return (
-                  <li key={idx} className="relative group h-full flex items-center">
+                  <li
+                    key={idx}
+                    className="relative group h-full flex items-center"
+                  >
                     <Link
                       href={link.href}
                       className={`relative px-4 h-full flex items-center gap-1 text-[13px] font-bold tracking-wide uppercase transition-all duration-300 cursor-pointer ${
@@ -202,13 +223,11 @@ const Navbar = () => {
                         <IoMdArrowDropdown className="text-sm text-gray-400 group-hover:text-gray-600 transition-transform group-hover:rotate-180 duration-300" />
                       )}
 
-                      {/* Active dot */}
                       {active && (
                         <span className="absolute bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-rose-600" />
                       )}
                     </Link>
 
-                    {/* Dropdown */}
                     {link.subMenu && (
                       <div className="absolute top-[85%] left-1/2 -translate-x-1/2 w-52 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:top-full transition-all duration-300 ease-out pt-3 z-50">
                         <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-100/80 overflow-hidden p-1.5">
@@ -282,9 +301,9 @@ const Navbar = () => {
                 )}
               </div>
 
-              {/* Mobile Menu */}
+              {/* ✅ Mobile Menu - Controlled Sheet */}
               <div className="lg:hidden">
-                <Sheet>
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
                     <button className="w-10 h-10 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95">
                       <FaBars className="text-gray-600 text-sm" />
@@ -329,7 +348,12 @@ const Navbar = () => {
                               </div>
 
                               <div className="grid grid-cols-3 gap-2">
-                                <Link href="/admin/dashboard" className="col-span-2">
+                                {/* ✅ Close menu when clicking Dashboard */}
+                                <Link
+                                  href="/admin/dashboard"
+                                  className="col-span-2"
+                                  onClick={closeMobileMenu}
+                                >
                                   <button
                                     className={`w-full h-10 rounded-xl ${btnTheme.primary} text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all`}
                                   >
@@ -338,7 +362,10 @@ const Navbar = () => {
                                   </button>
                                 </Link>
                                 <button
-                                  onClick={() => setShowLogoutModal(true)}
+                                  onClick={() => {
+                                    setShowLogoutModal(true);
+                                    closeMobileMenu();
+                                  }}
                                   className="h-10 rounded-xl border border-gray-200 bg-white hover:bg-red-50 hover:border-red-200 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all cursor-pointer active:scale-[0.98]"
                                 >
                                   <LogOut className="w-3.5 h-3.5" />
@@ -346,7 +373,12 @@ const Navbar = () => {
                               </div>
                             </div>
                           ) : (
-                            <Link href="/access" className="block">
+                            // ✅ Close menu when clicking Sign In
+                            <Link
+                              href="/access"
+                              className="block"
+                              onClick={closeMobileMenu}
+                            >
                               <div className="p-4 rounded-2xl bg-gray-900 hover:bg-gray-800 transition-all group cursor-pointer active:scale-[0.99]">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3">
@@ -384,7 +416,7 @@ const Navbar = () => {
                         <span className="flex-1 h-px bg-gray-100" />
                       </div>
 
-                      {/* Nav Items */}
+                      {/* ✅ Nav Items - pass closeMobileMenu */}
                       <div className="space-y-0.5">
                         {headerData.navLinks.map((link, idx) => (
                           <MobileMenuItem
@@ -392,6 +424,7 @@ const Navbar = () => {
                             link={link}
                             subMenu={link.subMenu}
                             isActiveFunc={isActive}
+                            onNavigate={closeMobileMenu}
                           />
                         ))}
                       </div>
@@ -459,9 +492,7 @@ const Navbar = () => {
             className="bg-white rounded-3xl w-full max-w-[380px] shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Body */}
             <div className="p-6 pt-8 text-center">
-              {/* Icon */}
               <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-5">
                 <Shield className="w-7 h-7 text-red-500" />
               </div>
@@ -471,10 +502,10 @@ const Navbar = () => {
               </h3>
 
               <p className="text-sm text-gray-500 leading-relaxed mb-6 max-w-[280px] mx-auto">
-                You'll need to sign in again to access the admin dashboard and manage bookings.
+                You'll need to sign in again to access the admin dashboard and
+                manage bookings.
               </p>
 
-              {/* Buttons */}
               <div className="space-y-2.5">
                 <button
                   onClick={handleLogout}
@@ -508,7 +539,6 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Footer note */}
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
               <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1.5">
                 <Shield className="w-3 h-3" />
@@ -522,21 +552,46 @@ const Navbar = () => {
   );
 };
 
-// ═══════════ Mobile Menu Item ═══════════
-const MobileMenuItem = ({ link, subMenu, isActiveFunc }: any) => {
+// ═══════════ Mobile Menu Item (Updated) ═══════════
+const MobileMenuItem = ({
+  link,
+  subMenu,
+  isActiveFunc,
+  onNavigate,
+}: {
+  link: any;
+  subMenu: any;
+  isActiveFunc: (href: string) => boolean;
+  onNavigate: () => void; // ✅ Added callback to close menu
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const active = isActiveFunc(link.href);
 
+  // ✅ Fixed & expanded icon mapping
   const getLinkIcon = (label: string) => {
     const l = label.toLowerCase();
     if (l.includes('home')) return <FaHome />;
-    if (l.includes('flight')) return <FaPlaneDeparture />;
-    if (l.includes('hotel')) return <FaHotel />;
-    if (l.includes('hajj') || l.includes('umrah')) return <FaKaaba />;
+    if (l.includes('flight') || l.includes('air')) return <FaPlaneDeparture />;
+    if (l.includes('hotel') || l.includes('accommodation'))
+      return <FaHotel />;
+    if (l.includes('hajj') || l.includes('umrah') || l.includes('umra'))
+      return <FaKaaba />;
     if (l.includes('about')) return <FaInfoCircle />;
-    if (l.includes('contact')) return <FaHeadset />;
-    if (l.includes('booking')) return <MdOutlineAirplaneTicket/>;
-    return <MdAirplaneTicket className="text-[20px]" />;
+    if (l.includes('contact') || l.includes('support')) return <FaHeadset />;
+    if (l.includes('booking') || l.includes('reservation'))
+      return <MdOutlineAirplaneTicket className="text-[18px]" />;
+    if (l.includes('visa') || l.includes('passport'))
+      return <FaPassport />;
+    if (l.includes('tour') || l.includes('package') || l.includes('travel'))
+      return <FaSuitcaseRolling />;
+    if (l.includes('service')) return <FaConciergeBell />;
+    if (l.includes('destination') || l.includes('place'))
+      return <FaMapMarkedAlt />;
+    if (l.includes('ticket'))
+      return <MdAirplaneTicket className="text-[18px]" />;
+    if (l.includes('international') || l.includes('global'))
+      return <FaGlobeAmericas />;
+    return <FaChevronRight />;
   };
 
   return (
@@ -556,21 +611,30 @@ const MobileMenuItem = ({ link, subMenu, isActiveFunc }: any) => {
           >
             {getLinkIcon(link.label)}
           </div>
-          <Link
-            href={link.href}
-            className={`text-[14px] font-bold tracking-wide flex-1 transition-colors cursor-pointer ${
-              active || isOpen ? 'text-gray-900' : 'text-gray-600'
-            }`}
-            onClick={(e) => {
-              if (subMenu) {
-                e.preventDefault();
-                setIsOpen(!isOpen);
-              }
-            }}
-          >
-            {link.label}
-          </Link>
+
+          {/* ✅ If has submenu → toggle dropdown, else navigate & close menu */}
+          {subMenu ? (
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className={`text-[14px] font-bold tracking-wide flex-1 text-left transition-colors cursor-pointer ${
+                active || isOpen ? 'text-gray-900' : 'text-gray-600'
+              }`}
+            >
+              {link.label}
+            </button>
+          ) : (
+            <Link
+              href={link.href}
+              onClick={onNavigate}
+              className={`text-[14px] font-bold tracking-wide flex-1 transition-colors cursor-pointer ${
+                active ? 'text-gray-900' : 'text-gray-600'
+              }`}
+            >
+              {link.label}
+            </Link>
+          )}
         </div>
+
         {subMenu && (
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -585,6 +649,7 @@ const MobileMenuItem = ({ link, subMenu, isActiveFunc }: any) => {
         )}
       </div>
 
+      {/* ✅ Submenu items — also close menu on click */}
       {subMenu && (
         <div
           className={`overflow-hidden transition-all duration-300 ease-out ${
@@ -598,6 +663,7 @@ const MobileMenuItem = ({ link, subMenu, isActiveFunc }: any) => {
                 <Link
                   key={idx}
                   href={sub.href}
+                  onClick={onNavigate} // ✅ Close menu on sub-item click
                   className={`flex items-center justify-between py-2.5 px-3 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
                     subActive
                       ? 'text-rose-600 bg-rose-50 font-bold'
