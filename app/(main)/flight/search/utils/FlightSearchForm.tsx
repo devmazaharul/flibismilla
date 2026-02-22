@@ -71,9 +71,9 @@ export default function FlightSearchForm() {
   };
 
   return (
-    <div className="w-full rounded-3xl relative z-20   shadow-xl shadow-gray-200/40 border border-gray-100/80">
+    <div className="w-full relative z-20   shadow-xl shadow-gray-200/40 ">
       {/* ═══════════ Header ═══════════ */}
-      <div className="bg-white rounded-3xl px-5 md:px-7 pt-5 pb-4">
+      <div className="bg-white  px-5 md:px-7 pt-5 pb-4">
         {/* Top row */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
