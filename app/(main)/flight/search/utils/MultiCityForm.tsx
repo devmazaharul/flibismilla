@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Search,
@@ -11,11 +11,539 @@ import {
   Trash2,
   AlertCircle,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import PassengerSelector from './PassengerSelector';
 import { z } from 'zod';
 import { AirportInput } from './AirportInput';
 import { MULTICITY_MAX_LEGS } from '@/constant/control';
+
+// ╔═══════════════════════════════════════════════════════════════╗
+// ║ ★ FlightDatePicker — Light Theme Custom Calendar ★           ║
+// ╚═══════════════════════════════════════════════════════════════╝
+
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+const MONTHS_SHORT = [
+  'Jan','Feb','Mar','Apr','May','Jun',
+  'Jul','Aug','Sep','Oct','Nov','Dec',
+];
+const WEEK_DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const WEEKDAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+interface FlightDatePickerProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  minDate?: string;
+  hasError?: boolean;
+  pickerId: string;
+  activePickerId: string | null;
+  onOpenChange: (id: string | null) => void;
+}
+
+function FlightDatePicker({
+  label,
+  value,
+  onChange,
+  minDate,
+  hasError = false,
+  pickerId,
+  activePickerId,
+  onOpenChange,
+}: FlightDatePickerProps) {
+  const open = activePickerId === pickerId;
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
+  const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropDirection, setDropDirection] = useState<'down' | 'up'>('down');
+
+  const setOpen = (isOpen: boolean) => {
+    onOpenChange(isOpen ? pickerId : null);
+  };
+
+  // Click outside → close
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setShowMonthPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Escape → close
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        setShowMonthPicker(false);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  // Sync view when opening
+  useEffect(() => {
+    if (open) {
+      if (value) {
+        const d = new Date(value + 'T00:00:00');
+        setViewMonth(d.getMonth());
+        setViewYear(d.getFullYear());
+      } else if (minDate) {
+        const d = new Date(minDate + 'T00:00:00');
+        setViewMonth(d.getMonth());
+        setViewYear(d.getFullYear());
+      } else {
+        const now = new Date();
+        setViewMonth(now.getMonth());
+        setViewYear(now.getFullYear());
+      }
+      setShowMonthPicker(false);
+
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setDropDirection(spaceBelow < 400 ? 'up' : 'down');
+      }
+    }
+  }, [open, value, minDate]);
+
+  const todayObj = new Date();
+  const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
+
+  const isDateDisabled = (dateStr: string) => {
+    if (minDate && dateStr < minDate) return true;
+    return false;
+  };
+
+  const prevMonthNav = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const nextMonthNav = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const selectDay = (day: number) => {
+    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (isDateDisabled(dateStr)) return;
+    onChange(dateStr);
+    setOpen(false);
+  };
+
+  const selectToday = () => {
+    if (!isDateDisabled(todayStr)) {
+      onChange(todayStr);
+      setOpen(false);
+    }
+  };
+
+  const formatDisplay = (v: string) => {
+    const d = new Date(v + 'T00:00:00');
+    return {
+      dayNum: d.getDate(),
+      month: MONTHS_SHORT[d.getMonth()],
+      year: d.getFullYear(),
+      weekday: WEEKDAY_NAMES[d.getDay()],
+    };
+  };
+
+  // Build cells
+  const cells: { day: number; type: 'prev' | 'curr' | 'next' }[] = [];
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({ day: prevMonthDays - i, type: 'prev' });
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    cells.push({ day: i, type: 'curr' });
+  }
+  const remaining = 42 - cells.length;
+  for (let i = 1; i <= remaining; i++) {
+    cells.push({ day: i, type: 'next' });
+  }
+  const lastRowStart = Math.floor((cells.length - 1) / 7) * 7;
+  const showCells =
+    cells[lastRowStart]?.type === 'next' ? cells.slice(0, lastRowStart) : cells;
+
+  const displayDate = value ? formatDisplay(value) : null;
+
+  const isPrevNavDisabled = (() => {
+    if (!minDate) return false;
+    const minD = new Date(minDate + 'T00:00:00');
+    const prevEnd = new Date(viewYear, viewMonth, 0);
+    return prevEnd < minD;
+  })();
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      {/* ─ Trigger ─ */}
+      <div
+        onClick={() => setOpen(!open)}
+        className={`
+          group relative h-[56px] w-full
+          bg-white rounded-xl border transition-all duration-300
+          flex items-center gap-3 px-3.5
+          cursor-pointer select-none
+          ${
+            hasError
+              ? 'border-red-300 bg-red-50/30'
+              : open
+                ? 'border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.04)]'
+                : 'border-gray-200 hover:border-gray-300'
+          }
+        `}
+      >
+        <div
+          className={`
+            w-9 h-9 rounded-lg flex items-center justify-center shrink-0
+            transition-all duration-300
+            ${
+              hasError
+                ? 'bg-red-100 text-red-500'
+                : open
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+            }
+          `}
+        >
+          <Calendar className="w-3.5 h-3.5" />
+        </div>
+
+        <div className="flex flex-col justify-center flex-1 min-w-0">
+          <span
+            className={`
+              text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5
+              ${hasError ? 'text-red-400' : open ? 'text-gray-900' : 'text-gray-400'}
+            `}
+          >
+            {label}
+          </span>
+
+          {displayDate ? (
+            <div className="flex items-baseline gap-1">
+              <span className="text-[14px] font-bold text-gray-900 leading-tight">
+                {displayDate.dayNum}
+              </span>
+              <span className="text-[12px] font-semibold text-gray-900 leading-tight">
+                {displayDate.month}
+              </span>
+              <span className="text-[10px] font-medium text-gray-400 leading-tight">
+                {displayDate.year}
+              </span>
+              <span className="text-[9px] font-medium text-gray-300 leading-tight">
+                {displayDate.weekday}
+              </span>
+            </div>
+          ) : (
+            <span className="text-[13px] font-semibold text-gray-300 leading-tight">
+              Select date
+            </span>
+          )}
+        </div>
+
+        {value ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+              }}
+              className="
+                w-5 h-5 rounded-full flex items-center justify-center
+                text-gray-300 hover:text-gray-500 hover:bg-gray-100
+                transition-all opacity-0 group-hover:opacity-100 cursor-pointer
+              "
+            >
+              <X className="w-3 h-3" />
+            </button>
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          </div>
+        ) : (
+          <ChevronRight
+            className={`
+              w-3.5 h-3.5 shrink-0 transition-transform duration-300
+              ${open ? 'rotate-90 text-gray-900' : 'text-gray-300'}
+            `}
+          />
+        )}
+      </div>
+
+      {/* ─ Calendar Dropdown ─ */}
+      {open && (
+        <>
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
+            onClick={() => {
+              setOpen(false);
+              setShowMonthPicker(false);
+            }}
+          />
+
+          <div
+            className={`
+              absolute left-0 right-0 lg:right-auto lg:w-[310px]
+              ${dropDirection === 'up' ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'}
+            `}
+            style={{
+              zIndex: 9999,
+              animation: 'calDrop 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl shadow-black/12 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50/80 border-b border-gray-100">
+                <button
+                  type="button"
+                  onClick={prevMonthNav}
+                  disabled={isPrevNavDisabled}
+                  className="
+                    w-8 h-8 rounded-lg flex items-center justify-center
+                    text-gray-400 hover:text-gray-900 hover:bg-white
+                    disabled:opacity-25 disabled:cursor-not-allowed
+                    transition-all cursor-pointer active:scale-90
+                  "
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMonthPicker(!showMonthPicker)}
+                  className="
+                    flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                    hover:bg-white transition-all cursor-pointer
+                  "
+                >
+                  <span className="text-[13px] font-bold text-gray-900">
+                    {MONTHS[viewMonth]}
+                  </span>
+                  <span className="text-[13px] font-bold text-rose-600">
+                    {viewYear}
+                  </span>
+                  <ChevronRight
+                    className={`
+                      w-3 h-3 text-gray-400 transition-transform
+                      ${showMonthPicker ? 'rotate-90' : ''}
+                    `}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={nextMonthNav}
+                  className="
+                    w-8 h-8 rounded-lg flex items-center justify-center
+                    text-gray-400 hover:text-gray-900 hover:bg-white
+                    transition-all cursor-pointer active:scale-90
+                  "
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Month/Year Picker */}
+              {showMonthPicker && (
+                <div
+                  className="absolute inset-x-0 bg-white border-b border-gray-100 overflow-y-auto p-3"
+                  style={{ top: '52px', bottom: '48px', zIndex: 10 }}
+                >
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setViewYear((y) => y - 1)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-sm font-bold text-gray-900 w-16 text-center">
+                      {viewYear}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setViewYear((y) => y + 1)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {MONTHS_SHORT.map((m, i) => {
+                      const isActive = viewMonth === i;
+                      const isCurrMonth =
+                        i === todayObj.getMonth() && viewYear === todayObj.getFullYear();
+                      let monthDisabled = false;
+                      if (minDate) {
+                        const minD = new Date(minDate + 'T00:00:00');
+                        const monthEnd = new Date(viewYear, i + 1, 0);
+                        monthDisabled = monthEnd < minD;
+                      }
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          disabled={monthDisabled}
+                          onClick={() => {
+                            setViewMonth(i);
+                            setShowMonthPicker(false);
+                          }}
+                          className={`
+                            py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer
+                            disabled:opacity-25 disabled:cursor-not-allowed
+                            ${
+                              isActive
+                                ? 'bg-gray-900 text-white shadow-md'
+                                : isCurrMonth
+                                  ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            }
+                          `}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 px-3 pt-2">
+                {WEEK_DAYS.map((d) => (
+                  <div
+                    key={d}
+                    className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-wider py-1.5"
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day Grid */}
+              <div className="grid grid-cols-7 gap-[2px] px-3 pb-2">
+                {showCells.map(({ day, type }, i) => {
+                  if (type !== 'curr') {
+                    return (
+                      <div
+                        key={`${type}-${i}`}
+                        className="flex items-center justify-center w-full aspect-square rounded-lg text-[11px] text-gray-200 select-none"
+                      >
+                        {day}
+                      </div>
+                    );
+                  }
+
+                  const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isToday = dateStr === todayStr;
+                  const isSelected = dateStr === value;
+                  const disabled = isDateDisabled(dateStr);
+
+                  return (
+                    <button
+                      key={`curr-${day}`}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => selectDay(day)}
+                      className={`
+                        flex items-center justify-center w-full aspect-square
+                        rounded-lg text-[12px] font-semibold
+                        transition-all duration-150 cursor-pointer
+                        disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent
+                        ${
+                          isSelected
+                            ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20 scale-[1.08]'
+                            : isToday
+                              ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-100 font-bold'
+                              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:scale-90'
+                        }
+                      `}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50/60 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={selectToday}
+                  disabled={isDateDisabled(todayStr)}
+                  className="
+                    text-[11px] font-bold text-rose-600
+                    hover:text-rose-700 px-2.5 py-1.5
+                    rounded-lg hover:bg-rose-50
+                    transition-all cursor-pointer
+                    disabled:opacity-25 disabled:cursor-not-allowed
+                  "
+                >
+                  Today
+                </button>
+
+                {value && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-gray-400 hidden sm:inline">
+                      {formatDisplay(value).weekday},{' '}
+                      {formatDisplay(value).dayNum}{' '}
+                      {formatDisplay(value).month}{' '}
+                      {formatDisplay(value).year}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange('');
+                        setOpen(false);
+                      }}
+                      className="
+                        text-[11px] font-semibold text-gray-400
+                        hover:text-gray-600 px-2 py-1.5
+                        rounded-lg hover:bg-gray-100
+                        transition-all cursor-pointer
+                      "
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ═══ Schema ═══
+// ═══════════════════════════════════════════════════════════════
 
 const flightLegSchema = z
   .object({
@@ -44,6 +572,10 @@ interface FlightLeg {
   date: string;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ═══ Main Form ═══
+// ═══════════════════════════════════════════════════════════════
+
 export default function MultiCityForm({
   onSearch,
 }: {
@@ -52,6 +584,9 @@ export default function MultiCityForm({
   const searchParams = useSearchParams();
   const [today, setToday] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ★ Single state — only one calendar open at a time
+  const [activePickerId, setActivePickerId] = useState<string | null>(null);
 
   useEffect(() => {
     const dt = new Date();
@@ -92,8 +627,18 @@ export default function MultiCityForm({
     const newFlights = [...flights];
     newFlights[index] = { ...newFlights[index], [field]: value };
 
+    // Auto-chain: destination → next flight's origin
     if (field === 'destination' && index < flights.length - 1) {
       newFlights[index + 1].origin = value;
+    }
+
+    // ★ If date changed, clear any subsequent flights with earlier dates
+    if (field === 'date' && value) {
+      for (let i = index + 1; i < newFlights.length; i++) {
+        if (newFlights[i].date && newFlights[i].date < value) {
+          newFlights[i].date = '';
+        }
+      }
     }
 
     setFlights(newFlights);
@@ -158,7 +703,8 @@ export default function MultiCityForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full relative z-20 bg-white p-4 md:p-5 rounded-b-3xl"
+      className="w-full relative bg-white p-4 md:p-5 rounded-b-3xl"
+      style={{ zIndex: activePickerId ? 9990 : 20 }}
     >
       {/* ═══════════ Flight Legs ═══════════ */}
       <div className="space-y-2">
@@ -173,7 +719,11 @@ export default function MultiCityForm({
               hover:border-gray-200
               animate-in fade-in slide-in-from-top-1 duration-300
             "
-            style={{ zIndex: 50 - index }}
+            style={{
+              // ★ Active picker's row gets highest z-index
+              zIndex: activePickerId === `date-${index}` ? 9995 : 50 - index,
+              position: 'relative',
+            }}
           >
             {/* ── Badge ── */}
             <div className="flex items-center gap-2 lg:mr-3 shrink-0">
@@ -189,12 +739,10 @@ export default function MultiCityForm({
                 {index + 1}
               </div>
 
-              {/* Mobile label */}
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider lg:hidden">
                 Flight {index + 1}
               </span>
 
-              {/* Mobile remove */}
               {index > 1 && (
                 <button
                   type="button"
@@ -251,74 +799,24 @@ export default function MultiCityForm({
             {/* ── Divider ── */}
             <div className="hidden lg:block w-px h-8 bg-gray-200 mx-3 shrink-0" />
 
-            {/* ── Date ── */}
-            <div className="flex-1 lg:min-w-0 lg:max-w-[200px]">
-              <div
-                className={`
-                  group relative
-                  h-[56px] w-full
-                  bg-white rounded-xl
-                  border transition-all duration-300
-                  flex items-center gap-3
-                  px-3.5 cursor-pointer
-                  ${
-                    errors[`flights.${index}.date`]
-                      ? 'border-red-300 bg-red-50/30'
-                      : 'border-gray-200 hover:border-gray-300 focus-within:border-gray-900 focus-within:shadow-[0_0_0_3px_rgba(0,0,0,0.04)]'
-                  }
-                `}
-              >
-                <div
-                  className={`
-                    w-9 h-9 rounded-lg flex items-center justify-center shrink-0
-                    transition-all duration-300
-                    ${
-                      errors[`flights.${index}.date`]
-                        ? 'bg-red-100 text-red-500'
-                        : 'bg-gray-100 text-gray-400 group-focus-within:bg-gray-900 group-focus-within:text-white'
-                    }
-                  `}
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                </div>
-
-                <div className="flex flex-col justify-center flex-1 min-w-0">
-                  <label
-                    className={`
-                      text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5
-                      transition-colors duration-300
-                      ${
-                        errors[`flights.${index}.date`]
-                          ? 'text-red-400'
-                          : 'text-gray-400 group-focus-within:text-gray-900'
-                      }
-                    `}
-                  >
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    min={
-                      index > 0
-                        ? flights[index - 1].date || today
-                        : today
-                    }
-                    value={flight.date}
-                    onChange={(e) =>
-                      handleFlightChange(index, 'date', e.target.value)
-                    }
-                    className="
-                      w-full bg-transparent border-none outline-none p-0
-                      text-[13px] font-semibold text-gray-900
-                      uppercase cursor-pointer leading-tight
-                    "
-                  />
-                </div>
-
-                {flight.date && !errors[`flights.${index}.date`] && (
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                )}
-              </div>
+            {/* ╔════════════════════════════════════════════╗ */}
+            {/* ║ ★ Date — Custom FlightDatePicker ★         ║ */}
+            {/* ╚════════════════════════════════════════════╝ */}
+            <div className="flex-1 lg:min-w-0 lg:max-w-[220px]">
+              <FlightDatePicker
+                label="Date"
+                value={flight.date}
+                onChange={(val) => handleFlightChange(index, 'date', val)}
+                minDate={
+                  index > 0
+                    ? flights[index - 1].date || today
+                    : today
+                }
+                hasError={!!errors[`flights.${index}.date`]}
+                pickerId={`date-${index}`}
+                activePickerId={activePickerId}
+                onOpenChange={setActivePickerId}
+              />
             </div>
 
             {/* ── Remove (desktop) ── */}
@@ -385,7 +883,6 @@ export default function MultiCityForm({
               hover:border-gray-300
               transition-all duration-300
               flex items-stretch
-
             "
           >
             <PassengerSelector
@@ -406,7 +903,7 @@ export default function MultiCityForm({
             type="submit"
             className="
               w-full lg:w-auto h-[52px]
-             bg-rose-600 hover:bg-rose-700
+              bg-rose-600 hover:bg-rose-700
               text-white font-bold text-sm
               rounded-xl
               px-7
@@ -436,6 +933,7 @@ export default function MultiCityForm({
           </p>
         </div>
       )}
+
     </form>
   );
 }
