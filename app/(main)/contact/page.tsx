@@ -217,28 +217,8 @@ const ContactPage = () => {
               </div>
             </div>
 
-            {/* Business Hours (Bonus) */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-              <h4 className="font-bold text-sm mb-3 flex items-center gap-2">
-                🕐 Business Hours
-              </h4>
-              <div className="space-y-2">
-                {[
-                  { day: 'Saturday – Thursday', time: '9:00 AM – 9:00 PM' },
-                  { day: 'Friday', time: '2:00 PM – 9:00 PM' },
-                ].map((schedule) => (
-                  <div
-                    key={schedule.day}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-gray-400">{schedule.day}</span>
-                    <span className="font-semibold text-white">
-                      {schedule.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+           
+
           </div>
 
           {/* ═══════════ Right Column: Form (3/5) ═══════════ */}
