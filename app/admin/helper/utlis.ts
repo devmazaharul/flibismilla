@@ -9,7 +9,9 @@ import {
     MapPin,
     Package,
     TicketPercent,
-    User2
+    User2,
+    Dock,
+    Book
 } from 'lucide-react';
 
 export const navMain = [
@@ -36,6 +38,7 @@ export const navMain = [
             { title: 'General', url: '/admin/settings', icon: Settings },
             { title: 'Internal Users', url: '/admin/internal-users', icon: User2 },
             { title: 'Support', url: '/admin/support', icon: LifeBuoy },
+            { title: 'Documentation', url: '/admin/doc', icon: Book },
         ],
     },
 ];
