@@ -46,7 +46,7 @@ export const PassengerForm = ({ index, type, register, errors }: PassengerFormPr
   `;
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-gray-100 border border-slate-200/70 mb-6 animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+    <div className="bg-white p-6 rounded-xl shadow-2xl shadow-gray-100 border border-slate-200/70 mb-6 animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">

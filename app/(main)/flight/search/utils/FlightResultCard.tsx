@@ -104,14 +104,14 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
     return (
         <div
             className="
-                relative mb-5 rounded-3xl bg-white/95
-                border border-slate-100
-                shadow-[0_18px_45px_rgba(15,23,42,0.08)]
-                hover:shadow-[0_24px_60px_rgba(148,27,66,0.18)]
+                relative mb-5 rounded-xl bg-white/95
+                border border-slate-200/80
                 transition-all duration-300 overflow-hidden group
+                hover:shadow-md
+                hover:shadow-gray-100/60
             "
         >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-rose-400/40 via-rose-300/20 to-sky-400/40 opacity-80" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 opacity-80" />
 
             <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
                 {/* Left: Itinerary */}
@@ -127,8 +127,9 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                 key={leg.id || idx}
                                 className="
                                     flex flex-col md:flex-row items-center gap-5 md:gap-6
-                                    rounded-2xl bg-white/90 border border-slate-100
-                                    shadow-sm shadow-slate-100 px-3.5 py-3
+                                    rounded-xl  border border-slate-200/60
+                                    
+                                     shadow-slate-100 px-3.5 py-3
                                 "
                             >
                                 {/* Airline brand */}
@@ -199,11 +200,11 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                                     className="
                                                         absolute -top-3 -right-2
                                                         text-[9px] font-bold text-rose-600
-                                                        bg-rose-50 px-1.5 rounded-full
+                                                        bg-rose-50 px-1.5 rounded-xl
                                                         border border-rose-100
                                                     "
                                                 >
-                                                    {dayDiff}
+                                                    {dayDiff}D
                                                 </span>
                                             )}
                                         </div>
@@ -216,20 +217,20 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                     {/* Badges */}
                     <div className="flex flex-wrap items-center gap-2.5 mt-2 pt-3 border-t border-slate-100">
                         {flight.conditions.refundable ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-100">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-100">
                                 <Briefcase className="w-3 h-3" /> Refundable
                             </span>
                         ) : (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-[10px] font-bold uppercase border border-rose-100">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold uppercase border border-rose-100">
                                 <AlertCircle className="w-3 h-3" />{' '}
                                 Non-Refundable
                             </span>
                         )}
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 text-slate-600 text-[10px] font-bold uppercase border border-slate-100">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase border border-slate-100">
                             <Briefcase className="w-3 h-3" />{' '}
                             {flight.baggage}
                         </span>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold uppercase border border-blue-100">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-600 text-[10px] font-bold uppercase border border-blue-100">
                             <Armchair className="w-3 h-3" />{' '}
                             {flight.cabinClass}
                         </span>
@@ -293,7 +294,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                             className="
                                 text-[11px] font-semibold
                                 flex items-center justify-center gap-1.5
-                                transition-all py-2 rounded-xl
+                                transition-all py-2 rounded-md
                                 text-rose-600 hover:text-rose-700 hover:bg-rose-50
                                 active:scale-95 cursor-pointer
                             "

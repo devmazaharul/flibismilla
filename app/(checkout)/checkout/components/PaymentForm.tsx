@@ -271,12 +271,12 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   `;
 
   return (
-    <div className="w-full overflow-hidden bg-white rounded-2xl">
+    <div className="w-full overflow-hidden border border-gray-200/70 bg-white rounded-xl">
       <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl text-white shadow-lg shadow-indigo-500/25 shrink-0">
+            <div className="p-2.5 sm:p-3 bg-rose-400/10 text-red-400 rounded-xl sm:rounded-2xl  shrink-0">
               <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">

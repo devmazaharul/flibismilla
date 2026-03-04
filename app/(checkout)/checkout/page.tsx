@@ -34,8 +34,6 @@ import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-
-// ✅ CSS file import — replaces <style jsx global>
 import './phone-input.css';
 
 import { PaymentForm } from './components/PaymentForm';
@@ -45,9 +43,9 @@ import { BookingSummary } from './components/BookingSummary';
 import { websiteDetails } from '@/constant/data';
 import { toast } from 'sonner';
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // HELPERS
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const formatTime = (iso: string) => format(parseISO(iso), 'hh:mm a');
 const formatDate = (iso: string) => format(parseISO(iso), 'EEE, dd MMM');
 const getDayDiff = (dep: string, arr: string) => {
@@ -55,18 +53,18 @@ const getDayDiff = (dep: string, arr: string) => {
     return diff > 0 ? diff : 0;
 };
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // STEP INDICATOR
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
     const steps = [
         { id: 1, label: 'Review', icon: Plane },
-        { id: 2, label: 'Details', icon: Users },
-        { id: 3, label: 'Payment', icon: CreditCard },
+        { id: 2, label: 'Passenger Details', icon: Users },
+        { id: 3, label: 'Payment Details', icon: CreditCard },
     ];
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
             {steps.map((step, idx) => {
                 const isActive = step.id === currentStep;
                 const isDone = step.id < currentStep;
@@ -77,27 +75,31 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
                         <div className="flex items-center gap-1.5 sm:gap-2">
                             <div
                                 className={`
-                                    w-7 h-7 sm:w-8 sm:h-8 rounded-lg
+                                    relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl
                                     flex items-center justify-center
-                                    transition-all duration-500
+                                    transition-all duration-500 ease-out
                                     ${
                                         isDone
-                                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200'
+                                            ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-2xl shadow-emerald-200/60'
                                             : isActive
-                                              ? 'bg-gray-900 text-white shadow-lg shadow-gray-300'
-                                              : 'bg-gray-100 text-gray-400'
+                                              ? 'bg-gradient-to-br from-gray-800 to-gray-950 text-white shadow-2xl shadow-gray-300/50 ring-2 ring-gray-900/5'
+                                              : 'bg-gray-100/80 text-gray-400'
                                     }
                                 `}
                             >
                                 {isDone ? (
-                                    <Check className="w-3.5 h-3.5" />
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
                                 ) : (
                                     <StepIcon className="w-3.5 h-3.5" />
+                                )}
+                                {isActive && (
+                                    <span className="absolute -inset-1 rounded-xl border-2 border-gray-900/10 animate-pulse" />
                                 )}
                             </div>
                             <span
                                 className={`
-                                    text-[11px] font-bold uppercase tracking-wider hidden sm:block
+                                    text-[10px] font-extrabold uppercase tracking-[0.15em] hidden sm:block
+                                    transition-colors duration-300
                                     ${
                                         isDone
                                             ? 'text-emerald-600'
@@ -111,13 +113,15 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
                             </span>
                         </div>
                         {idx < steps.length - 1 && (
-                            <div
-                                className={`
-                                    w-6 sm:w-10 h-[2px] rounded-full mx-1
-                                    transition-colors duration-500
-                                    ${isDone ? 'bg-emerald-300' : 'bg-gray-200'}
-                                `}
-                            />
+                            <div className="relative w-6 sm:w-12 h-[2px] mx-1 rounded-full overflow-hidden bg-gray-200">
+                                <div
+                                    className={`
+                                        absolute inset-y-0 left-0 rounded-full
+                                        transition-all duration-700 ease-out
+                                        ${isDone ? 'w-full bg-gradient-to-r from-emerald-400 to-emerald-500' : 'w-0'}
+                                    `}
+                                />
+                            </div>
                         )}
                     </div>
                 );
@@ -126,48 +130,45 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
     );
 };
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // COUNTDOWN TIMER
-// ----------------------------------------------------------------------
-const CountdownTimer = ({
-    timeLeft,
-    isUrgent,
-}: {
-    timeLeft: string;
-    isUrgent: boolean;
-}) => (
+// ──────────────────────────────────────────────
+const CountdownTimer = ({ timeLeft, isUrgent }: { timeLeft: string; isUrgent: boolean }) => (
     <div
         className={`
-            flex items-center gap-3 px-4 py-2.5 rounded-2xl
-            border transition-all duration-500
+            group flex items-center gap-3 px-4 py-2.5 rounded-2xl
+            border backdrop-blur-sm
+            transition-all duration-500 ease-out
             ${
                 isUrgent
-                    ? 'bg-red-50 border-red-200 shadow-lg shadow-red-100/50'
-                    : 'bg-gray-900 border-gray-800 shadow-lg shadow-gray-200'
+                    ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200/80 shadow-2xl shadow-red-100/60 animate-pulse'
+                    : 'bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700/50 shadow-xl shadow-gray-900/20'
             }
         `}
     >
         <div
             className={`
-                w-8 h-8 rounded-xl flex items-center justify-center
-                ${isUrgent ? 'bg-red-100' : 'bg-white/10'}
+                relative w-8 h-8 rounded-xl flex items-center justify-center
+                transition-colors duration-300
+                ${isUrgent ? 'bg-red-100/80' : 'bg-white/10'}
             `}
         >
             <Timer
-                className={`w-4 h-4 ${
-                    isUrgent ? 'text-red-600 animate-pulse' : 'text-rose-400'
-                }`}
+                className={`w-4 h-4 ${isUrgent ? 'text-red-600 animate-bounce' : 'text-rose-400'}`}
             />
+            {isUrgent && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+            )}
         </div>
         <div>
             <p
                 className={`
-                    text-[9px] font-bold uppercase tracking-[0.15em]
+                    text-[8px] font-extrabold uppercase tracking-[0.2em]
                     leading-none mb-1
                     ${isUrgent ? 'text-red-400' : 'text-gray-500'}
                 `}
             >
-                {isUrgent ? 'Expiring Soon' : 'Price Expires In'}
+                {isUrgent ? '⚠ Expiring Soon' : 'Price Expires In'}
             </p>
             <p
                 className={`
@@ -181,9 +182,9 @@ const CountdownTimer = ({
     </div>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // SECTION WRAPPER
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const SectionCard = ({
     icon: Icon,
     iconColor = 'text-rose-500',
@@ -203,30 +204,33 @@ const SectionCard = ({
 }) => (
     <div
         className="
-            bg-white rounded-2xl
-            border border-gray-200/80
-            shadow-xl shadow-gray-100/40
+            group/card bg-white rounded-xl
+            border border-gray-200/70
+            transition-shadow duration-500
             overflow-hidden
         "
     >
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        {/* Top accent line */}
+        <div className="h-[2px] bg-gradient-to-r from-transparent via-gray-200/80 to-transparent" />
+
+        <div className="px-6 py-4 border-b border-gray-100/80 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div
                     className={`
-                        w-9 h-9 rounded-xl flex items-center justify-center
+                        w-10 h-10 rounded-2xl flex items-center justify-center
                         ${iconBg} ${iconColor}
+                        shadow-2xl shadow-gray-100 transition-transform duration-300
+                        group-hover/card:scale-105
                     `}
                 >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-[18px] h-[18px]" />
                 </div>
                 <div>
-                    <h3 className="text-[15px] font-bold text-gray-900 leading-tight">
+                    <h3 className="text-[15px] font-extrabold text-gray-900 leading-tight tracking-tight">
                         {title}
                     </h3>
                     {subtitle && (
-                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                            {subtitle}
-                        </p>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">{subtitle}</p>
                     )}
                 </div>
             </div>
@@ -236,21 +240,25 @@ const SectionCard = ({
     </div>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // FLIGHT SEGMENT
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const FlightSegmentCard = ({ seg }: { seg: any }) => (
-    <div className="group">
+    <div className="group/seg">
         {seg.layover && (
-            <div className="my-3 ml-5 pl-5 border-l-2 border-dashed border-amber-200">
+            <div className="my-4 ml-5 pl-5 border-l-2 border-dashed border-amber-300/60">
                 <div
                     className="
-                        inline-flex items-center gap-2
-                        px-3 py-1.5 rounded-lg
-                        bg-amber-50 border border-amber-100 text-amber-700
+                        inline-flex items-center gap-2.5
+                        px-3.5 py-2 rounded-xl
+                        bg-gradient-to-r from-amber-50 to-orange-50
+                        border border-amber-200/60 text-amber-700
+                    shadow-2xl shadow-gray-100
                     "
                 >
-                    <Clock className="w-3 h-3" />
+                    <div className="w-5 h-5 rounded-md bg-amber-100 flex items-center justify-center">
+                        <Clock className="w-3 h-3 text-amber-600" />
+                    </div>
                     <span className="text-[11px] font-bold">
                         {seg.layover} layover in {seg.departure.airport}
                     </span>
@@ -259,77 +267,97 @@ const FlightSegmentCard = ({ seg }: { seg: any }) => (
         )}
 
         <div className="flex gap-4">
+            {/* Timeline */}
             <div className="flex flex-col items-center pt-2 shrink-0">
-                <div className="w-3 h-3 rounded-full border-[2.5px] border-gray-800 bg-white shadow-sm" />
-                <div className="w-[2px] flex-1 bg-gradient-to-b from-gray-300 to-gray-200 my-1 min-h-[50px]" />
-                <div className="w-3 h-3 rounded-full border-[2.5px] border-gray-400 bg-white shadow-sm" />
+                <div className="w-3.5 h-3.5 rounded-full border-[2.5px] border-gray-800 bg-white shadow-md shadow-gray-200/50 ring-2 ring-gray-100" />
+                <div className="w-[2px] flex-1 bg-gradient-to-b from-gray-400 via-gray-300 to-gray-200 my-1 min-h-[60px]" />
+                <div className="w-3.5 h-3.5 rounded-full border-[2.5px] border-gray-400 bg-white shadow-md shadow-gray-200/50 ring-2 ring-gray-100" />
             </div>
 
             <div className="flex-1 pb-5">
                 {/* Departure */}
-                <div className="flex items-start justify-between mb-1">
+                <div className="flex items-start justify-between mb-1.5">
                     <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[15px] font-black text-gray-900">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <span className="text-base font-black text-gray-900 tracking-tight">
                                 {formatTime(seg.departure.time)}
                             </span>
-                            <span className="text-gray-200">|</span>
+                            <span className="w-px h-4 bg-gray-200" />
                             <span className="text-sm font-bold text-gray-700">
                                 {seg.departure.city}
                             </span>
-                            <span className="text-xs font-medium text-gray-400">
-                                ({seg.departure.code})
+                            <span
+                                className="
+                                    text-[10px] font-bold text-gray-500 
+                                    bg-gray-100 px-1.5 py-0.5 rounded-md
+                                "
+                            >
+                                {seg.departure.code}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="text-[10px] font-medium text-gray-500">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="text-[10px] font-semibold text-gray-500">
                                 {formatDate(seg.departure.time)}
                             </span>
-                            <span className="text-gray-200">|</span>
-                            <span className="text-[10px] text-gray-400">
+                            <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                            <span className="text-[10px] text-gray-400 font-medium">
                                 {seg.departure.airport}
                             </span>
                             {seg.departure.terminal && (
-                                <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
-                                    T{seg.departure.terminal}
+                                <span
+                                    className="
+                                        text-[9px] font-bold text-emerald-700 
+                                        bg-emerald-50 px-2 py-0.5 rounded-md 
+                                        border border-emerald-100
+                                    "
+                                >
+                                    Terminal {seg.departure.terminal}
                                 </span>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-1 shrink-0">
+                    <div className="shrink-0">
                         {seg.logo && (
-                            <div className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center p-0.5">
+                            <div
+                                className="
+                                    w-9 h-9 rounded-xl bg-gray-50 
+                                    border border-gray-100 
+                                    flex items-center justify-center p-1
+                                    shadow-2xl shadow-gray-100
+                                "
+                            >
                                 <img
                                     src={seg.logo}
                                     alt={seg.airline}
-                                    className="w-5 h-5 object-contain"
+                                    className="w-6 h-6 object-contain"
                                 />
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Duration */}
+                {/* Duration Bar */}
                 <div
                     className="
-                        my-3 py-2 px-3.5 rounded-xl
-                        bg-gray-50 border border-gray-100
+                        my-3.5 py-2.5 px-4 rounded-xl
+                        bg-gradient-to-r from-gray-50 to-slate-50
+                        border border-gray-100/80
                         flex items-center justify-between flex-wrap gap-2
+                        group-hover/seg:from-gray-100/50 group-hover/seg:to-slate-100/50
+                        transition-colors duration-300
                     "
                 >
-                    <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3 text-gray-400" />
-                        <span className="text-[11px] font-bold text-gray-600">
-                            {seg.duration}
-                        </span>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-white border border-gray-100 flex items-center justify-center  shadow-2xl shadow-gray-100">
+                            <Clock className="w-3 h-3 text-gray-500" />
+                        </div>
+                        <span className="text-[12px] font-extrabold text-gray-700">{seg.duration}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] text-gray-400">
-                        <span className="font-semibold">{seg.airline}</span>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-400 font-medium">
+                        <span className="font-bold text-gray-500">{seg.airline}</span>
                         <span className="w-px h-3 bg-gray-200" />
-                        <span className="font-mono font-bold">
-                            {seg.flightNumber}
-                        </span>
+                        <span className="font-mono font-bold text-gray-600">{seg.flightNumber}</span>
                         <span className="w-px h-3 bg-gray-200" />
                         <span>{seg.aircraft}</span>
                     </div>
@@ -337,34 +365,50 @@ const FlightSegmentCard = ({ seg }: { seg: any }) => (
 
                 {/* Arrival */}
                 <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[15px] font-black text-gray-900">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-base font-black text-gray-900 tracking-tight">
                             {formatTime(seg.arrival.time)}
                         </span>
                         {getDayDiff(seg.departure.time, seg.arrival.time) > 0 && (
-                            <span className="text-[9px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
-                                +{getDayDiff(seg.departure.time, seg.arrival.time)}
+                            <span
+                                className="
+                                    text-[9px] font-extrabold text-rose-600 
+                                    bg-rose-50 px-2 py-0.5 rounded-md 
+                                    border border-rose-100
+                                    animate-pulse
+                                "
+                            >
+                                +{getDayDiff(seg.departure.time, seg.arrival.time)} Day
                             </span>
                         )}
-                        <span className="text-gray-200">|</span>
-                        <span className="text-sm font-bold text-gray-700">
-                            {seg.arrival.city}
-                        </span>
-                        <span className="text-xs font-medium text-gray-400">
-                            ({seg.arrival.code})
+                        <span className="w-px h-4 bg-gray-200" />
+                        <span className="text-sm font-bold text-gray-700">{seg.arrival.city}</span>
+                        <span
+                            className="
+                                text-[10px] font-bold text-gray-500 
+                                bg-gray-100 px-1.5 py-0.5 rounded-md
+                            "
+                        >
+                            {seg.arrival.code}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[10px] font-medium text-gray-500">
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold text-gray-500">
                             {formatDate(seg.arrival.time)}
                         </span>
-                        <span className="text-gray-200">|</span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                        <span className="text-[10px] text-gray-400 font-medium">
                             {seg.arrival.airport}
                         </span>
                         {seg.arrival.terminal && (
-                            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
-                                T{seg.arrival.terminal}
+                            <span
+                                className="
+                                    text-[9px] font-bold text-emerald-700 
+                                    bg-emerald-50 px-2 py-0.5 rounded-md 
+                                    border border-emerald-100
+                                "
+                            >
+                                Terminal {seg.arrival.terminal}
                             </span>
                         )}
                     </div>
@@ -374,57 +418,58 @@ const FlightSegmentCard = ({ seg }: { seg: any }) => (
     </div>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // EXPIRATION MODAL
-// ----------------------------------------------------------------------
-const ExpirationModal = ({
-    isOpen,
-    onRefresh,
-}: {
-    isOpen: boolean;
-    onRefresh: () => void;
-}) => {
+// ──────────────────────────────────────────────
+const ExpirationModal = ({ isOpen, onRefresh }: { isOpen: boolean; onRefresh: () => void }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-950/50 backdrop-blur-xl animate-in fade-in duration-500" />
-            <div className="relative w-full max-w-[400px] animate-in zoom-in-95 slide-in-from-bottom-6 duration-500">
-                <div className="absolute -inset-px rounded-[2rem] bg-gradient-to-b from-amber-200/40 to-rose-200/40 blur-sm" />
-                <div className="relative bg-white rounded-[2rem] border border-gray-100 shadow-2xl overflow-hidden">
-                    <div className="h-1 bg-gradient-to-r from-amber-400 via-rose-400 to-amber-400" />
-                    <div className="p-8 text-center">
-                        <div className="relative mx-auto mb-6 w-20 h-20">
-                            <div className="absolute inset-0 rounded-full border-2 border-amber-200 animate-ping" />
+            <div className="absolute inset-0 bg-gray-950/60 backdrop-blur-2xl animate-in fade-in duration-500" />
+            <div className="relative w-full max-w-[420px] animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
+                {/* Glow ring */}
+                <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-b from-amber-300/30 via-rose-300/20 to-amber-300/30 blur-lg" />
+                <div className="relative bg-white rounded-[2rem] border border-gray-100/80 shadow-2xl overflow-hidden">
+                    {/* Top gradient bar */}
+                    <div className="h-1.5 bg-gradient-to-r from-amber-400 via-rose-400 to-amber-400" />
+
+                    <div className="p-10 text-center">
+                        {/* Animated icon */}
+                        <div className="relative mx-auto mb-7 w-24 h-24">
+                            <div className="absolute inset-0 rounded-full border-2 border-amber-200/50 animate-ping" />
+                            <div className="absolute inset-2 rounded-full border border-amber-200/30 animate-pulse" />
                             <div
                                 className="
                                     relative w-full h-full rounded-full
-                                    bg-gradient-to-br from-amber-50 to-amber-100
-                                    border border-amber-200/50
+                                    bg-gradient-to-br from-amber-50 via-amber-100 to-orange-100
+                                    border border-amber-200/40
                                     flex items-center justify-center
-                                    shadow-lg shadow-amber-100/50
+                                    shadow-xl shadow-amber-100/60
                                 "
                             >
-                                <Hourglass className="w-8 h-8 text-amber-600" />
+                                <Hourglass className="w-10 h-10 text-amber-600 animate-pulse" />
                             </div>
                         </div>
-                        <h2 className="text-xl font-extrabold text-gray-900 tracking-tight mb-2">
+
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
                             Session Expired
                         </h2>
-                        <p className="text-sm text-gray-500 font-medium leading-relaxed mb-8 max-w-[280px] mx-auto">
-                            The time limit for this offer has passed.
-                            Please search again for latest availability.
+                        <p className="text-sm text-gray-500 font-medium leading-relaxed mb-10 max-w-[300px] mx-auto">
+                            The time limit for this offer has passed. Please search again for latest
+                            availability.
                         </p>
+
                         <button
                             onClick={onRefresh}
                             className="
                                 group w-full py-4 px-6
-                                bg-gradient-to-r from-gray-900 to-gray-800
-                                hover:from-gray-800 hover:to-gray-700
+                                bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900
+                                hover:from-gray-800 hover:via-gray-700 hover:to-gray-800
                                 text-white font-bold text-sm rounded-2xl
-                                shadow-xl shadow-gray-900/20
+                                shadow-xl shadow-gray-900/25
                                 flex items-center justify-center gap-2.5
-                                transition-all active:scale-[0.98] cursor-pointer
+                                transition-all duration-300 active:scale-[0.97] cursor-pointer
                             "
                         >
                             <RefreshCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700" />
@@ -437,9 +482,9 @@ const ExpirationModal = ({
     );
 };
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // PAYMENT MODAL
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const PaymentModal = ({
     isOpen,
     onClose,
@@ -462,10 +507,7 @@ const PaymentModal = ({
     if (!isOpen || !flightData || !formData) return null;
 
     const firstSegment = flightData?.itinerary[0]?.segments[0];
-    const lastSeg =
-        flightData?.itinerary[0]?.segments[
-            flightData.itinerary[0].segments.length - 1
-        ];
+    const lastSeg = flightData?.itinerary[0]?.segments[flightData.itinerary[0].segments.length - 1];
     const departureCode = firstSegment?.departure?.code || 'DEP';
     const arrivalCode = lastSeg?.arrival?.code || 'ARR';
     const flightDate = firstSegment?.departure?.time
@@ -483,103 +525,164 @@ const PaymentModal = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-                className="absolute inset-0 bg-gray-950/50 backdrop-blur-md animate-in fade-in duration-200"
+                className="absolute inset-0 bg-gray-950/60 backdrop-blur-lg animate-in fade-in duration-300"
                 onClick={!isProcessing ? onClose : undefined}
             />
-            <div className="relative w-full max-w-[420px] animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-                <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="relative w-full max-w-[440px] animate-in zoom-in-95 slide-in-from-bottom-6 duration-400">
+                {/* Outer glow */}
+                <div
+                    className={`
+                        absolute -inset-1 rounded-[2rem] blur-lg
+                        ${isInstantPayment
+                            ? 'bg-gradient-to-b from-rose-300/20 to-rose-400/20'
+                            : 'bg-gradient-to-b from-gray-300/20 to-gray-400/20'
+                        }
+                    `}
+                />
+                <div className="relative bg-white rounded-[1.75rem] shadow-2xl border border-gray-100/80 overflow-hidden">
+                    {/* Top bar */}
                     <div
-                        className={`h-1 ${
+                        className={`h-1.5 ${
                             isInstantPayment
-                                ? 'bg-gradient-to-r from-rose-400 to-rose-500'
-                                : 'bg-gradient-to-r from-gray-700 to-gray-900'
+                                ? 'bg-gradient-to-r from-rose-400 via-red-500 to-rose-400'
+                                : 'bg-gradient-to-r from-gray-600 via-gray-900 to-gray-600'
                         }`}
                     />
 
                     {/* Header */}
-                    <div className="p-6 pb-4 text-center">
+                    <div className="p-7 pb-5 text-center">
                         <div
                             className={`
-                                w-14 h-14 mx-auto rounded-2xl
-                                flex items-center justify-center mb-4
+                                w-16 h-16 mx-auto rounded-2xl
+                                flex items-center justify-center mb-5
+                                shadow-2xl
                                 ${
                                     isInstantPayment
-                                        ? 'bg-rose-50 text-rose-500'
-                                        : 'bg-gray-50 text-gray-700'
+                                        ? 'bg-gradient-to-br from-rose-50 to-red-100 text-rose-500 shadow-rose-100/60'
+                                        : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-700 shadow-gray-100/60'
                                 }
                             `}
                         >
                             {isInstantPayment ? (
-                                <CreditCard className="w-6 h-6" />
+                                <CreditCard className="w-7 h-7" />
                             ) : (
-                                <ShieldCheck className="w-6 h-6" />
+                                <ShieldCheck className="w-7 h-7" />
                             )}
                         </div>
-                        <h3 className="text-lg font-extrabold text-gray-900">
+                        <h3 className="text-xl font-black text-gray-900 tracking-tight">
                             {isInstantPayment ? 'Confirm Payment' : 'Complete Booking'}
                         </h3>
-                        <div className="flex items-center justify-center gap-1.5 mt-2">
-                            <Lock className="w-2.5 h-2.5 text-emerald-500" />
-                            <span className="text-[10px] font-semibold text-gray-400">
+                        <div className="flex items-center justify-center gap-1.5 mt-2.5">
+                            <div className="w-4 h-4 rounded-full bg-emerald-50 flex items-center justify-center">
+                                <Lock className="w-2.5 h-2.5 text-emerald-600" />
+                            </div>
+                            <span className="text-[10px] font-bold text-gray-400 tracking-wide">
                                 256-bit SSL Encrypted
                             </span>
                         </div>
                     </div>
 
                     {/* Review Cards */}
-                    <div className="px-5 pb-4 space-y-2.5">
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <div className="px-6 pb-5 space-y-3">
+                        {/* Flight info */}
+                        <div
+                            className="
+                                bg-gradient-to-r from-gray-50 to-slate-50 
+                                border border-gray-100/80 rounded-2xl p-4 
+                                flex items-center justify-between
+                                hover:from-gray-100/50 hover:to-slate-100/50
+                                transition-colors duration-300
+                            "
+                        >
+                            <div className="flex items-center gap-3.5">
+                                <div
+                                    className="
+                                        w-10 h-10 rounded-xl 
+                                        bg-gradient-to-br from-blue-50 to-indigo-50 
+                                        text-blue-600 
+                                        flex items-center justify-center
+                                        shadow-2xl shadow-gray-100 border border-blue-100/50
+                                    "
+                                >
                                     <Plane className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <div className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    <div className="text-sm font-extrabold text-gray-800 flex items-center gap-2">
                                         {departureCode}
                                         <ArrowRight className="w-3 h-3 text-gray-300" />
                                         {arrivalCode}
                                     </div>
-                                    <div className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                    <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
                                         {flightDate}
                                     </div>
                                 </div>
                             </div>
-                            <CheckCircle className="w-4 h-4 text-emerald-500" />
+                            <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                            </div>
                         </div>
 
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
+                        {/* Card info */}
+                        <div
+                            className="
+                                bg-gradient-to-r from-gray-50 to-slate-50 
+                                border border-gray-100/80 rounded-2xl p-4 
+                                flex items-center justify-between
+                            "
+                        >
+                            <div className="flex items-center gap-3.5">
+                                <div
+                                    className="
+                                        w-10 h-10 rounded-xl 
+                                        bg-gradient-to-br from-gray-50 to-gray-100 
+                                        text-gray-600 
+                                        flex items-center justify-center
+                                        shadow-2xl shadow-gray-100 border border-gray-100/50
+                                    "
+                                >
                                     <CreditCard className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <div className="text-sm font-bold text-gray-800">
-                                        {cardBrand} **** {lastFour || '0000'}
+                                    <div className="text-sm font-extrabold text-gray-800">
+                                        {cardBrand} •••• {lastFour || '0000'}
                                     </div>
-                                    <div className="text-[10px] text-gray-400 font-medium uppercase">
+                                    <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">
                                         Payment Method
                                     </div>
                                 </div>
                             </div>
-                            <CheckCircle className="w-4 h-4 text-emerald-500" />
+                            <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                            </div>
                         </div>
 
-                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3.5 flex items-start gap-3">
-                            <Mail className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                        {/* Email notice */}
+                        <div
+                            className="
+                                bg-gradient-to-r from-emerald-50/80 to-teal-50/80 
+                                border border-emerald-100/60 rounded-2xl p-4 
+                                flex items-start gap-3
+                            "
+                        >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100/80 flex items-center justify-center shrink-0 mt-0.5">
+                                <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                            </div>
                             <p className="text-[11px] text-emerald-800 leading-relaxed font-medium">
-                                You will receive a <strong>confirmation email</strong> with
-                                your e-ticket and full itinerary shortly after booking.
+                                You will receive a <strong>confirmation email</strong> with your
+                                e-ticket and full itinerary shortly after booking.
                             </p>
                         </div>
                     </div>
 
                     {/* Footer */}
-                    <div className="p-5 bg-gray-50/50 border-t border-gray-100">
-                        <div className="flex justify-between items-end mb-5 px-1">
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Total Amount
-                            </span>
-                            <span className="text-2xl font-black text-gray-900 tracking-tight">
+                    <div className="p-6 bg-gradient-to-t from-gray-50/80 to-white border-t border-gray-100/60">
+                        <div className="flex justify-between items-end mb-6 px-1">
+                            <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">
+                                    Total Amount
+                                </span>
+                            </div>
+                            <span className="text-3xl font-black text-gray-900 tracking-tight">
                                 {price}
                             </span>
                         </div>
@@ -588,10 +691,12 @@ const PaymentModal = ({
                                 onClick={onClose}
                                 disabled={isProcessing}
                                 className="
-                                    py-3.5 rounded-xl bg-white border border-gray-200
+                                    py-3.5 rounded-2xl bg-white border border-gray-200/80
                                     font-bold text-gray-500 hover:bg-gray-50
-                                    hover:text-gray-700 transition-all text-sm
+                                    hover:text-gray-700 hover:border-gray-300
+                                    transition-all duration-200 text-sm
                                     cursor-pointer disabled:opacity-50
+                                   shadow-2xl shadow-gray-100
                                 "
                             >
                                 Cancel
@@ -600,14 +705,14 @@ const PaymentModal = ({
                                 onClick={onConfirm}
                                 disabled={isProcessing}
                                 className={`
-                                    py-3.5 rounded-xl font-bold text-white
+                                    py-3.5 rounded-2xl font-bold text-white
                                     flex items-center justify-center gap-2
-                                    transition-all active:scale-[0.98] text-sm
-                                    cursor-pointer disabled:opacity-70 shadow-lg
+                                    transition-all duration-200 active:scale-[0.97] text-sm
+                                    cursor-pointer disabled:opacity-70
                                     ${
                                         isInstantPayment
-                                            ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
-                                            : 'bg-gray-900 hover:bg-gray-800 shadow-gray-200'
+                                            ? 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 shadow-2xl shadow-rose-200/50'
+                                            : 'bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 shadow-2xl shadow-gray-300/50'
                                     }
                                 `}
                             >
@@ -627,9 +732,9 @@ const PaymentModal = ({
     );
 };
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // INSTANT PAYMENT BLOCK
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const InstantPaymentBlock = ({
     onWhatsApp,
     onSearch,
@@ -644,28 +749,32 @@ const InstantPaymentBlock = ({
         title="Instant Payment Required"
         subtitle="This flight requires immediate payment"
     >
-        <div className="text-center py-4">
-            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center">
-                    <Ban className="w-7 h-7 text-rose-500" />
+        <div className="text-center py-6">
+            <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 bg-rose-100/50 rounded-full animate-pulse" />
+                <div className="relative w-full h-full bg-gradient-to-br from-rose-50 to-red-100 rounded-full flex items-center justify-center shadow-2xl shadow-rose-100/50">
+                    <div className="w-16 h-16 bg-gradient-to-br from-rose-100 to-red-200 rounded-full flex items-center justify-center">
+                        <Ban className="w-8 h-8 text-rose-500" />
+                    </div>
                 </div>
             </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">
+            <h2 className="text-xl font-black text-gray-900 mb-2.5 tracking-tight">
                 Online Booking Unavailable
             </h2>
             <p className="text-sm text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">
-                This flight cannot be held online. Please contact our support
-                team for immediate assistance.
+                This flight cannot be held online. Please contact our support team for immediate
+                assistance.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
                 <button
                     onClick={onWhatsApp}
                     className="
-                        flex items-center justify-center gap-2
-                        px-6 py-3.5 rounded-xl font-bold text-sm
-                        bg-emerald-600 text-white hover:bg-emerald-700
-                        shadow-lg shadow-emerald-100
-                        transition-all active:scale-[0.98] cursor-pointer
+                        flex items-center justify-center gap-2.5
+                        px-7 py-4 rounded-2xl font-bold text-sm
+                        bg-gradient-to-r from-emerald-500 to-emerald-600 
+                        text-white hover:from-emerald-600 hover:to-emerald-700
+                        shadow-2xl shadow-emerald-200/50
+                        transition-all duration-200 active:scale-[0.97] cursor-pointer
                     "
                 >
                     <Phone className="w-4 h-4" />
@@ -674,9 +783,9 @@ const InstantPaymentBlock = ({
                 <button
                     onClick={onSearch}
                     className="
-                        px-6 py-3.5 rounded-xl font-bold text-sm
+                        px-7 py-4 rounded-2xl font-bold text-sm
                         bg-gray-100 text-gray-700 hover:bg-gray-200
-                        transition-all cursor-pointer
+                        transition-all duration-200 cursor-pointer
                     "
                 >
                     Search Other Flights
@@ -686,50 +795,53 @@ const InstantPaymentBlock = ({
     </SectionCard>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // LOADING & ERROR
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const LoadingState = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-50 flex items-center justify-center">
         <div className="text-center">
-            <div className="relative w-16 h-16 mx-auto mb-4">
-                <div className="absolute inset-0 rounded-full border-2 border-gray-200" />
-                <div className="absolute inset-0 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
+            <div className="relative w-20 h-20 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-full border-2 border-gray-200/60" />
+                <div className="absolute inset-0 rounded-full border-2 border-rose-400 border-t-transparent animate-spin" />
+                <div className="absolute inset-2 rounded-full border border-gray-100" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <Plane className="w-5 h-5 text-gray-400" />
+                    <Plane className="w-6 h-6 text-gray-400 animate-pulse" />
                 </div>
             </div>
-            <p className="text-sm font-semibold text-gray-500">
-                Loading flight details...
-            </p>
+            <p className="text-sm font-bold text-gray-500">Loading flight details...</p>
+            <p className="text-[11px] text-gray-400 mt-1.5">Please wait a moment</p>
         </div>
     </div>
 );
 
-const ErrorState = ({
-    message,
-    onBack,
-}: {
-    message: string;
-    onBack: () => void;
-}) => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <AlertCircle className="w-7 h-7 text-red-500" />
+const ErrorState = ({ message, onBack }: { message: string; onBack: () => void }) => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-[2rem] shadow-2xl border border-gray-100/80 p-10 text-center">
+            <div
+                className="
+                    w-20 h-20 mx-auto mb-6 rounded-2xl
+                    bg-gradient-to-br from-red-50 to-rose-100
+                    flex items-center justify-center
+                    shadow-2xl shadow-red-100/40
+                "
+            >
+                <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
-            <h2 className="text-xl font-extrabold text-gray-900 mb-2">
+            <h2 className="text-2xl font-black text-gray-900 mb-2.5 tracking-tight">
                 Access Denied
             </h2>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                {message}
-            </p>
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed">{message}</p>
             <button
                 onClick={onBack}
                 className="
-                    px-6 py-3 bg-gray-900 text-white rounded-xl
-                    font-bold text-sm hover:bg-gray-800
-                    transition-all cursor-pointer active:scale-[0.98]
+                    px-8 py-3.5 
+                    bg-gradient-to-r from-gray-800 to-gray-900 
+                    text-white rounded-2xl
+                    font-bold text-sm 
+                    hover:from-gray-700 hover:to-gray-800
+                    shadow-2xl shadow-gray-200/50
+                    transition-all duration-200 cursor-pointer active:scale-[0.97]
                 "
             >
                 Search Again
@@ -738,9 +850,9 @@ const ErrorState = ({
     </div>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // MAIN CHECKOUT CONTENT
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 function CheckoutContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -759,8 +871,7 @@ function CheckoutContent() {
     const [isExpired, setIsExpired] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [pendingFormData, setPendingFormData] =
-        useState<BookingFormData | null>(null);
+    const [pendingFormData, setPendingFormData] = useState<BookingFormData | null>(null);
 
     const {
         register,
@@ -806,14 +917,10 @@ function CheckoutContent() {
                 if (!result.success) throw new Error(result.message);
                 const data = result.data;
 
-                const apiAdults = data.passengers.filter(
-                    (p: any) => p.type === 'adult'
-                ).length;
-                const apiChildren = data.passengers.filter(
-                    (p: any) => p.type === 'child'
-                ).length;
+                const apiAdults = data.passengers.filter((p: any) => p.type === 'adult').length;
+                const apiChildren = data.passengers.filter((p: any) => p.type === 'child').length;
                 const apiInfants = data.passengers.filter(
-                    (p: any) => p.type === 'infant_without_seat'
+                    (p: any) => p.type === 'infant_without_seat',
                 ).length;
 
                 if (
@@ -855,8 +962,7 @@ function CheckoutContent() {
                 setIsLoading(false);
             } catch (error: unknown) {
                 let msg = 'An unexpected error occurred.';
-                if (axios.isAxiosError(error))
-                    msg = error.response?.data?.message || error.message;
+                if (axios.isAxiosError(error)) msg = error.response?.data?.message || error.message;
                 else if (error instanceof Error) msg = error.message;
                 setFetchError(msg);
                 setIsLoading(false);
@@ -880,14 +986,10 @@ function CheckoutContent() {
                 setTimeLeft('00:00');
                 setIsExpired(true);
             } else {
-                const minutes = Math.floor(
-                    (distance % (1000 * 60 * 60)) / (1000 * 60)
-                );
-                const seconds = Math.floor(
-                    (distance % (1000 * 60)) / 1000
-                );
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
                 setTimeLeft(
-                    `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+                    `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`,
                 );
             }
         }, 1000);
@@ -915,9 +1017,7 @@ function CheckoutContent() {
             firstSlice.mainArrival.code,
             ')',
         ].join('');
-        const date = new Date(
-            firstSlice.mainDeparture.time
-        ).toLocaleDateString('en-GB', {
+        const date = new Date(firstSlice.mainDeparture.time).toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'short',
             year: 'numeric',
@@ -958,8 +1058,7 @@ function CheckoutContent() {
         setIsSubmitting(true);
 
         const firstItinerary = flightData.itinerary[0];
-        const lastItinerary =
-            flightData.itinerary[flightData.itinerary.length - 1];
+        const lastItinerary = flightData.itinerary[flightData.itinerary.length - 1];
         const mainSegment = firstItinerary?.segments[0];
         const lastSegmentOfLastItinerary =
             lastItinerary?.segments[lastItinerary.segments.length - 1];
@@ -968,18 +1067,14 @@ function CheckoutContent() {
             const routeString = flightData.itinerary
                 .map((slice: any) => {
                     const start = slice.segments[0].departure.code;
-                    const end =
-                        slice.segments[slice.segments.length - 1].arrival
-                            .code;
+                    const end = slice.segments[slice.segments.length - 1].arrival.code;
                     return start + ' > ' + end;
                 })
                 .join(' | ');
 
             let tripType = 'one_way';
-            if (flightData.itinerary.length === 2)
-                tripType = 'round_trip';
-            else if (flightData.itinerary.length > 2)
-                tripType = 'multi_city';
+            if (flightData.itinerary.length === 2) tripType = 'round_trip';
+            else if (flightData.itinerary.length > 2) tripType = 'multi_city';
 
             const flightSnapshot = {
                 airline: mainSegment?.airline || 'Unknown Airline',
@@ -987,9 +1082,7 @@ function CheckoutContent() {
                 route: routeString,
                 departureDate: mainSegment?.departure?.time,
                 arrivalDate: lastSegmentOfLastItinerary?.arrival?.time,
-                duration:
-                    flightData.totalDuration ||
-                    firstItinerary?.totalDuration,
+                duration: flightData.totalDuration || firstItinerary?.totalDuration,
                 flightType: tripType,
             };
 
@@ -1013,11 +1106,9 @@ function CheckoutContent() {
                 })),
                 payment: {
                     cardName: pendingFormData.payment.cardName,
-                    cardNumber:
-                        pendingFormData.payment.cardNumber.replace(/\s/g, ''),
+                    cardNumber: pendingFormData.payment.cardNumber.replace(/\s/g, ''),
                     expiryDate: pendingFormData.payment.expiryDate,
-                    billingAddress:
-                        pendingFormData.payment.billingAddress,
+                    billingAddress: pendingFormData.payment.billingAddress,
                 },
                 flight_details: flightSnapshot,
                 pricing: {
@@ -1027,55 +1118,32 @@ function CheckoutContent() {
                 },
             };
 
-            const response = await axios.post(
-                '/api/duffel/booking',
-                bookingPayload
-            );
+            const response = await axios.post('/api/duffel/booking', bookingPayload);
 
             if (response.data.success) {
-                router.push(
-                    `/booking/success?id=${response.data.bookingId}`
-                );
+                router.push(`/booking/success?id=${response.data.bookingId}`);
             } else {
-                throw new Error(
-                    response.data.message || 'Booking failed.'
-                );
+                throw new Error(response.data.message || 'Booking failed.');
             }
         } catch (error: unknown) {
-            const axiosErr = axios.isAxiosError(error)
-                ? error.response?.data
-                : null;
+            const axiosErr = axios.isAxiosError(error) ? error.response?.data : null;
             const errorCode = axiosErr?.code || axiosErr?.errorType;
             const errorMessage =
                 axiosErr?.message ||
-                (error instanceof Error
-                    ? error.message
-                    : 'Something went wrong.');
+                (error instanceof Error ? error.message : 'Something went wrong.');
 
-            if (
-                errorCode === 'offer_no_longer_available' ||
-                errorCode === 'OFFER_EXPIRED'
-            ) {
-                toast.error(
-                    'Session Expired! Redirecting to fresh results...',
-                    { duration: 4000 }
-                );
+            if (errorCode === 'offer_no_longer_available' || errorCode === 'OFFER_EXPIRED') {
+                toast.error('Session Expired! Redirecting to fresh results...', { duration: 4000 });
 
-                const adt = pendingFormData.passengers.filter(
-                    (p) => p.type === 'adult'
-                ).length;
-                const chd = pendingFormData.passengers.filter(
-                    (p) => p.type === 'child'
-                ).length;
+                const adt = pendingFormData.passengers.filter((p) => p.type === 'adult').length;
+                const chd = pendingFormData.passengers.filter((p) => p.type === 'child').length;
                 const inf = pendingFormData.passengers.filter(
-                    (p) => p.type === 'infant_without_seat'
+                    (p) => p.type === 'infant_without_seat',
                 ).length;
 
                 let currentTripType = 'one_way';
-                if (flightData.itinerary.length === 2)
-                    currentTripType = 'round_trip';
-                else if (flightData.itinerary.length > 2)
-                    currentTripType = 'multi_city';
+                if (flightData.itinerary.length === 2) currentTripType = 'round_trip';
+                else if (flightData.itinerary.length > 2) currentTripType = 'multi_city';
 
                 const params = new URLSearchParams({
                     type: currentTripType,
@@ -1086,58 +1154,31 @@ function CheckoutContent() {
                 });
 
                 if (currentTripType === 'multi_city') {
-                    const flightsArray = flightData.itinerary.map(
-                        (slice: any) => ({
-                            origin: slice.segments[0].departure.code,
-                            destination:
-                                slice.segments[
-                                    slice.segments.length - 1
-                                ].arrival.code,
-                            date: slice.segments[0].departure.time.split(
-                                'T'
-                            )[0],
-                        })
-                    );
-                    params.append(
-                        'flights',
-                        JSON.stringify(flightsArray)
-                    );
+                    const flightsArray = flightData.itinerary.map((slice: any) => ({
+                        origin: slice.segments[0].departure.code,
+                        destination: slice.segments[slice.segments.length - 1].arrival.code,
+                        date: slice.segments[0].departure.time.split('T')[0],
+                    }));
+                    params.append('flights', JSON.stringify(flightsArray));
                 } else {
                     const outbound = flightData.itinerary[0];
-                    params.append(
-                        'origin',
-                        outbound.segments[0].departure.code
-                    );
+                    params.append('origin', outbound.segments[0].departure.code);
                     params.append(
                         'destination',
-                        outbound.segments[
-                            outbound.segments.length - 1
-                        ].arrival.code
+                        outbound.segments[outbound.segments.length - 1].arrival.code,
                     );
-                    params.append(
-                        'date',
-                        outbound.segments[0].departure.time.split(
-                            'T'
-                        )[0]
-                    );
+                    params.append('date', outbound.segments[0].departure.time.split('T')[0]);
 
-                    if (
-                        currentTripType === 'round_trip' &&
-                        flightData.itinerary[1]
-                    ) {
+                    if (currentTripType === 'round_trip' && flightData.itinerary[1]) {
                         params.append(
                             'returnDate',
-                            flightData.itinerary[1].segments[0].departure.time.split(
-                                'T'
-                            )[0]
+                            flightData.itinerary[1].segments[0].departure.time.split('T')[0],
                         );
                     }
                 }
 
                 setTimeout(() => {
-                    router.push(
-                        `/flight/search?${params.toString()}`
-                    );
+                    router.push(`/flight/search?${params.toString()}`);
                 }, 2500);
 
                 return;
@@ -1147,9 +1188,7 @@ function CheckoutContent() {
                 errorCode === 'instant_payment_required' ||
                 errorCode === 'INSTANT_PAYMENT_REQUIRED'
             ) {
-                toast.error(
-                    'This flight requires Instant Payment. Please contact support.'
-                );
+                toast.error('This flight requires Instant Payment. Please contact support.');
                 setIsModalOpen(false);
                 return;
             }
@@ -1166,37 +1205,23 @@ function CheckoutContent() {
     if (isLoading) return <LoadingState />;
 
     if ((fetchError || !flightData) && !isExpired)
-        return (
-            <ErrorState
-                message={fetchError}
-                onBack={() => router.push('/')}
-            />
-        );
+        return <ErrorState message={fetchError} onBack={() => router.push('/')} />;
 
     const summaryCounts = flightData
         ? {
-              adults: flightData.passengers.filter(
-                  (p: any) => p.type === 'adult'
-              ).length,
-              children: flightData.passengers.filter(
-                  (p: any) => p.type === 'child'
-              ).length,
-              infants: flightData.passengers.filter(
-                  (p: any) => p.type === 'infant_without_seat'
-              ).length,
+              adults: flightData.passengers.filter((p: any) => p.type === 'adult').length,
+              children: flightData.passengers.filter((p: any) => p.type === 'child').length,
+              infants: flightData.passengers.filter((p: any) => p.type === 'infant_without_seat')
+                  .length,
           }
         : { adults: 0, children: 0, infants: 0 };
 
     const requiresInstantPayment =
-        flightData?.payment_requirements?.requires_instant_payment ??
-        false;
+        flightData?.payment_requirements?.requires_instant_payment ?? false;
 
     return (
         <>
-            <ExpirationModal
-                isOpen={isExpired}
-                onRefresh={handleRefreshSearch}
-            />
+            <ExpirationModal isOpen={isExpired} onRefresh={handleRefreshSearch} />
 
             <div
                 className={`
@@ -1204,35 +1229,49 @@ function CheckoutContent() {
                     transition-all duration-500
                 `}
             >
-                <div className="min-h-screen bg-gray-50">
-                    {/* HEADER */}
-                    <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
+                <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-slate-50">
+                    {/* ═══════════ HEADER ═══════════ */}
+                    <div
+                        className="
+                            bg-white/80 backdrop-blur-xl 
+                            border-b border-gray-100/80 
+                            sticky top-0 z-30
+                            shadow-[0_1px_3px_rgba(0,0,0,0.02)]
+                        "
+                    >
                         <div className="max-w-7xl mx-auto px-4 md:px-8">
-                            <div className="flex items-center justify-between h-16 md:h-[72px]">
+                            <div className="flex items-center justify-between h-16 md:h-[76px]">
                                 <StepIndicator currentStep={2} />
-                                <div className="hidden lg:flex items-center gap-1.5">
-                                    <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span className="text-[11px] font-semibold text-gray-400">
+                                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50/80 border border-emerald-100/50">
+                                    <Shield className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] font-bold text-emerald-600 tracking-wide">
                                         Secure Checkout
                                     </span>
                                 </div>
-                                <CountdownTimer
-                                    timeLeft={timeLeft}
-                                    isUrgent={isUrgent}
-                                />
+                                <CountdownTimer timeLeft={timeLeft} isUrgent={isUrgent} />
                             </div>
                         </div>
                     </div>
 
-                    {/* PAGE HEADER */}
-                    <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-6">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
+                    {/* ═══════════ PAGE HEADER ═══════════ */}
+                    <div className="max-w-7xl mx-auto px-4 md:px-8 pt-10 pb-8">
+                        <div className="relative">
+                            {/* Decorative dot */}
+                            <div className="absolute -left-3 top-1 w-1.5 h-10 rounded-full bg-gradient-to-b from-rose-400 to-rose-500 hidden md:block" />
+                            <h1 className="text-2xl md:text-[32px] font-black text-gray-900 tracking-tight leading-tight">
                                 Complete Your Booking
                             </h1>
-                            <p className="text-sm text-gray-400 mt-1.5 flex items-center gap-2 font-medium flex-wrap">
+                            <p className="text-sm text-gray-400 mt-2 flex items-center gap-2.5 font-medium flex-wrap">
                                 Fill in the details below to secure your flight
-                                <span className="hidden sm:flex items-center gap-1 text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-wider">
+                                <span
+                                    className="
+                                        hidden sm:inline-flex items-center gap-1.5 
+                                        text-emerald-700 text-[9px] font-extrabold 
+                                        bg-emerald-50 px-2.5 py-1 rounded-full 
+                                        border border-emerald-100/80 
+                                        uppercase tracking-[0.15em]
+                                    "
+                                >
                                     <Lock className="w-2.5 h-2.5" />
                                     Encrypted
                                 </span>
@@ -1240,12 +1279,12 @@ function CheckoutContent() {
                         </div>
                     </div>
 
-                    {/* MAIN CONTENT */}
+                    {/* ═══════════ MAIN CONTENT ═══════════ */}
                     {flightData && (
-                        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-20">
+                        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-24">
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
-                                {/* LEFT */}
-                                <div className="lg:col-span-2 space-y-5">
+                                {/* ─── LEFT COLUMN ─── */}
+                                <div className="lg:col-span-2 space-y-6">
                                     {/* ITINERARY */}
                                     <SectionCard
                                         icon={Plane}
@@ -1253,91 +1292,86 @@ function CheckoutContent() {
                                         subtitle={
                                             flightData.itinerary.length +
                                             ' leg' +
-                                            (flightData.itinerary.length > 1
-                                                ? 's'
-                                                : '')
+                                            (flightData.itinerary.length > 1 ? 's' : '')
                                         }
                                         badge={
-                                            <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-lg uppercase tracking-wider">
-                                                {flightData.cabinClass ||
-                                                    'Economy'}
+                                            <span
+                                                className="
+                                                    text-[9px] font-extrabold text-gray-500 
+                                                    bg-gradient-to-r from-gray-50 to-gray-100 
+                                                    px-3 py-1.5 rounded-xl 
+                                                    uppercase tracking-[0.12em]
+                                                    border border-gray-100
+                                                "
+                                            >
+                                                {flightData.cabinClass || 'Economy'}
                                             </span>
                                         }
                                     >
-                                        {flightData.itinerary.map(
-                                            (
-                                                slice: any,
-                                                sIdx: number
-                                            ) => (
-                                                <div
-                                                    key={
-                                                        slice.id || sIdx
-                                                    }
-                                                >
-                                                    <div className="flex items-center gap-2.5 mb-4">
+                                        {flightData.itinerary.map((slice: any, sIdx: number) => (
+                                            <div key={slice.id || sIdx}>
+                                                <div className="flex items-center gap-3 mb-5">
+                                                    <span
+                                                        className={`
+                                                            w-1.5 h-7 rounded-full
+                                                            ${sIdx === 0
+                                                                ? 'bg-gradient-to-b from-rose-400 to-rose-500'
+                                                                : 'bg-gradient-to-b from-blue-400 to-blue-500'
+                                                            }
+                                                        `}
+                                                    />
+                                                    <span
+                                                        className="
+                                                            inline-flex items-center gap-2 
+                                                            px-3.5 py-1.5 text-[11px] 
+                                                            font-bold text-white
+                                                            bg-gradient-to-r from-gray-800 to-gray-700
+                                                            rounded-lg shadow-md shadow-gray-200/50
+                                                            uppercase tracking-wide
+                                                        "
+                                                    >
+                                                        <Plane className="w-3 h-3" />
+                                                        {slice.direction} Journey
+                                                    </span>
+                                                </div>
+
+                                                {slice.segments.map((seg: any, idx: number) => (
+                                                    <FlightSegmentCard
+                                                        key={seg.id || idx}
+                                                        seg={seg}
+                                                    />
+                                                ))}
+
+                                                {sIdx < flightData.itinerary.length - 1 && (
+                                                    <div className="my-8 flex items-center justify-center relative">
+                                                        <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                                                         <span
-                                                            className={`
-                                                                w-2 h-6 rounded-full
-                                                                ${sIdx === 0 ? 'bg-rose-400' : 'bg-blue-400'}
-                                                            `}
-                                                        />
-                                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400">
-                                                            {slice.direction}{' '}
-                                                            Journey
+                                                            className="
+                                                                relative bg-white px-5 py-2 
+                                                                text-[10px] font-extrabold text-gray-400 
+                                                                uppercase tracking-[0.2em] 
+                                                                border border-gray-100 rounded-full 
+                                                                 shadow-2xl shadow-gray-100
+                                                            "
+                                                        >
+                                                            Return Flight
                                                         </span>
                                                     </div>
-
-                                                    {slice.segments.map(
-                                                        (
-                                                            seg: any,
-                                                            idx: number
-                                                        ) => (
-                                                            <FlightSegmentCard
-                                                                key={
-                                                                    seg.id ||
-                                                                    idx
-                                                                }
-                                                                seg={seg}
-                                                            />
-                                                        )
-                                                    )}
-
-                                                    {sIdx <
-                                                        flightData
-                                                            .itinerary
-                                                            .length -
-                                                            1 && (
-                                                        <div className="my-6 flex items-center justify-center relative">
-                                                            <div className="absolute w-full h-px bg-gray-200 border-t border-dashed" />
-                                                            <span className="relative bg-white px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] border border-gray-100 rounded-full py-1.5">
-                                                                Return
-                                                                Flight
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        )}
+                                                )}
+                                            </div>
+                                        ))}
                                     </SectionCard>
 
-                                    {/* FORM */}
+                                    {/* ─── FORM ─── */}
                                     {requiresInstantPayment ? (
                                         <InstantPaymentBlock
-                                            onWhatsApp={
-                                                handleWhatsAppRedirect
-                                            }
-                                            onSearch={() =>
-                                                router.push(
-                                                    '/flight/search'
-                                                )
-                                            }
+                                            onWhatsApp={handleWhatsAppRedirect}
+                                            onSearch={() => router.push('/flight/search')}
                                         />
                                     ) : (
                                         <form
-                                            onSubmit={handleSubmit(
-                                                onPreSubmit
-                                            )}
-                                            className="space-y-5"
+                                            onSubmit={handleSubmit(onPreSubmit)}
+                                            className="space-y-6"
                                         >
                                             {/* CONTACT */}
                                             <SectionCard
@@ -1348,102 +1382,71 @@ function CheckoutContent() {
                                                 subtitle="We will send your e-ticket here"
                                             >
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em]">
-                                                            Email
-                                                            Address
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                                                            <Mail className="w-3 h-3" />
+                                                            Email Address
                                                         </label>
                                                         <input
-                                                            {...register(
-                                                                'contact.email',
-                                                                {
-                                                                    required:
-                                                                        'Email is required',
-                                                                    pattern:
-                                                                        {
-                                                                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                                                            message:
-                                                                                'Invalid email',
-                                                                        },
-                                                                }
-                                                            )}
+                                                            {...register('contact.email', {
+                                                                required: 'Email is required',
+                                                                pattern: {
+                                                                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                                                                    message: 'Invalid email',
+                                                                },
+                                                            })}
                                                             placeholder="ticket@example.com"
                                                             className={`
-                                                                w-full p-3 bg-gray-50
+                                                                w-full p-3.5 bg-gray-50/80
                                                                 border rounded-xl text-sm font-medium
                                                                 focus:ring-2 focus:ring-gray-900/5
-                                                                focus:border-gray-900
-                                                                outline-none transition-all focus:bg-white
-                                                                ${errors.contact?.email ? 'border-red-400' : 'border-gray-200'}
+                                                                focus:border-gray-900 focus:bg-white
+                                                                outline-none transition-all duration-200
+                                                                placeholder:text-gray-300
+                                                                ${errors.contact?.email ? 'border-red-300 bg-red-50/30' : 'border-gray-200/80'}
                                                             `}
                                                         />
-                                                        {errors.contact
-                                                            ?.email && (
-                                                            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1 mt-1">
+                                                        {errors.contact?.email && (
+                                                            <p className="text-[11px] text-red-500 font-bold flex items-center gap-1.5 mt-1.5">
                                                                 <AlertCircle className="w-3 h-3" />
-                                                                {
-                                                                    errors
-                                                                        .contact
-                                                                        .email
-                                                                        .message
-                                                                }
+                                                                {errors.contact.email.message}
                                                             </p>
                                                         )}
                                                     </div>
 
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em]">
-                                                            Phone
-                                                            Number
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                                                            <Phone className="w-3 h-3" />
+                                                            Phone Number
                                                         </label>
                                                         <Controller
                                                             name="contact.phone"
-                                                            control={
-                                                                control
-                                                            }
+                                                            control={control}
                                                             rules={{
                                                                 required:
                                                                     'Phone number is required',
-                                                                validate:
-                                                                    (
-                                                                        value
-                                                                    ) =>
-                                                                        isValidPhoneNumber(
-                                                                            value ||
-                                                                                ''
-                                                                        ) ||
-                                                                        'Invalid phone number',
+                                                                validate: (value) =>
+                                                                    isValidPhoneNumber(
+                                                                        value || '',
+                                                                    ) || 'Invalid phone number',
                                                             }}
                                                             render={({
-                                                                field: {
-                                                                    onChange,
-                                                                    value,
-                                                                },
+                                                                field: { onChange, value },
                                                             }) => (
                                                                 <PhoneInput
                                                                     international
                                                                     defaultCountry="US"
-                                                                    value={
-                                                                        value
-                                                                    }
-                                                                    onChange={
-                                                                        onChange
-                                                                    }
+                                                                    value={value}
+                                                                    onChange={onChange}
                                                                     placeholder="Enter phone number"
                                                                     className={`PhoneInput ${errors.contact?.phone ? 'input-error' : ''}`}
                                                                 />
                                                             )}
                                                         />
-                                                        {errors.contact
-                                                            ?.phone && (
-                                                            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1 mt-1">
+                                                        {errors.contact?.phone && (
+                                                            <p className="text-[11px] text-red-500 font-bold flex items-center gap-1.5 mt-1.5">
                                                                 <AlertCircle className="w-3 h-3" />
-                                                                {
-                                                                    errors
-                                                                        .contact
-                                                                        .phone
-                                                                        .message
-                                                                }
+                                                                {errors.contact.phone.message}
                                                             </p>
                                                         )}
                                                     </div>
@@ -1452,41 +1455,22 @@ function CheckoutContent() {
 
                                             {/* PASSENGERS */}
                                             {flightData.passengers.map(
-                                                (
-                                                    passenger: any,
-                                                    index: number
-                                                ) => {
-                                                    let type:
-                                                        | 'adult'
-                                                        | 'child'
-                                                        | 'infant' =
+                                                (passenger: any, index: number) => {
+                                                    let type: 'adult' | 'child' | 'infant' =
                                                         'adult';
-                                                    if (
-                                                        passenger.type ===
-                                                        'child'
-                                                    )
-                                                        type = 'child';
-                                                    if (
-                                                        passenger.type ===
-                                                        'infant_without_seat'
-                                                    )
+                                                    if (passenger.type === 'child') type = 'child';
+                                                    if (passenger.type === 'infant_without_seat')
                                                         type = 'infant';
                                                     return (
                                                         <PassengerForm
-                                                            key={
-                                                                passenger.id
-                                                            }
+                                                            key={passenger.id}
                                                             index={index}
                                                             type={type}
-                                                            register={
-                                                                register
-                                                            }
-                                                            errors={
-                                                                errors
-                                                            }
+                                                            register={register}
+                                                            errors={errors}
                                                         />
                                                     );
-                                                }
+                                                },
                                             )}
 
                                             {/* PAYMENT */}
@@ -1496,49 +1480,106 @@ function CheckoutContent() {
                                                 setValue={setValue}
                                             />
 
-                                            {/* SUBMIT */}
+                                            {/* ═══════════ SUBMIT BUTTON ═══════════ */}
                                             <button
                                                 type="submit"
                                                 disabled={isSubmitting}
                                                 className="
-                                                    w-full py-4 font-bold text-sm
-                                                    rounded-2xl shadow-xl
-                                                    flex items-center justify-center gap-2.5
-                                                    bg-gray-900 hover:bg-gray-800
-                                                    text-white cursor-pointer
-                                                    active:scale-[0.98]
-                                                    shadow-gray-200
-                                                    disabled:opacity-70
-                                                    transition-all
+                                                    group relative w-full py-5 
+                                                    font-extrabold text-[13px] uppercase tracking-[0.15em]
+                                                    rounded-2xl text-white overflow-hidden
+                                                    bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900
+                                                    shadow-[0_6px_0_0_#1f2937,0_10px_30px_rgba(0,0,0,0.15)]
+                                                    hover:shadow-[0_3px_0_0_#1f2937,0_8px_20px_rgba(0,0,0,0.2)]
+                                                    hover:translate-y-[3px]
+                                                    active:shadow-[0_0px_0_0_#1f2937,0_2px_10px_rgba(0,0,0,0.1)]
+                                                    active:translate-y-[6px]
+                                                    disabled:from-gray-300 disabled:via-gray-300 disabled:to-gray-300
+                                                    disabled:shadow-[0_3px_0_0_#9ca3af]
+                                                    disabled:translate-y-0 disabled:cursor-not-allowed
+                                                    transition-all duration-150 ease-out
+                                                    flex items-center justify-center gap-3
+                                                    cursor-pointer
                                                 "
                                             >
-                                                <CheckCircle className="w-4 h-4" />
-                                                Review and Confirm
-                                                Booking
+                                                {/* Shine sweep */}
+                                                <span
+                                                    className="
+                                                        absolute inset-0
+                                                        bg-gradient-to-r from-transparent via-white/10 to-transparent
+                                                        translate-x-[-200%] group-hover:translate-x-[200%]
+                                                        transition-transform duration-700 ease-in-out
+                                                        group-disabled:hidden
+                                                    "
+                                                />
+
+                                                {isSubmitting ? (
+                                                    <>
+                                                        <Loader2 className="relative z-10 w-5 h-5 animate-spin" />
+                                                        <span className="relative z-10">Processing...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <ShieldCheck
+                                                            className="
+                                                                relative z-10 w-5 h-5 text-emerald-400
+                                                                group-hover:scale-110 
+                                                                transition-transform duration-300
+                                                            "
+                                                        />
+                                                        <span className="relative z-10">
+                                                            Review & Confirm Booking
+                                                        </span>
+                                                        <ArrowRight
+                                                            className="
+                                                                relative z-10 w-4 h-4 
+                                                                group-hover:translate-x-1.5 
+                                                                transition-transform duration-300
+                                                            "
+                                                        />
+                                                    </>
+                                                )}
                                             </button>
 
-                                            {/* Trust */}
-                                            <div className="flex items-center justify-center gap-6 pt-2">
+                                            {/* ═══════════ TRUST BADGES ═══════════ */}
+                                            <div className="flex items-center justify-center gap-5 sm:gap-8 pt-3">
                                                 {[
-                                                    {
-                                                        icon: Shield,
-                                                        label: 'SSL Secure',
-                                                    },
-                                                    {
-                                                        icon: Globe,
-                                                        label: 'IATA Certified',
-                                                    },
-                                                    {
-                                                        icon: Lock,
-                                                        label: 'PCI Compliant',
-                                                    },
+                                                    { icon: Shield, label: 'SSL Secure' },
+                                                    { icon: Globe, label: 'IATA Certified' },
+                                                    { icon: Lock, label: 'PCI Compliant' },
                                                 ].map((item, i) => (
                                                     <div
                                                         key={i}
-                                                        className="flex items-center gap-1.5"
+                                                        className="
+                                                            flex items-center gap-2
+                                                            group/trust
+                                                        "
                                                     >
-                                                        <item.icon className="w-3 h-3 text-gray-300" />
-                                                        <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">
+                                                        <div
+                                                            className="
+                                                                w-5 h-5 rounded-md 
+                                                                bg-gray-100/80 
+                                                                flex items-center justify-center
+                                                                group-hover/trust:bg-emerald-50
+                                                                transition-colors duration-300
+                                                            "
+                                                        >
+                                                            <item.icon
+                                                                className="
+                                                                    w-3 h-3 text-gray-400
+                                                                    group-hover/trust:text-emerald-500
+                                                                    transition-colors duration-300
+                                                                "
+                                                            />
+                                                        </div>
+                                                        <span
+                                                            className="
+                                                                text-[9px] font-bold text-gray-400 
+                                                                uppercase tracking-[0.1em]
+                                                                group-hover/trust:text-gray-600
+                                                                transition-colors duration-300
+                                                            "
+                                                        >
                                                             {item.label}
                                                         </span>
                                                     </div>
@@ -1548,7 +1589,7 @@ function CheckoutContent() {
                                     )}
                                 </div>
 
-                                {/* RIGHT */}
+                                {/* ─── RIGHT COLUMN ─── */}
                                 <div className="lg:col-span-1 lg:sticky lg:top-24 h-fit">
                                     <BookingSummary
                                         passengers={summaryCounts}
@@ -1574,8 +1615,7 @@ function CheckoutContent() {
                     }
                     isProcessing={isSubmitting}
                     isInstantPayment={
-                        flightData?.payment_requirements
-                            ?.requires_instant_payment ?? false
+                        flightData?.payment_requirements?.requires_instant_payment ?? false
                     }
                     flightData={flightData}
                     formData={pendingFormData}
