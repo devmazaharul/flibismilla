@@ -137,8 +137,8 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                     <div
                                         className="
                                             w-12 h-12 shrink-0 flex items-center justify-center
-                                            bg-white rounded-2xl border border-slate-200/80
-                                            shadow-[0_8px_22px_rgba(15,23,42,0.08)] p-1.5
+                                            bg-white rounded-2xl 
+                                            
                                         "
                                     >
                                         {leg.mainLogo ? (
