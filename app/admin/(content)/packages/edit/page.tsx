@@ -21,8 +21,6 @@ import {
   ImagePlus,
   X,
   Info,
-  Sparkles,
-  GripVertical,
   Package,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
