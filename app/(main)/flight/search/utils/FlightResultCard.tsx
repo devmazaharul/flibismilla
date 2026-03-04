@@ -11,29 +11,31 @@ import {
     Briefcase,
     Armchair,
     AlertCircle,
+    Check,
+    X,
+    Luggage,
+    Handbag,
+    HandCoins,
+    BanknoteX,
 } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { FlightOffer,FlightLeg } from './types';
+import { FlightOffer, FlightLeg } from './types';
 
-// ✅ Shared types import
-
-
-// ✅ Re-export for other components
 export type { FlightOffer, FlightLeg };
 
 const FlightDetails = lazy(() =>
     import('./FlightItinerary').then((mod) => ({
         default: mod.FlightDetails,
-    }))
+    })),
 );
 
 const preloadFlightDetails = () => {
     import('./FlightItinerary');
 };
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // HELPERS
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const formatTime = (iso: string) => format(parseISO(iso), 'hh:mm a');
 const formatDate = (iso: string) => format(parseISO(iso), 'EEE, dd MMM');
 
@@ -42,9 +44,141 @@ const getDayDiff = (dep: string, arr: string) => {
     return diff > 0 ? `+${diff}` : '';
 };
 
-// ----------------------------------------------------------------------
+
+const getBaggageShortLabel = (baggage: any): string => {
+    if (typeof baggage === 'string') return baggage;
+
+    if (baggage && typeof baggage === 'object') {
+        const parts: string[] = [];
+
+        if (baggage.details && Array.isArray(baggage.details)) {
+            baggage.details.forEach((d: any) => {
+                if (d.isIncluded) {
+                    if (d.type === 'checked') {
+                        parts.push(
+                            d.totalWeight > 0
+                                ? `${d.quantity}× ${d.totalWeight}${d.weightUnit}${d.isApprox ? '~' : ''}`
+                                : `${d.quantity} Checked`,
+                        );
+                    } else if (d.type === 'carry_on') {
+                        parts.push(`${d.quantity} Carry-on`);
+                    } else if (d.type === 'personal_item') {
+                        parts.push(`${d.quantity} Personal`);
+                    } else {
+                        parts.push(`${d.quantity} ${d.label}`);
+                    }
+                }
+            });
+        }
+
+        if (parts.length > 0) return parts.join(' + ');
+        return baggage.summary || 'Cabin Only';
+    }
+
+    return 'Check Rules';
+};
+
+// ──────────────────────────────────────────────
+// 🧳 BAGGAGE BADGE COMPONENT
+// ──────────────────────────────────────────────
+const BaggageBadges = ({ baggage }: { baggage: any }) => {
+    // Old string format — single badge
+    if (typeof baggage === 'string') {
+        return (
+            <span
+                className="
+                    flex items-center gap-1.5 px-2.5 py-1 rounded-md 
+                    bg-slate-100 text-slate-600 text-[10px] font-bold 
+                    uppercase border border-slate-100
+                "
+            >
+                <Briefcase className="w-3 h-3" />
+                {baggage}
+            </span>
+        );
+    }
+
+    // New object format
+    if (baggage && typeof baggage === 'object' && Array.isArray(baggage.details)) {
+        const includedBags = baggage.details.filter((d: any) => d.isIncluded);
+
+        // No bags included
+        if (includedBags.length === 0) {
+            return (
+                <span
+                    className="
+                        flex items-center gap-1.5 px-2.5 py-1 rounded-md 
+                        bg-amber-50 text-amber-700 text-[10px] font-bold 
+                        uppercase border border-amber-100
+                    "
+                >
+                    <AlertCircle className="w-3 h-3" />
+                    Cabin Bag Only
+                </span>
+            );
+        }
+
+        // Render each bag type as badge
+        return (
+            <>
+                {includedBags.map((bag: any, i: number) => {
+                    // Color scheme per type
+                    let colorClasses = 'bg-slate-50 text-slate-600 border-slate-200';
+                    let icon = <Briefcase className="w-3 h-3" />;
+
+                    if (bag.type === 'checked') {
+                        colorClasses = 'bg-purple-50 text-purple-700 border-purple-100';
+                        icon = <Luggage className="w-3 h-3" />;
+                    } else if (bag.type === 'carry_on') {
+                        colorClasses = 'bg-slate-50 text-slate-600 border-slate-200';
+                        icon = <Handbag  className="w-3 h-3" />;
+                    } else if (bag.type === 'personal_item') {
+                        colorClasses = 'bg-gray-50 text-gray-600 border-gray-200';
+                        icon = <Briefcase className="w-3 h-3" />;
+                    }
+
+                    // Build label
+                    let label = `${bag.quantity}× ${bag.label}`;
+                    // if (bag.totalWeight > 0) {
+                    //     label += ` (${bag.totalWeight}${bag.weightUnit}${bag.isApprox ? '~' : ''})`;
+                    // }
+
+                    return (
+                        <span
+                            key={`${bag.type}-${i}`}
+                            className={`
+                                flex items-center gap-1.5 px-2.5 py-1 rounded-md 
+                                text-[10px] font-bold uppercase border
+                                ${colorClasses}
+                            `}
+                        >
+                            {icon}
+                            {label}
+                        </span>
+                    );
+                })}
+            </>
+        );
+    }
+
+    // Fallback
+    return (
+        <span
+            className="
+                flex items-center gap-1.5 px-2.5 py-1 rounded-md 
+                bg-slate-100 text-slate-600 text-[10px] font-bold 
+                uppercase border border-slate-100
+            "
+        >
+            <Briefcase className="w-3 h-3" />
+            Check Rules
+        </span>
+    );
+};
+
+// ──────────────────────────────────────────────
 // Flight Path Visual
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 const FlightPathVisual = ({
     duration,
     stops,
@@ -62,9 +196,7 @@ const FlightPathVisual = ({
                     stops === 0 ? 'text-emerald-600' : 'text-amber-600'
                 }`}
             >
-                {stops === 0
-                    ? 'Non-stop'
-                    : `${stops} Stop${stops > 1 ? 's' : ''}`}
+                {stops === 0 ? 'Non-stop' : `${stops} Stop${stops > 1 ? 's' : ''}`}
             </span>
         </div>
         <div className="relative w-full flex items-center h-4">
@@ -88,9 +220,9 @@ const FlightPathVisual = ({
     </div>
 );
 
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // MAIN COMPONENT
-// ----------------------------------------------------------------------
+// ──────────────────────────────────────────────
 export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const searchParams = useSearchParams();
@@ -105,7 +237,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
         <div
             className="
                 relative mb-5 rounded-xl bg-white/95
-                border border-slate-200/80
+                border border-dashed border-slate-300/60
                 transition-all duration-300 overflow-hidden group
                 hover:shadow-md
                 hover:shadow-gray-100/60
@@ -119,28 +251,22 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                     {flight.itinerary.map((leg, idx) => {
                         const dayDiff = getDayDiff(
                             leg.mainDeparture.time,
-                            leg.mainArrival.time
+                            leg.mainArrival.time,
                         );
+                        const isLast = idx === flight.itinerary.length - 1;
 
                         return (
                             <div
                                 key={leg.id || idx}
-                                className="
+                                className={`
                                     flex flex-col md:flex-row items-center gap-5 md:gap-6
-                                    rounded-xl  border border-slate-200/60
-                                    
-                                     shadow-slate-100 px-3.5 py-3
-                                "
+                                    px-3.5 py-3 shadow-slate-100
+                                    ${!isLast ? 'border-b border-dashed border-b-slate-300/50' : ''}
+                                `}
                             >
                                 {/* Airline brand */}
                                 <div className="flex items-center gap-3 md:gap-4 w-full md:w-[200px] shrink-0">
-                                    <div
-                                        className="
-                                            w-12 h-12 shrink-0 flex items-center justify-center
-                                            bg-white rounded-2xl 
-                                             p-1.5
-                                        "
-                                    >
+                                    <div className="w-12 h-12 shrink-0 flex items-center justify-center bg-white rounded-2xl border border-gray-100 p-1.5">
                                         {leg.mainLogo ? (
                                             <img
                                                 src={leg.mainLogo}
@@ -191,19 +317,10 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                         </p>
                                         <div className="flex flex-col items-end">
                                             <p className="text-[10px] font-medium text-slate-400 mt-0.5">
-                                                {formatDate(
-                                                    leg.mainArrival.time
-                                                )}
+                                                {formatDate(leg.mainArrival.time)}
                                             </p>
                                             {dayDiff && (
-                                                <span
-                                                    className="
-                                                        absolute -top-3 -right-2
-                                                        text-[9px] font-bold text-rose-600
-                                                        bg-rose-50 px-1.5 rounded-xl
-                                                        border border-rose-100
-                                                    "
-                                                >
+                                                <span className="absolute -top-3 -right-2 text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 rounded-xl border border-rose-100">
                                                     {dayDiff}D
                                                 </span>
                                             )}
@@ -216,24 +333,21 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
 
                     {/* Badges */}
                     <div className="flex flex-wrap items-center gap-2.5 mt-2 pt-3 border-t border-slate-100">
+                        {/* Refund Badge */}
                         {flight.conditions.refundable ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-100">
-                                <Briefcase className="w-3 h-3" /> Refundable
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold  border border-emerald-100">
+                                <HandCoins  className="w-3 h-3" /> Refundable
                             </span>
                         ) : (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold uppercase border border-rose-100">
-                                <AlertCircle className="w-3 h-3" />{' '}
-                                Non-Refundable
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold  border border-rose-100">
+                                <BanknoteX  className="w-3 h-3" /> Non-Refundable
                             </span>
                         )}
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase border border-slate-100">
-                            <Briefcase className="w-3 h-3" />{' '}
-                            {flight.baggage}
-                        </span>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-600 text-[10px] font-bold uppercase border border-blue-100">
-                            <Armchair className="w-3 h-3" />{' '}
-                            {flight.cabinClass}
-                        </span>
+
+                        {/* 🧳 Baggage Badges — Handles both string & object */}
+                        <BaggageBadges baggage={flight.baggage} />
+
+                      
                     </div>
                 </div>
 
@@ -261,9 +375,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                         </p>
                         <div className="flex items-baseline lg:justify-center gap-1">
                             <span className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900">
-                                {flight.price.currency === 'USD'
-                                    ? '$'
-                                    : flight.price.currency}{' '}
+                                {flight.price.currency === 'USD' ? '$' : flight.price.currency}{' '}
                                 {flight.price.finalPrice.toLocaleString()}
                             </span>
                         </div>
@@ -299,9 +411,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                 active:scale-95 cursor-pointer
                             "
                         >
-                            {isExpanded
-                                ? 'Hide Details'
-                                : 'View Flight Details'}
+                            {isExpanded ? 'Hide Details' : 'View Flight Details'}
                             <ChevronDown
                                 className={`w-3.5 h-3.5 transition-transform duration-300 ${
                                     isExpanded ? 'rotate-180' : ''
@@ -336,9 +446,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                     </div>
                                 }
                             >
-                                <FlightDetails
-                                    itinerary={flight.itinerary}
-                                />
+                                <FlightDetails itinerary={flight.itinerary} />
                             </Suspense>
                         )}
                     </div>

@@ -38,9 +38,7 @@ const parseDuration = (duration: string | null | undefined) => {
     return parts.join(' ');
 };
 
-// 2. Price Calculation
-
-// 3. Cabin Class Formatter
+// 2. Cabin Class Formatter
 const getCabinClass = (slices: any[]) => {
     try {
         const segment = slices[0]?.segments[0];
@@ -53,36 +51,139 @@ const getCabinClass = (slices: any[]) => {
     }
 };
 
-// 4. 🟢 SMART BAGGAGE INFO (Updated with Approx Weight)
+// 3. 🟢 SMART BAGGAGE INFO — All Types (checked, carry_on, personal_item, etc.)
 const getBaggageInfo = (slices: any[]) => {
     try {
         const bags = slices[0]?.segments[0]?.passengers?.[0]?.baggages;
-        if (Array.isArray(bags) && bags.length > 0) {
-            const checkedBag = bags.find((b: any) => b.type === 'checked');
-            if (checkedBag) {
-                // Case A: API provided explicit weight (Best Case)
-                if (checkedBag.weight) {
-                    const qty = checkedBag.quantity || 1;
-                    return `${qty} Bag${qty > 1 ? 's' : ''} (${checkedBag.weight}kg)`;
-                }
 
-                // Case B: API provided Quantity Only (Estimate 23kg per bag)
-                if (checkedBag.quantity) {
-                    const qty = checkedBag.quantity;
-                    const approxWeight = qty * 23; // Standard international economy weight
-                    return `${qty} Bag${qty > 1 ? 's' : ''} (${approxWeight}kg approx)`;
-                }
-            }
+        // ─── No Baggage Data ───
+        if (!Array.isArray(bags) || bags.length === 0) {
+            return {
+                summary: 'No Baggage Info',
+                details: [],
+                hasChecked: false,
+                hasCarryOn: false,
+                hasPersonalItem: false,
+                totalWeight: 0,
+                totalWeightDisplay: 'N/A',
+                includedCount: 0,
+            };
         }
-        return 'Cabin Bag Only';
+
+        // ─── Baggage Type Config ───
+        const baggageConfig: Record<
+            string,
+            { label: string; icon: string; defaultWeight: number }
+        > = {
+            checked: { label: 'Checked Bag', icon: '🧳', defaultWeight: 23 },
+            carry_on: { label: 'Carry-On', icon: '👜', defaultWeight: 7 },
+            personal_item: { label: 'Personal Item', icon: '🎒', defaultWeight: 5 },
+        };
+
+        // ─── Parse Each Bag ───
+        const details = bags.map((bag: any) => {
+            // Get config or generate fallback for unknown types
+            const config = baggageConfig[bag.type] || {
+                label:
+                    bag.type
+                        ?.replace(/_/g, ' ')
+                        .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Other Bag',
+                icon: '📦',
+                defaultWeight: 0,
+            };
+
+            const qty = bag.quantity || 0;
+
+            // Weight resolution: API explicit > Estimate > 0
+            const hasExplicitWeight = bag.weight !== undefined && bag.weight !== null;
+            const weightPerBag = hasExplicitWeight
+                ? Number(bag.weight)
+                : config.defaultWeight;
+            const totalWeight = qty * weightPerBag;
+            const isApprox = !hasExplicitWeight && config.defaultWeight > 0;
+            const weightUnit = bag.weightUnit || bag.weight_unit || 'kg';
+
+            // Display text
+            let displayText = '';
+            if (qty > 0) {
+                if (totalWeight > 0) {
+                    displayText = `${qty} × ${config.label} (${totalWeight}${weightUnit}${isApprox ? ' approx' : ''})`;
+                } else {
+                    displayText = `${qty} × ${config.label}`;
+                }
+            } else {
+                displayText = `No ${config.label}`;
+            }
+
+            return {
+                type: bag.type,
+                label: config.label,
+                icon: config.icon,
+                quantity: qty,
+                weightPerBag,
+                totalWeight,
+                weightUnit,
+                isApprox,
+                hasExplicitWeight,
+                isIncluded: qty > 0,
+                displayText,
+            };
+        });
+
+        // ─── Flags ───
+        const hasChecked = details.some((d: any) => d.type === 'checked' && d.quantity > 0);
+        const hasCarryOn = details.some((d: any) => d.type === 'carry_on' && d.quantity > 0);
+        const hasPersonalItem = details.some(
+            (d: any) => d.type === 'personal_item' && d.quantity > 0,
+        );
+
+        // ─── Included Bags Only ───
+        const includedBags = details.filter((d: any) => d.isIncluded);
+
+        // ─── Summary String ───
+        const summary =
+            includedBags.length > 0
+                ? includedBags.map((d: any) => d.displayText).join(' + ')
+                : 'No Baggage Included';
+
+        // ─── Total Weight ───
+        const totalWeight = includedBags.reduce(
+            (sum: number, d: any) => sum + d.totalWeight,
+            0,
+        );
+        const hasAnyApprox = includedBags.some((d: any) => d.isApprox);
+
+        return {
+            summary,
+            details,
+            hasChecked,
+            hasCarryOn,
+            hasPersonalItem,
+            totalWeight,
+            totalWeightDisplay:
+                totalWeight > 0
+                    ? `${totalWeight}kg${hasAnyApprox ? ' approx' : ''} total`
+                    : 'N/A',
+            includedCount: includedBags.length,
+        };
     } catch (e) {
-        return 'Check Rules';
+        return {
+            summary: 'Check Baggage Rules',
+            details: [],
+            hasChecked: false,
+            hasCarryOn: false,
+            hasPersonalItem: false,
+            totalWeight: 0,
+            totalWeightDisplay: 'N/A',
+            includedCount: 0,
+        };
     }
 };
 
-// 5. Fare Rules
+// 4. Fare Rules
 const getFareRules = (conditions: any) => {
-    if (!conditions) return { change: 'Unknown', refund: 'Unknown', isRefundable: false };
+    if (!conditions)
+        return { change: 'Unknown', refund: 'Unknown', isRefundable: false };
 
     const formatRule = (rule: any, type: string) => {
         if (!rule) return 'Check Rules';
@@ -152,7 +253,7 @@ export async function GET(request: Request) {
         // Process Data
         const pricing = calculatePriceWithMarkup(data.total_amount, data.total_currency);
         const cabinClass = getCabinClass(data.slices);
-        const baggageInfo = getBaggageInfo(data.slices); // ✨ Using updated logic
+        const baggageInfo = getBaggageInfo(data.slices);
         const fareRules = getFareRules(data.conditions);
         const expiresAt = data.expires_at
             ? new Date(data.expires_at).toISOString()
@@ -204,7 +305,8 @@ export async function GET(request: Request) {
                         layoverTime = `${h}h ${m}m`;
                     }
 
-                    const isCodeshare = seg.marketing_carrier?.name !== seg.operating_carrier?.name;
+                    const isCodeshare =
+                        seg.marketing_carrier?.name !== seg.operating_carrier?.name;
 
                     return {
                         id: seg.id,

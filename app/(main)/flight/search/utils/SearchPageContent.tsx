@@ -966,7 +966,7 @@ function SearchPageContent() {
                                 className="
                                     hidden lg:block lg:col-span-1
                                     rounded-2xl bg-white
-                                    border border-gray-200
+                                    border border-gray-200/70
                                     sticky top-4
                                     max-h-[calc(100vh-2rem)]
                                     overflow-y-auto custom-scrollbar

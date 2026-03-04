@@ -31,7 +31,7 @@ const AmenityIcon = ({ label }: { label: string }) => {
     if (lower.includes('usb') || lower.includes('power'))
         return <Zap className="w-3 h-3 text-yellow-600" />;
     // ✅ Fixed: CheckCircleIcon doesn't exist in lucide — use CheckCircle2
-    return <CheckCircle2 className="w-3 h-3 text-slate-400" />;
+    return <CheckCircle2 className="w-3 h-3 text-slate-600" />;
 };
 
 // ----------------------------------------------------------------------
@@ -91,8 +91,7 @@ export const FlightDetails = memo(function FlightDetails({
                                         border border-slate-100
                                         shadow-[0_12px_30px_rgba(15,23,42,0.06)]
                                         ml-4
-                                        hover:border-rose-100
-                                        hover:shadow-rose-100/70
+                                       
                                         transition-colors duration-200
                                     "
                                 >
@@ -138,8 +137,8 @@ export const FlightDetails = memo(function FlightDetails({
                                                     <div
                                                         key={idx}
                                                         className="
-                                                            p-1.5 bg-slate-50
-                                                            rounded-md border border-slate-100
+                                                            p-1.5 
+                                                            rounded-md 
                                                             hover:bg-slate-100
                                                             transition-colors
                                                         "
@@ -200,11 +199,11 @@ export const FlightDetails = memo(function FlightDetails({
                                             className="
                                                 flex items-center gap-2
                                                 px-3 py-1.5
-                                                bg-amber-50 border border-amber-200
-                                                rounded-full
+                                                bg-amber-50 border border-amber-200/60
+                                                rounded-md
                                                 text-amber-700 text-[10px]
                                                 font-bold uppercase tracking-wide
-                                                shadow-sm
+                                                
                                             "
                                         >
                                             <Clock className="w-3 h-3" />
