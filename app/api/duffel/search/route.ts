@@ -234,6 +234,7 @@ export async function POST(req: NextRequest) {
             passengers,
             cabin_class: cabinClass as any,
             return_offers: true,
+            
         });
 
         const rawOffers = offerRequest.data.offers || [];

@@ -635,6 +635,14 @@ function SearchPageContent() {
 
         if (!type || trigger !== '1') return;
 
+        setTimeout(() => {
+                    resultsRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+                }, 200);
+
+
         const fetchFlights = async () => {
             setError('');
             setLoading(true);
@@ -690,12 +698,12 @@ function SearchPageContent() {
 
                 setRawResults(responseData.data || []);
 
-                setTimeout(() => {
-                    resultsRef.current?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                    });
-                }, 200);
+                // setTimeout(() => {
+                //     resultsRef.current?.scrollIntoView({
+                //         behavior: 'smooth',
+                //         block: 'start',
+                //     });
+                // }, 200);
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
