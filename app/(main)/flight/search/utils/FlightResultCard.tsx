@@ -138,7 +138,7 @@ export const FlightResultCard = ({ flight }: { flight: FlightOffer }) => {
                                         className="
                                             w-12 h-12 shrink-0 flex items-center justify-center
                                             bg-white rounded-2xl 
-                                            
+                                             p-1.5
                                         "
                                     >
                                         {leg.mainLogo ? (
