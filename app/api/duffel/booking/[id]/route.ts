@@ -11,9 +11,208 @@ const duffel = new Duffel({ token: duffelToken || '' });
 
 export const dynamic = 'force-dynamic';
 
+// ═══════════════════════════════════════════════════════
+// 🟢 SMART BAGGAGE PARSER — Per-Segment
+// ═══════════════════════════════════════════════════════
+
+interface BaggageDetail {
+  type: string;
+  label: string;
+  icon: string;
+  quantity: number;
+  weightPerBag: number;
+  totalWeight: number;
+  weightUnit: string;
+  isApprox: boolean;
+  hasExplicitWeight: boolean;
+  isIncluded: boolean;
+  displayText: string;
+}
+
+interface BaggageInfo {
+  summary: string;
+  details: BaggageDetail[];
+  hasChecked: boolean;
+  hasCarryOn: boolean;
+  hasPersonalItem: boolean;
+  totalWeight: number;
+  totalWeightDisplay: string;
+  includedCount: number;
+}
+
+const BAGGAGE_CONFIG: Record<
+  string,
+  { label: string; icon: string; defaultWeight: number }
+> = {
+  checked: { label: 'Checked Bag', icon: '🧳', defaultWeight: 23 },
+  carry_on: { label: 'Carry-On', icon: '👜', defaultWeight: 7 },
+  personal_item: { label: 'Personal Item', icon: '🎒', defaultWeight: 5 },
+};
+
+function getSegmentBaggageInfo(segment: any): BaggageInfo {
+  try {
+    const bags = segment?.passengers?.[0]?.baggages;
+
+    // ─── No Baggage Data ───
+    if (!Array.isArray(bags) || bags.length === 0) {
+      return {
+        summary: 'No Baggage Info',
+        details: [],
+        hasChecked: false,
+        hasCarryOn: false,
+        hasPersonalItem: false,
+        totalWeight: 0,
+        totalWeightDisplay: 'N/A',
+        includedCount: 0,
+      };
+    }
+
+    // ─── Parse Each Bag ───
+    const details: BaggageDetail[] = bags.map((bag: any) => {
+      const config = BAGGAGE_CONFIG[bag.type] || {
+        label:
+          bag.type
+            ?.replace(/_/g, ' ')
+            .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Other Bag',
+        icon: '📦',
+        defaultWeight: 0,
+      };
+
+      const qty = bag.quantity || 0;
+
+      // Weight: API explicit > Estimate > 0
+      const hasExplicitWeight =
+        bag.weight !== undefined && bag.weight !== null;
+      const weightPerBag = hasExplicitWeight
+        ? Number(bag.weight)
+        : config.defaultWeight;
+      const totalWeight = qty * weightPerBag;
+      const isApprox = !hasExplicitWeight && config.defaultWeight > 0;
+      const weightUnit = bag.weightUnit || bag.weight_unit || 'kg';
+
+      // Display text
+      let displayText = '';
+      if (qty > 0) {
+        if (totalWeight > 0) {
+          displayText = `${qty} × ${config.label} (${totalWeight}${weightUnit}${isApprox ? ' approx' : ''})`;
+        } else {
+          displayText = `${qty} × ${config.label}`;
+        }
+      } else {
+        displayText = `No ${config.label}`;
+      }
+
+      return {
+        type: bag.type,
+        label: config.label,
+        icon: config.icon,
+        quantity: qty,
+        weightPerBag,
+        totalWeight,
+        weightUnit,
+        isApprox,
+        hasExplicitWeight,
+        isIncluded: qty > 0,
+        displayText,
+      };
+    });
+
+    // ─── Flags ───
+    const hasChecked = details.some(
+      (d) => d.type === 'checked' && d.quantity > 0
+    );
+    const hasCarryOn = details.some(
+      (d) => d.type === 'carry_on' && d.quantity > 0
+    );
+    const hasPersonalItem = details.some(
+      (d) => d.type === 'personal_item' && d.quantity > 0
+    );
+
+    // ─── Included Bags Only ───
+    const includedBags = details.filter((d) => d.isIncluded);
+
+    // ─── Summary String ───
+    const summary =
+      includedBags.length > 0
+        ? includedBags.map((d) => d.displayText).join(' + ')
+        : 'No Baggage Included';
+
+    // ─── Total Weight ───
+    const totalWeight = includedBags.reduce(
+      (sum, d) => sum + d.totalWeight,
+      0
+    );
+    const hasAnyApprox = includedBags.some((d) => d.isApprox);
+
+    return {
+      summary,
+      details,
+      hasChecked,
+      hasCarryOn,
+      hasPersonalItem,
+      totalWeight,
+      totalWeightDisplay:
+        totalWeight > 0
+          ? `${totalWeight}kg${hasAnyApprox ? ' approx' : ''} total`
+          : 'N/A',
+      includedCount: includedBags.length,
+    };
+  } catch (e) {
+    return {
+      summary: 'Check Baggage Rules',
+      details: [],
+      hasChecked: false,
+      hasCarryOn: false,
+      hasPersonalItem: false,
+      totalWeight: 0,
+      totalWeightDisplay: 'N/A',
+      includedCount: 0,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🔵 TRIP-LEVEL BAGGAGE (across all slices)
+// ═══════════════════════════════════════════════════════
+
+function getTripBaggageInfo(slices: any[]): BaggageInfo {
+  try {
+    // Use first slice → first segment for trip-level summary
+    const firstSegment = slices?.[0]?.segments?.[0];
+    if (!firstSegment) {
+      return {
+        summary: 'No Baggage Info',
+        details: [],
+        hasChecked: false,
+        hasCarryOn: false,
+        hasPersonalItem: false,
+        totalWeight: 0,
+        totalWeightDisplay: 'N/A',
+        includedCount: 0,
+      };
+    }
+    return getSegmentBaggageInfo(firstSegment);
+  } catch (e) {
+    return {
+      summary: 'Check Baggage Rules',
+      details: [],
+      hasChecked: false,
+      hasCarryOn: false,
+      hasPersonalItem: false,
+      totalWeight: 0,
+      totalWeightDisplay: 'N/A',
+      includedCount: 0,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🔴 MAIN API HANDLER
+// ═══════════════════════════════════════════════════════
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await isAdmin();
   if (!auth.success) return auth.response;
@@ -25,7 +224,7 @@ export async function GET(
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, message: 'Invalid Booking ID format' },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -36,14 +235,14 @@ export async function GET(
     if (!booking) {
       return NextResponse.json(
         { success: false, message: 'Booking not found' },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     if (!booking.duffelOrderId) {
       return NextResponse.json(
         { success: false, message: 'No Duffel Order ID found' },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -113,7 +312,6 @@ export async function GET(
           },
         };
 
-        // documents/pnr sync (tickets historically keep)
         if (newDocuments.length > 0) {
           updates.documents = newDocuments;
           updates.pnr = newPNR;
@@ -135,7 +333,6 @@ export async function GET(
 
           needsUpdate = true;
         }
-        // চাইলে এখানে payment_status.paid_at / awaiting_payment ইত্যাদি থেকে held/pending update করতে পারো
       }
 
       if (needsUpdate) {
@@ -145,25 +342,27 @@ export async function GET(
             $set: updates,
             $currentDate: { updatedAt: true },
           },
-          { new: true },
+          { new: true }
         ).lean();
 
         finalDocuments = finalBooking.documents || newDocuments;
         finalPNR = finalBooking.pnr;
       } else {
-        finalDocuments = newDocuments.length > 0 ? newDocuments : finalDocuments;
+        finalDocuments =
+          newDocuments.length > 0 ? newDocuments : finalDocuments;
         finalPNR = newPNR || finalPNR;
       }
     } catch (error: any) {
       console.error(
         '⚠️ Duffel Sync Failed in details API, serving from Database:',
-        error.message,
+        error.message
       );
 
       return NextResponse.json(
         {
           success: false,
-          message: 'Failed to sync with airline, but fetching local record.',
+          message:
+            'Failed to sync with airline, but fetching local record.',
           debug: error.message,
           data: {
             id: booking._id,
@@ -173,7 +372,7 @@ export async function GET(
             note: 'Shown from Local Database due to API Error',
           },
         },
-        { status: 502 },
+        { status: 502 }
       );
     }
 
@@ -183,7 +382,8 @@ export async function GET(
 
     if (paymentInfo) {
       try {
-        const { cardNumber, cardName, expiryDate, billingAddress } = paymentInfo;
+        const { cardNumber, cardName, expiryDate, billingAddress } =
+          paymentInfo;
 
         let decryptedCard = '****';
         if (cardNumber) {
@@ -204,7 +404,10 @@ export async function GET(
       }
     }
 
-    // ৫. Flight Segments
+    // ৫. Trip-level Baggage Info
+    const tripBaggage = getTripBaggageInfo(duffelOrder.slices);
+
+    // ৬. Flight Segments (with per-segment smart baggage)
     const tripType = booking.flightDetails?.flightType || 'one_way';
 
     const flightSegments = duffelOrder.slices
@@ -215,39 +418,71 @@ export async function GET(
           direction = sliceIndex === 0 ? 'Outbound' : 'Inbound';
         else direction = `Flight ${sliceIndex + 1}`;
 
-        return slice.segments.map((segment: any) => ({
-          direction: direction,
-          sliceIndex: sliceIndex,
-          airline: segment.operating_carrier?.name || 'Airline',
-          airlineCode: segment.operating_carrier?.iata_code,
-          flightNumber: segment.operating_carrier_flight_number,
-          aircraft: segment.aircraft?.name || 'Aircraft info unavailable',
-          origin: segment.origin.iata_code,
-          originCity: segment.origin.city_name,
-          departingAt: segment.departing_at,
-          destination: segment.destination.iata_code,
-          destinationCity: segment.destination.city_name,
-          arrivingAt: segment.arriving_at,
-          duration: segment.duration,
-          cabinClass:
-            segment.passengers?.[0]?.cabin_class_marketing_name || 'Economy',
-          baggage: segment.passengers?.[0]?.baggages?.[0]
-            ? `${segment.passengers[0].baggages[0].quantity} PC (${
-                segment.passengers[0].baggages[0].quantity * 23
-              } KG)`
-            : 'Check Airline Rule',
-        }));
+        return slice.segments.map((segment: any) => {
+          // ─── Per-segment smart baggage ───
+          const segBaggage = getSegmentBaggageInfo(segment);
+
+          return {
+            direction,
+            sliceIndex,
+            airline:
+              segment.operating_carrier?.name || 'Airline',
+            airlineCode:
+              segment.operating_carrier?.iata_code,
+            flightNumber:
+              segment.operating_carrier_flight_number,
+            aircraft:
+              segment.aircraft?.name ||
+              'Aircraft info unavailable',
+            origin: segment.origin.iata_code,
+            originCity: segment.origin.city_name,
+            departingAt: segment.departing_at,
+            destination: segment.destination.iata_code,
+            destinationCity: segment.destination.city_name,
+            arrivingAt: segment.arriving_at,
+            duration: segment.duration,
+            cabinClass:
+              segment.passengers?.[0]
+                ?.cabin_class_marketing_name || 'Economy',
+
+            // ─── OLD: simple string (backward-compatible) ───
+            baggage: segBaggage.summary,
+
+            // ─── NEW: full structured baggage info ───
+            baggageInfo: {
+              summary: segBaggage.summary,
+              totalWeightDisplay:
+                segBaggage.totalWeightDisplay,
+              totalWeight: segBaggage.totalWeight,
+              includedCount: segBaggage.includedCount,
+              hasChecked: segBaggage.hasChecked,
+              hasCarryOn: segBaggage.hasCarryOn,
+              hasPersonalItem: segBaggage.hasPersonalItem,
+              details: segBaggage.details.map((d) => ({
+                type: d.type,
+                label: d.label,
+                icon: d.icon,
+                quantity: d.quantity,
+                weightPerBag: d.weightPerBag,
+                totalWeight: d.totalWeight,
+                weightUnit: d.weightUnit,
+                isApprox: d.isApprox,
+                isIncluded: d.isIncluded,
+                displayText: d.displayText,
+              })),
+            },
+          };
+        });
       })
       .flat();
 
-    // ৬. Passengers + Ticket mapping (FIXED)
+    // ৭. Passengers + Ticket mapping
     const docsForMapping: any[] =
       (duffelOrder.documents && duffelOrder.documents.length > 0
         ? duffelOrder.documents
         : finalDocuments) || [];
 
     const passengers = duffelOrder.passengers.map((p: any) => {
-      // প্রথমে passenger_ids / passenger.id এর উপর ভিত্তি করে ডকুমেন্ট খুঁজি
       const ticketDoc =
         docsForMapping.find((doc: any) => {
           const matchesPassenger =
@@ -258,7 +493,6 @@ export async function GET(
 
           if (!matchesPassenger) return false;
 
-          // type থাকলে electronic_ticket/e_ticket প্রাধান্য, না থাকলে যে কোনোটাই চলবে
           if (!doc.type) return true;
           return (
             doc.type === 'electronic_ticket' ||
@@ -266,7 +500,6 @@ export async function GET(
             doc.type === 'ticket'
           );
         }) ||
-        // যদি একটাও match না পায়, কিন্তু কেবল একটাই ডকুমেন্ট থাকে, সেটাই use করি
         (docsForMapping.length === 1 ? docsForMapping[0] : null);
 
       let ticketNumber = 'Not Issued';
@@ -277,7 +510,7 @@ export async function GET(
       let infantInfo = null;
       if (p.infant_passenger_id) {
         const infant = duffelOrder.passengers.find(
-          (i: any) => i.id === p.infant_passenger_id,
+          (i: any) => i.id === p.infant_passenger_id
         );
         infantInfo = infant
           ? `${infant.given_name} ${infant.family_name}`
@@ -295,7 +528,7 @@ export async function GET(
       };
     });
 
-    // ৭. Finance
+    // ৮. Finance
     const financialOverview = {
       basePrice: duffelOrder.base_amount,
       tax: duffelOrder.tax_amount,
@@ -306,12 +539,17 @@ export async function GET(
       currency: duffelOrder.total_currency,
     };
 
-    // ৮. Policies
+    // ৯. Policies
     const conditions =
-      duffelOrder.conditions || duffelOrder.slices?.[0]?.conditions || {};
+      duffelOrder.conditions ||
+      duffelOrder.slices?.[0]?.conditions ||
+      {};
     const availableActions = duffelOrder.available_actions || [];
 
-    const getPolicyInfo = (policyData: any, actionType: string) => {
+    const getPolicyInfo = (
+      policyData: any,
+      actionType: string
+    ) => {
       if (!policyData) {
         return availableActions.includes(actionType as any)
           ? { text: 'Check Fee', allowed: true }
@@ -324,9 +562,7 @@ export async function GET(
 
       if (policyData.penalty_amount) {
         return {
-          text: `${policyData.penalty_amount} ${
-            policyData.penalty_currency || ''
-          }`,
+          text: `${policyData.penalty_amount} ${policyData.penalty_currency || ''}`,
           allowed: true,
         };
       }
@@ -336,11 +572,11 @@ export async function GET(
 
     const refundPolicy = getPolicyInfo(
       conditions.refund_before_departure,
-      'cancel',
+      'cancel'
     );
     const changePolicy = getPolicyInfo(
       conditions.change_before_departure,
-      'change',
+      'change'
     );
 
     const policies = {
@@ -362,7 +598,14 @@ export async function GET(
       },
     };
 
-    // ৯. Response অবজেক্ট
+    // ১০. Cancellation Info (for frontend refund modal)
+    let cancellationInfo = null;
+    if (finalBooking.airlineInitiatedChanges?.cancellation) {
+      cancellationInfo =
+        finalBooking.airlineInitiatedChanges.cancellation;
+    }
+
+    // ১১. Response Object
     const fullDetails = {
       id: booking._id,
       bookingRef: booking.bookingReference,
@@ -372,7 +615,7 @@ export async function GET(
       status: finalBooking.status,
       paymentStatus: finalBooking.paymentStatus,
       adminNotes: finalBooking.adminNotes || null,
-      availableActions: availableActions,
+      availableActions,
       policies,
       tripType,
       segments: flightSegments,
@@ -383,6 +626,27 @@ export async function GET(
       timings: {
         deadline: finalBooking.paymentDeadline || null,
       },
+
+      // ─── NEW: Trip-level baggage summary ───
+      tripBaggage: {
+        summary: tripBaggage.summary,
+        totalWeightDisplay: tripBaggage.totalWeightDisplay,
+        hasChecked: tripBaggage.hasChecked,
+        hasCarryOn: tripBaggage.hasCarryOn,
+        hasPersonalItem: tripBaggage.hasPersonalItem,
+        includedCount: tripBaggage.includedCount,
+        details: tripBaggage.details.map((d) => ({
+          type: d.type,
+          label: d.label,
+          icon: d.icon,
+          quantity: d.quantity,
+          displayText: d.displayText,
+          isIncluded: d.isIncluded,
+        })),
+      },
+
+      // ─── Cancellation info for refund modal ───
+      cancellation: cancellationInfo,
     };
 
     return NextResponse.json({ success: true, data: fullDetails });
@@ -394,7 +658,7 @@ export async function GET(
         message: 'Internal Server Error',
         error: error.message,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -1,3 +1,5 @@
+// app/api/duffel/webhook/route.ts
+
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import dbConnect from "@/connection/db";
@@ -7,250 +9,288 @@ import { sendTicketIssuedEmail } from "@/app/emails/email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ----------------------------------------------------------------
+// 🛠️ HELPER: Build Email Data
+// ----------------------------------------------------------------
+function buildBookingDataFromOrder(
+  bookingDoc: any,
+  order: any,
+  documents: { url: string; unique_identifier: string; type: string }[]
+) {
+  const slices = order.slices || [];
+  const firstSlice = slices[0];
+  const firstSegment = firstSlice?.segments?.[0];
+
+  const originName =
+    firstSlice?.origin?.city_name ||
+    firstSlice?.origin?.iata_code ||
+    "Origin";
+  const destinationName =
+    firstSlice?.destination?.city_name ||
+    firstSlice?.destination?.iata_code ||
+    "Destination";
+
+  return {
+    pnr: order.booking_reference,
+    contact: {
+      email: bookingDoc.contact?.email || "",
+      phone: bookingDoc.contact?.phone || "",
+    },
+    passengers: bookingDoc.passengers || [],
+    flightDetails: {
+      airline:
+        firstSegment?.operating_carrier?.name ||
+        order.owner?.name ||
+        "Airline",
+      route: `${originName} - ${destinationName}`,
+      departureDate:
+        firstSegment?.departing_at ||
+        order.created_at ||
+        new Date().toISOString(),
+    },
+    documents,
+  };
+}
+
+// ----------------------------------------------------------------
+// 🔒 HELPER: Verify Duffel Signature
+// ----------------------------------------------------------------
+function verifySignature(rawBody: string, signature: string, secret: string): boolean {
+  const timestampMatch = signature.match(/t=([^,]+)/);
+  const hashMatch = signature.match(/v2=([^,]+)/);
+
+  const timestamp = timestampMatch?.[1]?.trim();
+  const receivedHash = hashMatch?.[1]?.trim();
+
+  if (!timestamp || !receivedHash) return false;
+
+  const signedPayload = `${timestamp}.${rawBody}`;
+  const expectedHash = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload)
+    .digest("hex");
+
+  const receivedBuffer = Buffer.from(receivedHash);
+  const expectedBuffer = Buffer.from(expectedHash);
+
+  if (receivedBuffer.length !== expectedBuffer.length) return false;
+
+  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+// ----------------------------------------------------------------
+// 🔄 MAIN WEBHOOK HANDLER
+// ----------------------------------------------------------------
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    const headersList = req.headers;
-    const signature = headersList.get("x-duffel-signature") || headersList.get("X-Duffel-Signature");
+    const signature =
+      req.headers.get("x-duffel-signature") ||
+      req.headers.get("X-Duffel-Signature");
 
-    // 1. Signature Check
+    // 1️⃣ Signature Verify
     if (!signature) {
       return NextResponse.json({ message: "Missing signature" }, { status: 401 });
     }
 
     const secret = process.env.DUFFEL_WEBHOOK_SECRET;
     if (!secret) {
-      console.error("❌ DUFFEL_WEBHOOK_SECRET is missing");
-      return NextResponse.json({ message: "Server Config Error" }, { status: 500 });
+      console.error("❌ DUFFEL_WEBHOOK_SECRET missing in env");
+      return NextResponse.json({ message: "Server config error" }, { status: 500 });
     }
 
-    // ----------------------------------------------------------------
-    // 🛠️ FIX: Robust Signature Parsing (Regex + v2 Support)
-    // ----------------------------------------------------------------
-    const timestampMatch = signature.match(/t=([^,]+)/);
-    const hashMatch = signature.match(/v2=([^,]+)/);
-
-    const timestamp = timestampMatch ? timestampMatch[1].trim() : null;
-    const receivedHash = hashMatch ? hashMatch[1].trim() : null;
-
-    if (!timestamp || !receivedHash) {
-      console.error("❌ Invalid Signature Format (Expected v2):", signature);
-      return NextResponse.json({ message: "Invalid signature format" }, { status: 400 });
-    }
-
-    // 2. Hash Verification
-    const signedPayload = `${timestamp}.${rawBody}`;
-    const expectedHash = crypto
-      .createHmac("sha256", secret)
-      .update(signedPayload)
-      .digest("hex");
-
-    if (!crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expectedHash))) {
-      console.error("❌ Hash Mismatch!");
+    if (!verifySignature(rawBody, signature, secret)) {
+      console.error("❌ Invalid webhook signature");
       return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
     }
 
-   // ----------------------------------------------------------------
-    // 🔄 2. EVENT PROCESSING
-    // ----------------------------------------------------------------
- await dbConnect();
-    
+    // 2️⃣ Parse Event
     let event: any;
     try {
       event = JSON.parse(rawBody);
-    } catch (e) {
+    } catch {
       return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
     }
 
     const { type, data: rawData } = event;
-    // Duffel sometimes wraps the actual data inside an 'object' property
-    const data = rawData?.object ? rawData.object : rawData;
+    const data = rawData?.object ?? rawData;
 
-    console.log(`🔔 Webhook Event: ${type} | ID: ${data.id}`);
+    console.log(`🔔 Webhook: ${type} | ID: ${data?.id || data?.order_id || "N/A"}`);
+
+    await dbConnect();
+
+    // ====================================================
+    // 📌 EVENT HANDLING - শুধু যা দরকার
+    // ====================================================
 
     switch (type) {
-
-      // ====================================================
-      // CASE 1: ORDER CREATED (Issued or Held)
-      // ====================================================
+      // ──────────────────────────────────────────────────
+      // ✅ ORDER CREATED → Ticket থাকলে Email পাঠাও
+      // ──────────────────────────────────────────────────
       case "order.created": {
         const orderId = data.id;
+        const booking = await Booking.findOne({ duffelOrderId: orderId });
 
-        // 🔍 Check existing booking
-        const existingBooking = await Booking.findOne({ duffelOrderId: orderId });
-        
-        if (!existingBooking) {
-          console.warn(`⚠️ Booking not found in DB for Order ID: ${orderId}`);
-          break; 
+        if (!booking) {
+          console.warn(`⚠️ No booking found for order: ${orderId}`);
+          break;
         }
 
-        // Idempotency: Already issued? Stop here.
-        if (existingBooking.status === "issued") {
-          console.log(`ℹ️ Booking ${orderId} is already ISSUED. Skipping.`);
-          return NextResponse.json({ received: true });
-        }
+        const hasTickets = data.documents?.length > 0;
 
-        // 📄 Ticket Documents Handling (Based on your Schema)
-        const hasTickets = data.documents && data.documents.length > 0;
-        
-        let formattedDocuments = [];
         if (hasTickets) {
-            formattedDocuments = data.documents.map((doc: any) => ({
-                unique_identifier: doc.unique_identifier,
-                type: doc.type,
-                url: doc.url
-            }));
-        }
+          // ✈️ Instant issue হয়েছে — Email পাঠাও
+          const docs = data.documents.map((doc: any) => ({
+            unique_identifier: doc.unique_identifier,
+            type: doc.type,
+            url: doc.url,
+          }));
 
-        // Determine Status (Enum: 'issued' | 'held')
-        const newStatus = hasTickets ? "issued" : "held";
-
-        // Update Database
-        const updatedBooking = await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
+          await Booking.findByIdAndUpdate(booking._id, {
             $set: {
-              status: newStatus,
-              documents: formattedDocuments, // Saving tickets
-              pnr: data.synced_at ? data.booking_reference : existingBooking.pnr,
-              
-              // 🟢 Set Payment Deadline if it exists (For Hold Orders)
-              ...(data.payment_status?.payment_required_by && {
-                  paymentDeadline: new Date(data.payment_status.payment_required_by)
-              }),
-
+              status: "issued",
+              pnr: data.booking_reference,
+              documents: docs,
+              emailSent: true,
               updatedAt: new Date(),
-              adminNotes: `Auto: Order Created (${newStatus}) via Webhook`
             },
-          },
-          { new: true }
-        );
+          });
 
-        // 📧 Send Email ONLY if Issued
-        if (updatedBooking && newStatus === "issued") {
+          // Send Email
           try {
-            await sendTicketIssuedEmail(updatedBooking);
-            console.log(`✅ Ticket Email Sent for PNR: ${updatedBooking.pnr}`);
-          } catch (err) {
-            console.error("❌ Email Sending Failed:", err);
+            const emailData = buildBookingDataFromOrder(booking, data, docs);
+            await sendTicketIssuedEmail(emailData);
+            console.log(`✅ Ticket email sent | PNR: ${data.booking_reference}`);
+          } catch (emailErr) {
+            console.error("❌ Email sending failed:", emailErr);
           }
+        } else {
+          // 🕐 Hold order — শুধু status update
+          await Booking.findByIdAndUpdate(booking._id, {
+            $set: {
+              status: "held",
+              pnr: data.booking_reference || booking.pnr,
+              ...(data.payment_status?.payment_required_by && {
+                paymentDeadline: new Date(data.payment_status.payment_required_by),
+              }),
+              updatedAt: new Date(),
+            },
+          });
+          console.log(`🕐 Order held | ID: ${orderId}`);
         }
         break;
       }
 
-      // ====================================================
-      // CASE 2: PAYMENT SUCCEEDED
-      // ====================================================
-      case "air.payment.succeeded": {
-        const orderId = data.order_id;
-
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              // 🟢 Schema Enum Matches: 'captured' or 'authorized'. 
-              // 'captured' is best for successful payments.
-              paymentStatus: "captured", 
-              
-              payment_id: data.id,
-              updatedAt: new Date(),
-              adminNotes: `Auto: Payment Succeeded (${data.amount} ${data.currency})`
-            }
-          }
-        );
-        break;
-      }
-
-      // ====================================================
-      // CASE 3: PAYMENT FAILED / CANCELLED
-      // ====================================================
-      case "air.payment.failed":
-      case "air.payment.cancelled": {
-        const orderId = data.order_id;
-        
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              // 🟢 Schema Enum Match
-              paymentStatus: "failed",
-              updatedAt: new Date(),
-              adminNotes: `⚠️ Auto: Payment Failed via Webhook`
-            }
-          }
-        );
-        break;
-      }
-
-      // ====================================================
-      // CASE 4: PAYMENT PENDING
-      // ====================================================
-      case "payment.created":
-      case "air.payment.pending": {
-        const orderId = data.order_id;
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              // 🟢 Schema Enum Match
-              paymentStatus: "pending",
-              payment_id: data.id,
-              updatedAt: new Date()
-            }
-          }
-        );
-        break;
-      }
-
-      // ====================================================
-      // CASE 5: CANCELLATIONS (Confirmed)
-      // ====================================================
-      case "order_cancellation.confirmed": {
-        const orderId = data.order_id;
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
-            $set: {
-              // 🟢 Schema Enum Match
-              status: "cancelled",
-              // Refund logic: usually implies refunded
-              paymentStatus: "refunded", 
-              adminNotes: `Auto: Cancellation Confirmed. Refund: ${data.refund_amount} ${data.refund_currency}`,
-              updatedAt: new Date()
-            }
-          }
-        );
-        break;
-      }
-
-      // ====================================================
-      // CASE 6: SCHEDULE CHANGES
-      // ====================================================
-      case "order.airline_initiated_change_detected": {
+      // ──────────────────────────────────────────────────
+      // 🔄 ORDER UPDATED → নতুন ticket আসলে Email পাঠাও
+      // ──────────────────────────────────────────────────
+      case "order.updated": {
         const orderId = data.id;
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
+        const booking = await Booking.findOne({ duffelOrderId: orderId });
+
+        if (!booking) break;
+
+        const hasTickets = data.documents?.length > 0;
+
+        // যদি আগে email না গিয়ে থাকে এবং এখন ticket আছে
+        if (hasTickets && !booking.emailSent) {
+          const docs = data.documents.map((doc: any) => ({
+            unique_identifier: doc.unique_identifier,
+            type: doc.type,
+            url: doc.url,
+          }));
+
+          await Booking.findByIdAndUpdate(booking._id, {
             $set: {
-              // 🟢 Saving the Mixed type object
-              airlineInitiatedChanges: data,
-              adminNotes: "⚠️ ALERT: Schedule Change Detected!",
+              status: "issued",
+              pnr: data.booking_reference || booking.pnr,
+              documents: docs,
+              emailSent: true,
               updatedAt: new Date(),
-            }
+            },
+          });
+
+          try {
+            const emailData = buildBookingDataFromOrder(booking, data, docs);
+            await sendTicketIssuedEmail(emailData);
+            console.log(`✅ Ticket email sent (via update) | PNR: ${data.booking_reference}`);
+          } catch (emailErr) {
+            console.error("❌ Email sending failed:", emailErr);
           }
-        );
+        } else {
+          // শুধু DB sync রাখো
+          await Booking.findByIdAndUpdate(booking._id, {
+            $set: {
+              pnr: data.booking_reference || booking.pnr,
+              updatedAt: new Date(),
+            },
+          });
+        }
         break;
       }
 
+      // ──────────────────────────────────────────────────
+      // ❌ ORDER CANCELLED
+      // ──────────────────────────────────────────────────
+      case "order_cancellation.confirmed": {
+        const result = await Booking.findOneAndUpdate(
+          { duffelOrderId: data.order_id },
+          {
+            $set: {
+              status: "cancelled",
+              paymentStatus: "refunded",
+              adminNotes: `Cancelled. Refund: ${data.refund_amount || 0} ${data.refund_currency || ""}`,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        if (result) {
+          console.log(`❌ Order cancelled | ID: ${data.order_id}`);
+        }
+        break;
+      }
+
+      // ──────────────────────────────────────────────────
+      // ⚠️ AIRLINE SCHEDULE CHANGE
+      // ──────────────────────────────────────────────────
+      case "order.airline_initiated_change_detected": {
+        const result = await Booking.findOneAndUpdate(
+          { duffelOrderId: data.id },
+          {
+            $set: {
+              airlineInitiatedChanges: data,
+              adminNotes: "⚠️ Airline schedule change detected!",
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        if (result) {
+          console.log(`⚠️ Airline change detected | Order: ${data.id}`);
+        }
+        break;
+      }
+
+      // ──────────────────────────────────────────────────
+      // 🏓 PING (Duffel connectivity test)
+      // ──────────────────────────────────────────────────
+      case "ping": {
+        console.log("🏓 Ping received from Duffel");
+        break;
+      }
+
+      // ──────────────────────────────────────────────────
+      // বাকি সব IGNORE
+      // ──────────────────────────────────────────────────
       default: {
-        console.log(`ℹ️ Unhandled Event: ${type}`);
+        console.log(`ℹ️ Ignored event: ${type}`);
       }
     }
 
     return NextResponse.json({ success: true });
-
   } catch (error: any) {
-    console.error("🔥 Webhook Fatal Error:", error.message);
+    console.error("🔥 Webhook Error:", error.message);
     return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }

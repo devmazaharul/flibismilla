@@ -23,14 +23,18 @@ import {
   Copy,
   Eye,
   RefreshCcw as RefreshCcwIcon,
+  ArrowUpRight,
+  Timer,
+  Users,
+  TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import StripeWrapper from '@/app/admin/components/StripeWrapper';
 
-// ----------------------------------------------------------------------
+// ══════════════════════════════════════════
 // TYPES
-// ----------------------------------------------------------------------
+// ══════════════════════════════════════════
 
 interface Booking {
   id: string;
@@ -73,144 +77,202 @@ interface Booking {
   };
 }
 
-// ----------------------------------------------------------------------
-// HELPER COMPONENTS
-// ----------------------------------------------------------------------
+// ══════════════════════════════════════════
+// HELPER: Countdown Timer
+// ══════════════════════════════════════════
 
 const CountdownTimer = ({ deadline }: { deadline: string }) => {
-  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
 
   useEffect(() => {
-    const calculateTime = () => {
-      const diff = new Date(deadline).getTime() - new Date().getTime();
+    const calc = () => {
+      const diff = new Date(deadline).getTime() - Date.now();
       if (diff <= 0) {
         setIsUrgent(false);
         return 'Expired';
       }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor(
-        (diff % (1000 * 60 * 60)) / (1000 * 60)
-      );
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setIsUrgent(diff < 3600000); // < 1 hour
-      return `${hours}h ${minutes}m ${seconds}s`;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setIsUrgent(diff < 3600000);
+      return `${h}h ${m}m ${s}s`;
     };
 
-    setTimeLeft(calculateTime());
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTime());
-    }, 1000);
-
-    return () => clearInterval(timer);
+    setTimeLeft(calc());
+    const t = setInterval(() => setTimeLeft(calc()), 1000);
+    return () => clearInterval(t);
   }, [deadline]);
 
   if (timeLeft === 'Expired')
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-400">
-        <Clock size={10} />
+      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+        <Clock size={9} />
         Expired
       </span>
     );
 
   return (
-    <div
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-mono font-semibold ${
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 font-mono text-[10px] font-bold ${
         isUrgent
-          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
+          : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
       }`}
     >
-      <Clock size={10} />
+      <Timer size={9} />
       {timeLeft}
-    </div>
-  );
-};
-
-const StatusBadge = ({ status }: { status: Booking['status'] }) => {
-  const map: Record<
-    Booking['status'],
-    { label: string; className: string }
-  > = {
-    issued: {
-      label: 'Issued',
-      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    },
-    held: {
-      label: 'Held',
-      className: 'bg-amber-50 text-amber-700 border-amber-200',
-    },
-    cancelled: {
-      label: 'Cancelled',
-      className: 'bg-gray-100 text-gray-600 border-gray-200',
-    },
-    expired: {
-      label: 'Expired',
-      className: 'bg-rose-50 text-rose-700 border-rose-200',
-    },
-    processing: {
-      label: 'Processing',
-      className: 'bg-blue-50 text-blue-700 border-blue-200',
-    },
-    failed: {
-      label: 'Failed',
-      className: 'bg-rose-50 text-rose-700 border-rose-200',
-    },
-  };
-
-  const data = map[status] || map.cancelled;
-
-  return (
-    <span
-      className={`inline-flex items-center justify-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ${data.className}`}
-    >
-      {data.label}
     </span>
   );
 };
 
-// ----------------------------------------------------------------------
+// ══════════════════════════════════════════
+// HELPER: Status Badge
+// ══════════════════════════════════════════
+
+const StatusBadge = ({ status }: { status: Booking['status'] }) => {
+  const map: Record<Booking['status'], { label: string; dot: string; bg: string; text: string; ring: string }> = {
+    issued: { label: 'Issued', dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+    held: { label: 'Held', dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200/60' },
+    cancelled: { label: 'Cancelled', dot: 'bg-slate-400', bg: 'bg-slate-50', text: 'text-slate-600', ring: 'ring-slate-200/60' },
+    expired: { label: 'Expired', dot: 'bg-rose-500', bg: 'bg-rose-50', text: 'text-rose-600', ring: 'ring-rose-200/60' },
+    processing: { label: 'Processing', dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+    failed: { label: 'Failed', dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200/60' },
+  };
+  const d = map[status] || map.cancelled;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ring-1 ${d.bg} ${d.text} ${d.ring}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${d.dot}`} />
+      {d.label}
+    </span>
+  );
+};
+
+// ══════════════════════════════════════════
+// HELPER: Stat Card
+// ══════════════════════════════════════════
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  accentColor,
+  trend,
+}: {
+  label: string;
+  value: string | number;
+  icon: any;
+  accentColor: string;
+  trend?: string;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 transition-all duration-300 hover:shadow-lg hover:shadow-slate-200/50 hover:border-slate-300/60">
+      <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full blur-2xl opacity-[0.07] ${accentColor}`} />
+      <div className="relative flex items-start justify-between">
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight text-slate-900">{value}</p>
+          {trend && (
+            <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+              <TrendingUp size={11} />
+              {trend}
+            </p>
+          )}
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-400 ring-1 ring-slate-100 transition-transform duration-300 group-hover:scale-110">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════
+// HELPER: Table Skeleton
+// ══════════════════════════════════════════
+
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-slate-50">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
+          <div className="space-y-2 flex-[1.2]">
+            <div className="h-3.5 w-20 rounded-md bg-slate-100" />
+            <div className="h-5 w-16 rounded-md bg-slate-100" />
+          </div>
+          <div className="flex items-center gap-2.5 flex-[1.5]">
+            <div className="h-9 w-9 rounded-full bg-slate-100" />
+            <div className="space-y-2">
+              <div className="h-3.5 w-28 rounded-md bg-slate-100" />
+              <div className="h-3 w-20 rounded-md bg-slate-100/70" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-[1.3]">
+            <div className="h-8 w-8 rounded-full bg-slate-100" />
+            <div className="space-y-2">
+              <div className="h-3.5 w-24 rounded-md bg-slate-100" />
+              <div className="h-3 w-32 rounded-md bg-slate-100/70" />
+            </div>
+          </div>
+          <div className="space-y-2 flex-1">
+            <div className="h-3 w-20 rounded-md bg-slate-100" />
+            <div className="h-5 w-16 rounded-full bg-slate-100" />
+          </div>
+          <div className="flex-[0.7] text-right">
+            <div className="ml-auto h-4 w-16 rounded-md bg-slate-100" />
+          </div>
+          <div className="flex gap-2 flex-[0.8] justify-end">
+            <div className="h-8 w-8 rounded-lg bg-slate-100" />
+            <div className="h-8 w-16 rounded-lg bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════
+// HELPER: Avatar color
+// ══════════════════════════════════════════
+
+const getAvatarColor = (name: string) => {
+  const colors = [
+    'from-blue-500 to-indigo-600',
+    'from-violet-500 to-purple-600',
+    'from-emerald-500 to-teal-600',
+    'from-rose-500 to-pink-600',
+    'from-amber-500 to-orange-600',
+    'from-cyan-500 to-sky-600',
+  ];
+  return colors[(name?.charCodeAt(0) || 0) % colors.length];
+};
+
+// ══════════════════════════════════════════
 // MAIN COMPONENT
-// ----------------------------------------------------------------------
+// ══════════════════════════════════════════
 
 export default function BookingsDashboard() {
   const router = useRouter();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<
-    'all' | 'held' | 'issued' | 'cancelled'
-  >('all');
-
-  // Issue Modal
+  const [filter, setFilter] = useState<'all' | 'held' | 'issued' | 'cancelled'>('all');
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>(
-    'stripe',
-  );
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ----------------------------------------------------------------------
-  // API
-  // ----------------------------------------------------------------------
-
+  // ── API ──
   const fetchBookings = async (pageNum: number) => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `/api/duffel/booking?page=${pageNum}&limit=20`,
-      );
-
+      const res = await axios.get(`/api/duffel/booking?page=${pageNum}&limit=20`);
       if (res.data.success) {
         setBookings(res.data.data);
         setTotalPages(res.data.meta.totalPages);
@@ -227,50 +289,36 @@ export default function BookingsDashboard() {
     fetchBookings(page);
   }, [page, isRefreshing]);
 
-  // ----------------------------------------------------------------------
-  // HANDLERS
-  // ----------------------------------------------------------------------
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
-    }
+  // ── Handlers ──
+  const handlePageChange = (n: number) => {
+    if (n >= 1 && n <= totalPages) setPage(n);
   };
 
-  const handleViewDetails = (bookingId: string) => {
-    router.push(`/admin/bookings/${bookingId}`);
-  };
+  const handleViewDetails = (id: string) => router.push(`/admin/bookings/${id}`);
 
-  const openIssueModal = (booking: Booking) => {
-    setSelectedBooking(booking);
-    setPaymentMethod('balance'); // default agency balance
+  const openIssueModal = (b: Booking) => {
+    setSelectedBooking(b);
+    setPaymentMethod('balance');
     setIssueModalOpen(true);
   };
 
   const handleIssueTicket = async () => {
-    if (!selectedBooking) return;
-
-    // এখানে এখন শুধু balance path handle করছি; Stripe path StripeWrapper এর ভিতরে
-    if (paymentMethod !== 'balance') return;
-
+    if (!selectedBooking || paymentMethod !== 'balance') return;
     setIsProcessing(true);
     try {
       const res = await axios.post('/api/duffel/booking/issue', {
         bookingId: selectedBooking.id,
         paymentMethod: 'balance',
       });
-
       if (res.data.success) {
-        toast.success('Ticket Issued Successfully');
+        toast.success('Ticket issued successfully');
         setIssueModalOpen(false);
         fetchBookings(page);
       } else {
-        throw new Error(res.data.message || 'Failed to issue ticket');
+        throw new Error(res.data.message || 'Failed');
       }
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message || error.message || 'Failed to issue ticket';
-      toast.error(msg);
+      toast.error(error?.response?.data?.message || error.message || 'Failed to issue ticket');
     } finally {
       setIsProcessing(false);
     }
@@ -278,7 +326,7 @@ export default function BookingsDashboard() {
 
   const handleCopy = (pnr: string) => {
     navigator.clipboard.writeText(pnr);
-    toast.success('PNR copied');
+    toast.success('PNR copied to clipboard');
   };
 
   const handleRefresh = async () => {
@@ -292,158 +340,133 @@ export default function BookingsDashboard() {
     }
   };
 
-  // ----------------------------------------------------------------------
-  // LOGIC
-  // ----------------------------------------------------------------------
-
-  const stats = useMemo(() => {
-    return {
+  // ── Derived ──
+  const stats = useMemo(
+    () => ({
       total: totalCount,
       issued: bookings.filter((b) => b.status === 'issued').length,
       cancelled: bookings.filter((b) => b.status === 'cancelled').length,
       profit: bookings
         .filter((b) => b.status === 'issued')
-        .reduce((acc, curr) => acc + (curr.amount.markup || 0), 0),
-    };
-  }, [bookings, totalCount]);
+        .reduce((acc, c) => acc + (c.amount.markup || 0), 0),
+    }),
+    [bookings, totalCount],
+  );
 
   const filteredBookings = bookings.filter((b) => {
-    const term = search.toLowerCase();
+    const t = search.toLowerCase();
     const matchSearch =
-      b.bookingRef.toLowerCase().includes(term) ||
-      b.pnr?.toLowerCase().includes(term) ||
-      b.passengerName.toLowerCase().includes(term);
-
+      b.bookingRef.toLowerCase().includes(t) ||
+      b.pnr?.toLowerCase().includes(t) ||
+      b.passengerName.toLowerCase().includes(t);
     const matchFilter = filter === 'all' || b.status === filter;
-
     return matchSearch && matchFilter;
   });
 
-  // ----------------------------------------------------------------------
-  // UI
-  // ----------------------------------------------------------------------
+  // ══════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 py-6 sm:px-6 lg:px-8 font-sans text-gray-900">
-      <div className="mx-auto max-w-6xl space-y-6">
-        {/* Header */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                Operations
-              </p>
-              <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-                Bookings dashboard
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Monitor flight reservations, ticketing status and profit in one place.
-              </p>
+    <div className="min-h-screen w-full bg-[#f8f9fb] p-4 md:p-6 lg:p-8">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+        {/* ─── HEADER ─── */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                Operations · Bookings
+              </span>
             </div>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-2.5 text-xs text-emerald-800 shadow-2xl shadow-gray-100">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-emerald-500" />
-                <span className="font-semibold">{stats.issued} issued</span>
-                <span className="text-gray-400">/</span>
-                <span>{stats.total} total</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-emerald-700">
-                Profit so far:{' '}
-                <span className="font-semibold">
-                  ${stats.profit.toFixed(2)}
-                </span>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+              Bookings Dashboard
+            </h1>
+            <p className="text-sm text-slate-500 max-w-lg">
+              Monitor flight reservations, issue tickets and track profit in real time.
+            </p>
+          </div>
+
+          {/* Quick profit badge */}
+          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/50 px-4 py-2.5 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+              <TrendingUp size={15} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                Profit so far
+              </p>
+              <p className="text-base font-extrabold tracking-tight text-emerald-800">
+                ${stats.profit.toFixed(2)}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          {[
-            {
-              label: 'Total bookings',
-              value: stats.total,
-              icon: ShoppingCart,
-              accent: 'from-sky-100 to-sky-200/80',
-            },
-            {
-              label: 'Issued',
-              value: stats.issued,
-              icon: CheckCircle,
-              accent: 'from-emerald-100/80 to-emerald-200/80',
-            },
-            {
-              label: 'Cancelled',
-              value: stats.cancelled,
-              icon: XCircle,
-              accent: 'from-rose-100/80 to-rose-200/80',
-            },
-            {
-              label: 'Profit',
-              value: `$${stats.profit.toFixed(2)}`,
-              icon: DollarSign,
-              accent: 'from-amber-100/80 to-amber-200/80',
-            },
-          ].map((stat, idx) => (
-            <div
-              key={idx}
-              className="relative overflow-hidden rounded-2xl bg-white shadow-2xl shadow-gray-100 hover:shadow-sm transition-shadow"
-            >
-              <div
-                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${stat.accent} opacity-60`}
-              />
-              <div className="relative flex items-center justify-between gap-3 px-4 py-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                    {stat.label}
-                  </p>
-                  <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                    {stat.value}
-                  </h3>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 shadow-2xl shadow-gray-100 border border-gray-100/40">
-                  <stat.icon size={18} className="text-gray-500" />
-                </div>
-              </div>
-            </div>
-          ))}
+        {/* ─── STAT CARDS ─── */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Total Bookings"
+            value={stats.total.toLocaleString()}
+            icon={ShoppingCart}
+            accentColor="bg-blue-500"
+          />
+          <StatCard
+            label="Issued"
+            value={stats.issued.toLocaleString()}
+            icon={CheckCircle}
+            accentColor="bg-emerald-500"
+          />
+          <StatCard
+            label="Cancelled"
+            value={stats.cancelled.toLocaleString()}
+            icon={XCircle}
+            accentColor="bg-rose-500"
+          />
+          <StatCard
+            label="Total Profit"
+            value={`$${stats.profit.toFixed(2)}`}
+            icon={DollarSign}
+            accentColor="bg-amber-500"
+          />
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative w-full md:w-80">
-              <Search
-                className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400"
-                size={16}
-              />
+        {/* ─── CONTROLS ─── */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Search */}
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search by PNR, reference or passenger..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-9 py-2 text-sm text-gray-900 outline-none ring-0 transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900 placeholder:text-gray-400"
+                placeholder="Search PNR, reference, passenger…"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button title="Refresh" onClick={handleRefresh}>
+            <button
+              title="Refresh"
+              onClick={handleRefresh}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300 transition-all active:scale-95 cursor-pointer"
+            >
               <RefreshCcwIcon
-                className={`${
-                  isRefreshing ? 'animate-spin' : ''
-                } transition-all cursor-pointer duration-300 text-slate-600`}
-                size={17}
+                size={15}
+                className={isRefreshing ? 'animate-spin' : ''}
               />
             </button>
           </div>
 
-          <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
-            {['all', 'held', 'issued', 'cancelled'].map((s) => (
+          {/* Filter Chips */}
+          <div className="flex items-center gap-1 rounded-lg bg-slate-100/80 p-1">
+            {(['all', 'held', 'issued', 'cancelled'] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => setFilter(s as typeof filter)}
-                className={`px-3 py-1.5 cursor-pointer text-xs font-medium capitalize rounded-full transition-all ${
+                onClick={() => setFilter(s)}
+                className={`rounded-lg px-3.5 py-1.5 text-[11px] font-semibold capitalize transition-all cursor-pointer ${
                   filter === s
-                    ? 'bg-black text-slate-100 shadow-2xl shadow-gray-100'
-                    : 'text-gray-500 hover:text-gray-800'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
                 }`}
               >
                 {s}
@@ -452,192 +475,231 @@ export default function BookingsDashboard() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-gray-100">
-          {loading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-300" size={16} />
-                Loading bookings…
-              </div>
+        {/* ─── TABLE ─── */}
+        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white">
+          {/* Table header bar */}
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">All Bookings</h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Showing{' '}
+                <span className="font-semibold text-slate-700">{filteredBookings.length}</span> of{' '}
+                <span className="font-semibold text-slate-700">{totalCount}</span> bookings
+              </p>
             </div>
+            <div className="text-[11px] text-slate-400">
+              Page {page} of {totalPages}
+            </div>
+          </div>
+
+          {loading ? (
+            <TableSkeleton />
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+                <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100/40 bg-gray-50 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
-                      <th className="px-4 py-3">Ref / PNR</th>
-                      <th className="px-4 py-3">Flight</th>
-                      <th className="px-4 py-3">Passenger & Contact</th>
-                      <th className="px-4 py-3">Date & Status</th>
-                      <th className="px-4 py-3 text-center">Amount</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                    <tr className="border-b border-slate-100 bg-slate-50/60">
+                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Ref / PNR
+                      </th>
+                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Flight
+                      </th>
+                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Passenger
+                      </th>
+                      <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Date & Status
+                      </th>
+                      <th className="px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Amount
+                      </th>
+                      <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {filteredBookings.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-4 py-10 text-center text-sm text-gray-400"
-                        >
-                          No bookings match your filters.
+                        <td colSpan={6} className="px-5 py-20 text-center">
+                          <div className="mx-auto flex flex-col items-center gap-3">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                              <Plane className="h-6 w-6 text-slate-300" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-700">No bookings found</p>
+                            <p className="text-xs text-slate-500">Try adjusting your search or filters</p>
+                            {search && (
+                              <button
+                                onClick={() => {
+                                  setSearch('');
+                                  setFilter('all');
+                                }}
+                                className="mt-1 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 cursor-pointer"
+                              >
+                                Clear filters
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ) : (
                       filteredBookings.map((booking) => {
                         const hasPnr = booking.pnr && booking.pnr !== '---';
                         const flightDate = new Date(booking.flight.date);
+                        const initials = booking.passengerName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase();
 
                         return (
                           <tr
                             key={booking.id}
-                            className={`transition hover:bg-slate-50 ${
-                              booking.status === 'held' ? 'bg-amber-50/30' : ''
+                            className={`group transition-colors duration-150 ${
+                              booking.status === 'held'
+                                ? 'hover:bg-amber-50/30 bg-amber-50/10'
+                                : 'hover:bg-blue-50/30'
                             }`}
                           >
-                            {/* Ref / PNR */}
-                            <td className="px-4 py-4 align-top">
-                              <div className="space-y-1">
-                                <div className="px-2 py-0.5 text-[11px] font-bold text-slate-800">
+                            {/* ── Ref / PNR ── */}
+                            <td className="px-5 py-4 align-top">
+                              <div className="space-y-1.5">
+                                <p className="text-[12px] font-bold text-slate-800">
                                   {booking.bookingRef}
-                                </div>
+                                </p>
                                 {hasPnr && (
                                   <button
                                     onClick={() => handleCopy(booking.pnr)}
-                                    className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-black px-2 py-0.5 text-[11px] font-mono text-gray-100 hover:border-gray-300 transition hover:bg-gray-700"
+                                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-2 py-1 font-mono text-[10px] font-bold text-white transition-all hover:bg-slate-700 active:scale-95"
                                     title="Copy PNR"
                                   >
-                                    <span>{booking.pnr}</span>
-                                    <Copy size={11} className="text-gray-300" />
+                                    {booking.pnr}
+                                    <Copy size={9} className="text-slate-400" />
                                   </button>
                                 )}
                               </div>
                             </td>
 
-                            {/* Flight */}
-                            <td className="px-4 py-4 align-top">
+                            {/* ── Flight ── */}
+                            <td className="px-5 py-4 align-top">
                               <div className="flex items-start gap-2.5">
-                                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-gray-100 bg-gray-50">
-                                  {booking.flight.logoUrl && (
+                                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                                  {booking.flight.logoUrl ? (
                                     <img
                                       src={booking.flight.logoUrl}
-                                      alt="Logo"
-                                      className="h-full w-full object-contain"
+                                      alt=""
+                                      className="h-full w-full object-contain p-1"
                                       onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display =
-                                          'none';
+                                        (e.target as HTMLImageElement).style.display = 'none';
                                       }}
                                     />
+                                  ) : (
+                                    <Plane size={14} className="text-slate-400" />
                                   )}
                                 </div>
-                                <div className="max-w-[220px] space-y-0.5">
-                                  <div className="flex items-center gap-1 text-sm font-semibold text-gray-900">
-                                    <span className="truncate">
-                                      {booking.flight.route}
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-semibold text-slate-900 truncate max-w-[180px]">
+                                    {booking.flight.route}
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] text-slate-500">
+                                    {booking.flight.airline} · {booking.flight.flightNumber}
+                                  </p>
+                                  <span className="mt-1 inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                    {booking.flight.tripType.split('_').join(' ')}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* ── Passenger ── */}
+                            <td className="px-5 py-4 align-top">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${getAvatarColor(booking.passengerName)} text-[10px] font-bold text-white shadow-sm`}
+                                >
+                                  {initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-semibold text-slate-900 truncate max-w-[150px]">
+                                    {booking.passengerName}
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] text-slate-500 truncate max-w-[160px]">
+                                    {booking.contact.email}
+                                  </p>
+                                  {booking.passengerCount > 1 && (
+                                    <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-400">
+                                      <Users size={9} />+{booking.passengerCount - 1} travelers
                                     </span>
-                                  </div>
-                                  <div className="text-[11px] text-gray-500">
-                                    {booking.flight.airline} • {booking.flight.flightNumber}
-                                  </div>
-                                  <div className="text-[10px] font-semibold text-gray-400">
-                                    {booking.flight.tripType
-                                      .split('_')
-                                      .join(' ')
-                                      .toUpperCase()}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Passenger */}
-                            <td className="px-4 py-4 align-top">
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">
-                                    {booking.passengerName.charAt(0).toUpperCase()}
-                                  </span>
-                                  <span className="truncate">{booking.passengerName}</span>
-                                </div>
-                                <p className="max-w-[200px] truncate text-[11px] text-gray-500">
-                                  {booking.contact.email}
-                                </p>
-                                <p className="text-[11px] text-gray-400">
-                                  +{booking.passengerCount - 1} more travelers
-                                </p>
-                              </div>
-                            </td>
-
-                            {/* Date & Status */}
-                            <td className="px-4 py-4 align-top">
-                              <div className="space-y-1.5 text-xs text-gray-700">
-                                <div className="text-gray-500 pt-1 font-medium flex items-center gap-1">
-                                  <Calendar size={11} className="text-gray-400" />
-                                  <span>
-                                    {flightDate.toLocaleDateString()} •{' '}
-                                    {flightDate.toLocaleTimeString(undefined, {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </span>
-                                </div>
-                                <StatusBadge status={booking.status} />
-                                {booking.status === 'held' && (
-                                  <div className="pt-0.5">
-                                    <CountdownTimer deadline={booking.timings.deadline} />
-                                  </div>
-                                )}
-                              </div>
-                              <small className="text-gray-400 pt-1 text-[10px] flex items-center gap-1">
-                                Last Updated:{' '}
-                                {booking.updatedAt
-                                  ? format(
-                                      new Date(booking.updatedAt),
-                                      'dd MMM yyyy, hh:mm a',
-                                    )
-                                  : 'Never'}
-                              </small>
-                            </td>
-
-                            {/* Amount */}
-                            <td className="px-4 py-4 text-center align-top">
-                              <div className="space-y-0.5">
-                                <div className="text-sm font-semibold text-gray-900">
-                                  {booking.amount.currency}{' '}
-                                  {booking.amount.total.toFixed(2)}
-                                </div>
-                                {booking.amount.markup > 0 && (
-                                  <div className="text-[10px] font-medium text-emerald-600">
-                                    + Profit {booking.amount.markup}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Actions */}
-                            <td className="px-4 py-4 text-right align-top">
-                              <div className="flex items-center justify-end gap-2">
-                                {booking.status === 'issued' &&
-                                  booking.actionData.ticketUrl && (
-                                    <a
-                                      href={booking.actionData.ticketUrl}
-                                      target="_blank"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-black hover:bg-gray-50 transition"
-                                      title="Download ticket"
-                                    >
-                                      <Download size={14} />
-                                    </a>
                                   )}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* ── Date & Status ── */}
+                            <td className="px-5 py-4 align-top">
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-1.5 text-[12px] text-slate-600">
+                                  <Calendar size={11} className="text-slate-400" />
+                                  <span className="font-medium">
+                                    {format(flightDate, 'dd MMM yyyy')}
+                                  </span>
+                                  <span className="text-slate-400">·</span>
+                                  <span className="text-slate-500">
+                                    {format(flightDate, 'hh:mm a')}
+                                  </span>
+                                </div>
+
+                                <StatusBadge status={booking.status} />
+
+                                {booking.status === 'held' && (
+                                  <CountdownTimer deadline={booking.timings.deadline} />
+                                )}
+
+                                <p className="text-[10px] text-slate-400">
+                                  Updated:{' '}
+                                  {booking.updatedAt
+                                    ? format(new Date(booking.updatedAt), 'dd MMM, hh:mm a')
+                                    : 'Never'}
+                                </p>
+                              </div>
+                            </td>
+
+                            {/* ── Amount ── */}
+                            <td className="px-5 py-4 text-center align-top">
+                              <p className="text-[13px] font-bold text-slate-900">
+                                {booking.amount.currency} {booking.amount.total.toFixed(2)}
+                              </p>
+                              {booking.amount.markup > 0 && (
+                                <p className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200/60">
+                                  <ArrowUpRight size={9} />+{booking.amount.markup.toFixed(2)}
+                                </p>
+                              )}
+                            </td>
+
+                            {/* ── Actions ── */}
+                            <td className="px-5 py-4 text-right align-top">
+                              <div className="flex items-center justify-end gap-2">
+                                {booking.status === 'issued' && booking.actionData.ticketUrl && (
+                                  <a
+                                    href={booking.actionData.ticketUrl}
+                                    target="_blank"
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300"
+                                    title="Download ticket"
+                                  >
+                                    <Download size={14} />
+                                  </a>
+                                )}
 
                                 <button
                                   onClick={() => handleViewDetails(booking.id)}
                                   disabled={!hasPnr}
-                                  className={`inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-full border text-gray-500 transition
-                                  ${
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all cursor-pointer ${
                                     hasPnr
-                                      ? 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 hover:text-black'
-                                      : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                                      ? 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300'
+                                      : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
                                   }`}
                                   title={hasPnr ? 'View details' : 'PNR not available'}
                                 >
@@ -647,7 +709,7 @@ export default function BookingsDashboard() {
                                 {booking.status === 'held' && (
                                   <button
                                     onClick={() => openIssueModal(booking)}
-                                    className="inline-flex items-center cursor-pointer gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xl shadow-gray-100 hover:bg-black transition"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-[0.97] cursor-pointer"
                                   >
                                     Issue
                                     <ChevronRight size={12} />
@@ -663,26 +725,44 @@ export default function BookingsDashboard() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
-                <span>
-                  Page {page} of {totalPages} • Showing {filteredBookings.length} of{' '}
-                  {totalCount} bookings
-                </span>
-                <div className="inline-flex items-center gap-1">
+              {/* ── Pagination ── */}
+              <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+                <p className="text-[11px] text-slate-400">
+                  Page <span className="font-semibold text-slate-600">{page}</span> of{' '}
+                  <span className="font-semibold text-slate-600">{totalPages}</span> ·{' '}
+                  {filteredBookings.length} bookings shown
+                </p>
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handlePageChange(page - 1)}
                     disabled={page === 1}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 hover:border-gray-300 hover:bg-gray-50 transition"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={15} />
                   </button>
+                  {/* Page number pills */}
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                          page === pageNum
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={page === totalPages}
-                    className="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 hover:border-gray-300 hover:bg-gray-50 transition"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                   >
-                    <ChevronRight size={16} />
+                    <ChevronRight size={15} />
                   </button>
                 </div>
               </div>
@@ -691,105 +771,107 @@ export default function BookingsDashboard() {
         </div>
       </div>
 
-      {/* ISSUE TICKET MODAL (Stripe + Duffel balance, same style as flight details page) */}
+      {/* ══════════════════════════════════════════
+          ISSUE TICKET MODAL
+      ══════════════════════════════════════════ */}
       {issueModalOpen && selectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 py-4">
-          <div className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100 flex flex-col">
-            {/* Top accent bar */}
-            <div className="pointer-events-none h-1 w-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm px-4">
+          <div
+            className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200/60 flex flex-col animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Gradient accent */}
+            <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500" />
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 pt-4 pb-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Ticket issuing
-                </p>
-                <h3 className="mt-1 text-base font-bold text-slate-900 tracking-tight">
-                  Issue Ticket
-                </h3>
-                <p className="mt-0.5 text-[11px] font-mono text-slate-500">
-                  PNR:{' '}
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+            <div className="flex items-start justify-between border-b border-slate-100 px-6 pt-5 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+                    <Plane size={14} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                      Ticket Issuing
+                    </p>
+                    <h3 className="text-base font-bold text-slate-900">Issue Ticket</h3>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="inline-flex items-center rounded-lg bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold text-white">
                     {selectedBooking.pnr}
                   </span>
-                </p>
+                  <span className="text-[11px] text-slate-500">
+                    {selectedBooking.bookingRef}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setIssueModalOpen(false)}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:text-slate-900 hover:shadow-sm"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
-              {/* Amount summary */}
-              <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                    Total amount
-                  </span>
-                  <span className="mt-1 text-[11px] font-medium text-slate-600">
-                    {paymentMethod === 'balance'
-                      ? 'Using agency balance'
-                      : 'Client pays via Stripe'}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold tracking-tight text-slate-900">
-                    {selectedBooking.amount.currency}{' '}
-                    {paymentMethod === 'balance'
-                      ? selectedBooking.amount.base_amount.toFixed(2)
-                      : selectedBooking.amount.total.toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    Taxes & fees included
-                  </p>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {/* Amount Card */}
+              <div className="rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 to-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                      Total Amount
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {paymentMethod === 'balance'
+                        ? 'Using agency balance'
+                        : 'Client pays via Stripe'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-extrabold tracking-tight text-slate-900">
+                      {selectedBooking.amount.currency}{' '}
+                      {paymentMethod === 'balance'
+                        ? selectedBooking.amount.base_amount.toFixed(2)
+                        : selectedBooking.amount.total.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-slate-400">Taxes & fees included</p>
+                  </div>
                 </div>
               </div>
 
+              {/* Payment Options */}
               <div className="space-y-3">
-                {/* OPTION 1: Stripe */}
+                {/* Stripe */}
                 <div
                   onClick={() => setPaymentMethod('stripe')}
-                  className={`relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all ${
+                  className={`relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200 ${
                     paymentMethod === 'stripe'
-                      ? 'border-indigo-500/80 bg-slate-50'
+                      ? 'border-indigo-400/80 bg-indigo-50/30 shadow-sm'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+                  <div className="h-[2px] w-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
 
-                  <div className="relative p-3 pt-2.5">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Pay with Stripe
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          Secure card payment with 3D Secure (OTP).
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-900">Pay with Stripe</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          Secure card payment with 3D Secure (OTP)
                         </p>
                       </div>
-
-                      <div className="flex flex-col items-end gap-0.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2 py-0.5">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-                          <span className="text-[9px] font-semibold tracking-wide text-white">
-                            STRIPE
-                          </span>
+                          <span className="text-[9px] font-bold tracking-wide text-white">STRIPE</span>
                         </span>
-                        <span className="text-[9px] font-medium text-slate-400">
-                          Encrypted • PCI compliant
-                        </span>
+                        <span className="text-[9px] text-slate-400">PCI Compliant</span>
                       </div>
                     </div>
 
                     {paymentMethod === 'stripe' && (
-                      <div
-                        className="mt-2 space-y-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <div className="mt-3 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                         <StripeWrapper
                           amount={Number(selectedBooking.amount.total)}
                           bookingId={selectedBooking.id}
@@ -801,7 +883,6 @@ export default function BookingsDashboard() {
                               : '',
                           }}
                           onSuccess={() => {
-                            // Stripe payment success হলে backend webhook/অন্য flow এ issue হবে ধরে নিচ্ছি
                             setIssueModalOpen(false);
                             fetchBookings(page);
                           }}
@@ -811,40 +892,37 @@ export default function BookingsDashboard() {
                   </div>
                 </div>
 
-                {/* OPTION 2: Duffel Balance */}
+                {/* Duffel Balance */}
                 <div
                   onClick={() => setPaymentMethod('balance')}
-                  className={`relative cursor-pointer rounded-xl border-2 transition-all ${
+                  className={`relative cursor-pointer rounded-xl border-2 transition-all duration-200 ${
                     paymentMethod === 'balance'
-                      ? 'border-slate-600/80 bg-slate-50'
+                      ? 'border-slate-600/80 bg-slate-50/50 shadow-sm'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-start gap-3 p-3">
-                    <div
-                      className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full border ${
-                        paymentMethod === 'balance'
-                          ? 'border-slate-700'
-                          : 'border-slate-300'
-                      }`}
-                    >
-                      {paymentMethod === 'balance' && (
-                        <div className="h-2 w-2 rounded-full bg-slate-700" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            Duffel balance
-                          </p>
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            Deduct directly from your agency wallet. Good for net fares
-                            or corporate bookings.
-                          </p>
-                        </div>
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                          <Wallet size={16} />
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                          paymentMethod === 'balance' ? 'border-slate-700' : 'border-slate-300'
+                        }`}
+                      >
+                        {paymentMethod === 'balance' && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-slate-700" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">Duffel Balance</p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              Deduct from agency wallet. Ideal for net fares.
+                            </p>
+                          </div>
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                            <Wallet size={16} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -853,33 +931,33 @@ export default function BookingsDashboard() {
               </div>
 
               {/* Warning */}
-              <div className="mt-4 flex gap-2.5 rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2.5">
-                <AlertCircle size={16} className="mt-0.5 shrink-0 text-orange-500" />
-                <p className="text-[11px] leading-relaxed text-orange-900">
-                  Confirming this action will immediately issue the ticket and charge
-                  the selected source. This cannot be undone and airline
-                  change/refund rules will apply.
+              <div className="flex gap-3 rounded-xl border border-amber-200/60 bg-amber-50/60 p-3.5">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                  <AlertCircle size={14} />
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-900">
+                  Confirming will immediately issue the ticket and charge the selected
+                  source. This action is <span className="font-bold">irreversible</span>.
+                  Airline change/refund rules will apply.
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/90 px-5 py-3 rounded-b-2xl">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50/50">
               <button
                 onClick={() => setIssueModalOpen(false)}
-                className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:text-slate-900 hover:underline"
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-[12px] font-semibold text-slate-700 transition-all hover:bg-slate-100 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleIssueTicket}
                 disabled={isProcessing || paymentMethod === 'stripe'}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[12px] font-bold text-white shadow-lg shadow-slate-300/30 transition-all hover:bg-slate-800 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none cursor-pointer"
               >
-                {isProcessing && (
-                  <Loader2 size={14} className="animate-spin" />
-                )}
-                {isProcessing ? 'Processing...' : 'Confirm & Issue'}
+                {isProcessing && <Loader2 size={14} className="animate-spin" />}
+                {isProcessing ? 'Processing…' : 'Confirm & Issue'}
               </button>
             </div>
           </div>

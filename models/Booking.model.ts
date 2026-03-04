@@ -138,6 +138,10 @@ const BookingSchema = new Schema(
             type: String,
             default: null,    
         },
+        emailSent: {
+    type: Boolean,
+    default: false,
+  }
     },
     { timestamps: true },
 );

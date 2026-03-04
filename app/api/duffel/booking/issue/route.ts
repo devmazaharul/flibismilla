@@ -3,7 +3,6 @@ import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { isAdmin } from '@/app/api/lib/auth';
-import { sendTicketIssuedEmail } from '@/app/emails/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,69 +27,6 @@ function isRateLimited(ip: string) {
 
   rateLimitMap.set(ip, clientData);
   return clientData.count > maxRequests;
-}
-
-// Duffel order + Booking doc থেকে BookingData বানানোর helper
-function buildBookingDataFromOrder(
-  bookingDoc: any,
-  order: any,
-  documents: { url: string; unique_identifier: string }[],
-) {
-  const slices = order.slices || [];
-  const firstSlice = slices[0];
-  const firstSegment = firstSlice?.segments?.[0];
-
-  const originName =
-    firstSlice?.origin?.city_name ||
-    firstSlice?.origin?.iata_code ||
-    firstSlice?.origin?.name ||
-    'Origin';
-
-  const destinationName =
-    firstSlice?.destination?.city_name ||
-    firstSlice?.destination?.iata_code ||
-    firstSlice?.destination?.name ||
-    'Destination';
-
-  const route = `${originName} - ${destinationName}`;
-
-  const airlineName =
-    firstSegment?.operating_carrier?.name ||
-    order.owner?.name ||
-    'Airline';
-
-  const departingAt =
-    firstSegment?.departing_at ||
-    order.created_at ||
-    new Date().toISOString();
-
-  const contactEmail =
-    bookingDoc.contact?.email ||
-    bookingDoc.contactEmail ||
-    bookingDoc.email ||
-    '';
-  const contactPhone =
-    bookingDoc.contact?.phone ||
-    bookingDoc.contactPhone ||
-    bookingDoc.phone;
-
-  return {
-    pnr: order.booking_reference,
-    contact: {
-      email: contactEmail,
-      phone: contactPhone,
-    },
-    passengers: bookingDoc.passengers || [],
-    flightDetails: {
-      airline: airlineName,
-      route,
-      departureDate: departingAt,
-    },
-    documents: (documents || []).map((doc: any) => ({
-      url: doc.url,
-      unique_identifier: doc.unique_identifier,
-    })),
-  };
 }
 
 // --- Main POST API Handler ---
@@ -235,24 +171,11 @@ export async function POST(req: Request) {
         { new: true },
       );
 
-      // ইমেইল পাঠানো (already-issued case)
-      try {
-        const bookingData = buildBookingDataFromOrder(
-          booking,
-          orderDetails,
-          formattedDocs,
-        );
-        await sendTicketIssuedEmail(bookingData);
-      } catch (emailErr) {
-        console.error(
-          'Failed to send ticket issued email (already issued):',
-          emailErr,
-        );
-      }
+      // ❌ Email sending logic removed. Webhook will handle it.
 
       return NextResponse.json({
         success: true,
-        message: 'Ticket is already issued!',
+        message: 'Ticket is already issued! Email will be sent via webhook.',
         data: updated,
       });
     }
@@ -271,7 +194,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // সবসময়ই Duffel balance ব্যবহার করছি
+    // সবসময়ই Duffel balance ব্যবহার করছি
     const paymentPayload: any = {
       order_id: booking.duffelOrderId,
       payment: {
@@ -331,21 +254,11 @@ export async function POST(req: Request) {
       { new: true },
     );
 
-    // ✅ SUCCESS: Ticket Issued → BookingData বানিয়ে ই‑মেইল পাঠানো
-    try {
-      const bookingData = buildBookingDataFromOrder(
-        booking,
-        updatedOrder.data,
-        pdfDocuments,
-      );
-      await sendTicketIssuedEmail(bookingData);
-    } catch (emailErr) {
-      console.error('Failed to send ticket issued email:', emailErr);
-    }
+    // ❌ Email sending logic removed. Webhook will handle it.
 
     return NextResponse.json({
       success: true,
-      message: 'Ticket Issued Successfully!',
+      message: 'Ticket Issued Successfully! Waiting for webhook to trigger email.',
       data: updatedBooking,
     });
   } catch (error: any) {

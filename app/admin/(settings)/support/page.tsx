@@ -6,8 +6,6 @@ import {
   Mail,
   Send,
   Phone,
-  MapPin,
-  HelpCircle,
   Loader2,
   Sparkles,
   Shield,
@@ -18,7 +16,6 @@ import {
   CheckCircle2,
   Zap,
   Headphones,
-  ArrowUpRight,
   Info,
   CreditCard,
   Ticket,
@@ -31,13 +28,15 @@ import {
   RefreshCcw,
   Ban,
   Star,
+  Search,
+  X,
+  ChevronDown,
+  Copy,
+  RotateCcw,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-
 import { websiteDetails } from '@/constant/data';
 
 // ─── Template Data ───
@@ -47,8 +46,9 @@ const EMAIL_TEMPLATES = [
     icon: CheckCircle2,
     color: 'text-emerald-500',
     bg: 'bg-emerald-50',
-    border: 'border-emerald-100',
+    ring: 'ring-emerald-200',
     subject: 'Your Booking is Confirmed ✅',
+    category: 'booking',
     body: `Dear Valued Customer,
 
 We are pleased to inform you that your booking has been confirmed successfully.
@@ -70,8 +70,9 @@ Support Team`,
     icon: Ticket,
     color: 'text-blue-500',
     bg: 'bg-blue-50',
-    border: 'border-blue-100',
+    ring: 'ring-blue-200',
     subject: 'Your E-Ticket Has Been Issued 🎫',
+    category: 'ticket',
     body: `Dear Customer,
 
 Great news! Your e-ticket has been issued successfully.
@@ -95,8 +96,9 @@ Support Team`,
     icon: CreditCard,
     color: 'text-violet-500',
     bg: 'bg-violet-50',
-    border: 'border-violet-100',
+    ring: 'ring-violet-200',
     subject: 'Payment Received Successfully 💳',
+    category: 'payment',
     body: `Dear Customer,
 
 We have successfully received your payment. Here are the details:
@@ -119,8 +121,9 @@ Finance Team`,
     icon: AlertCircle,
     color: 'text-amber-500',
     bg: 'bg-amber-50',
-    border: 'border-amber-100',
+    ring: 'ring-amber-200',
     subject: 'Payment Reminder - Action Required ⚠️',
+    category: 'payment',
     body: `Dear Customer,
 
 This is a friendly reminder that your payment is still pending.
@@ -142,8 +145,9 @@ Support Team`,
     icon: Plane,
     color: 'text-sky-500',
     bg: 'bg-sky-50',
-    border: 'border-sky-100',
+    ring: 'ring-sky-200',
     subject: 'Your Flight Information & Details ✈️',
+    category: 'flight',
     body: `Dear Customer,
 
 Here are your flight details:
@@ -168,12 +172,13 @@ Best regards,
 Support Team`,
   },
   {
-    title: 'Reach Out / Follow-up',
+    title: 'Follow-up',
     icon: PhoneCall,
     color: 'text-teal-500',
     bg: 'bg-teal-50',
-    border: 'border-teal-100',
+    ring: 'ring-teal-200',
     subject: 'Following Up on Your Recent Inquiry 📞',
+    category: 'general',
     body: `Dear Customer,
 
 Thank you for reaching out to us. We wanted to follow up on your recent inquiry.
@@ -195,8 +200,9 @@ Support Team`,
     icon: RefreshCcw,
     color: 'text-green-500',
     bg: 'bg-green-50',
-    border: 'border-green-100',
+    ring: 'ring-green-200',
     subject: 'Your Refund Has Been Processed 💰',
+    category: 'payment',
     body: `Dear Customer,
 
 We are writing to confirm that your refund has been processed successfully.
@@ -219,8 +225,9 @@ Finance Team`,
     icon: Ban,
     color: 'text-red-500',
     bg: 'bg-red-50',
-    border: 'border-red-100',
+    ring: 'ring-red-200',
     subject: 'Booking Cancellation Confirmation ❌',
+    category: 'booking',
     body: `Dear Customer,
 
 As per your request, your booking has been cancelled.
@@ -242,8 +249,9 @@ Support Team`,
     icon: Receipt,
     color: 'text-orange-500',
     bg: 'bg-orange-50',
-    border: 'border-orange-100',
+    ring: 'ring-orange-200',
     subject: 'Your Invoice / Payment Receipt 🧾',
+    category: 'payment',
     body: `Dear Customer,
 
 Please find your invoice details below:
@@ -263,12 +271,13 @@ Best regards,
 Finance Team`,
   },
   {
-    title: 'Welcome / Onboarding',
+    title: 'Welcome',
     icon: UserCheck,
     color: 'text-indigo-500',
     bg: 'bg-indigo-50',
-    border: 'border-indigo-100',
+    ring: 'ring-indigo-200',
     subject: 'Welcome Aboard! 🎉',
+    category: 'general',
     body: `Dear [CUSTOMER_NAME],
 
 Welcome! We're thrilled to have you with us.
@@ -287,12 +296,13 @@ Warm regards,
 The Team`,
   },
   {
-    title: 'Feedback Request',
+    title: 'Feedback',
     icon: Star,
     color: 'text-yellow-500',
     bg: 'bg-yellow-50',
-    border: 'border-yellow-100',
+    ring: 'ring-yellow-200',
     subject: 'We Value Your Feedback ⭐',
+    category: 'general',
     body: `Dear Customer,
 
 We hope you had a great experience with our service. Your feedback means a lot to us!
@@ -316,8 +326,9 @@ Customer Experience Team`,
     icon: Clock,
     color: 'text-pink-500',
     bg: 'bg-pink-50',
-    border: 'border-pink-100',
+    ring: 'ring-pink-200',
     subject: 'Important: Flight Schedule Change ⏰',
+    category: 'flight',
     body: `Dear Customer,
 
 We regret to inform you that there has been a schedule change for your upcoming flight.
@@ -337,34 +348,56 @@ Support Team`,
   },
 ];
 
+const CATEGORIES = [
+  { key: 'all', label: 'All' },
+  { key: 'booking', label: 'Booking' },
+  { key: 'payment', label: 'Payment' },
+  { key: 'flight', label: 'Flight' },
+  { key: 'ticket', label: 'Ticket' },
+  { key: 'general', label: 'General' },
+];
+
 export default function SupportPage() {
   const [loading, setLoading] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [showTemplates, setShowTemplates] = useState(true);
+
   const [formData, setFormData] = useState({
     to: '',
     subject: '',
     message: '',
   });
 
+  // ─── Filter templates ───
+  const filteredTemplates = EMAIL_TEMPLATES.filter((t) => {
+    const matchesCategory =
+      activeCategory === 'all' || t.category === activeCategory;
+    const matchesSearch =
+      !templateSearch ||
+      t.title.toLowerCase().includes(templateSearch.toLowerCase()) ||
+      t.subject.toLowerCase().includes(templateSearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // ─── Send email ───
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      const { data } = await axios.post(
-        '/api/dashboard/support',
-        formData
-      );
+      const { data } = await axios.post('/api/dashboard/support', formData);
       if (data.success) {
         toast.success('Email sent successfully!');
         setFormData({ to: '', subject: '', message: '' });
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to send email. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Apply template ───
   const applyTemplate = (template: (typeof EMAIL_TEMPLATES)[0]) => {
     setFormData((prev) => ({
       ...prev,
@@ -374,385 +407,529 @@ export default function SupportPage() {
     toast.success(`"${template.title}" template applied`);
   };
 
+  // ─── Clear form ───
+  const clearForm = () => {
+    setFormData({ to: '', subject: '', message: '' });
+    toast.success('Form cleared');
+  };
+
+  // ─── Copy to clipboard ───
+  const copyMessage = () => {
+    if (formData.message) {
+      navigator.clipboard.writeText(formData.message);
+      toast.success('Message copied to clipboard');
+    }
+  };
+
+  const hasContent = formData.to || formData.subject || formData.message;
+
+  // ─── Reusable classes ───
+  const inputBase =
+    'w-full h-11 px-4 rounded-xl border border-gray-200 bg-gray-50/50 text-[13px] placeholder:text-gray-300 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-900/5 transition-all outline-none';
+  const inputWithIcon = cn(inputBase, 'pl-10');
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* ═══ HEADER ═══ */}
-      <div className="sticky top-0 z-30 border-b border-gray-100 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4 lg:px-8">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-2xl bg-gray-900 blur-lg opacity-10" />
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-900 shadow-lg shadow-gray-900/10">
-                <Headphones className="h-5 w-5 text-white" />
-              </div>
-            </div>
-            <div>
+    <div className="min-h-screen bg-[#f8f9fb]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        {/* ═══════════════════ HEADER ═══════════════════ */}
+        <header className="pt-8 pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
-                  Dashboard
-                </p>
-                <span className="text-gray-200">/</span>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-900">
-                  Support
-                </p>
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl shadow-gray-100">
+                  <Headphones className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                  Support Center
+                </span>
               </div>
-              <h1 className="text-lg font-extrabold text-gray-900 tracking-tight">
-                Help & Support Center
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-[26px]">
+                Email Support
               </h1>
+              <p className="text-[13px] text-gray-500">
+                Compose and send emails to your customers with ready-made
+                templates.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {/* Quick contacts */}
+              <a
+                href={`tel:${websiteDetails.whatsappNumber}`}
+                className="hidden md:inline-flex h-9 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 text-[12px] font-semibold text-gray-500 shadow-2xl shadow-gray-100 transition-all hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Phone className="h-3.5 w-3.5 text-gray-400" />
+                <span className="hidden lg:inline">
+                  {websiteDetails.whatsappNumber}
+                </span>
+                <span className="lg:hidden">Call</span>
+              </a>
+              <a
+                href={`mailto:${websiteDetails.email || 'support@example.com'}`}
+                className="hidden md:inline-flex h-9 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 text-[12px] font-semibold text-gray-500 shadow-2xl shadow-gray-100 transition-all hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300"
+              >
+                <Mail className="h-3.5 w-3.5 text-gray-400" />
+                <span className="hidden lg:inline">
+                  {websiteDetails.email || 'support@example.com'}
+                </span>
+                <span className="lg:hidden">Email</span>
+              </a>
+              {/* Status badge */}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                ONLINE
+              </span>
             </div>
           </div>
+        </header>
 
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-100">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative rounded-full h-1.5 w-1.5 bg-emerald-500" />
-              </span>
-              <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
-                Online
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ CONTENT ═══ */}
-      <div className="mx-auto max-w-[1400px] px-6 py-6 lg:px-8 lg:py-8 space-y-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-          {/* ═══ LEFT: EMAIL FORM ═══ */}
-          <div className="xl:col-span-8 space-y-6">
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-xl shadow-gray-100/40">
-              <div className="h-[3px] w-full bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900" />
-
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 shadow-md shadow-gray-900/10">
-                    <Mail className="h-4 w-4 text-white" />
+        <div className="space-y-6">
+          {/* ═══════════════════ QUICK STATS ═══════════════════ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              {
+                icon: Mail,
+                label: 'Compose',
+                value: 'New Email',
+                color: 'bg-blue-600',
+              },
+              {
+                icon: Zap,
+                label: 'Templates',
+                value: `${EMAIL_TEMPLATES.length} Ready`,
+                color: 'bg-amber-500',
+              },
+              {
+                icon: Shield,
+                label: 'Security',
+                value: 'Encrypted',
+                color: 'bg-emerald-600',
+              },
+              {
+                icon: Headphones,
+                label: 'Support',
+                value: '24/7 Live',
+                color: 'bg-violet-600',
+              },
+            ].map((stat, i) => (
+              <div
+                key={i}
+                className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl shadow-gray-100 transition-all hover:shadow-md"
+              >
+                <div className="flex items-center gap-3 p-4">
+                  <div
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-lg',
+                      stat.color
+                    )}
+                  >
+                    <stat.icon className="h-4 w-4 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-sm font-extrabold text-gray-900 tracking-tight">
-                      Compose Email
-                    </h2>
-                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                      Send direct email to customers
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      {stat.label}
+                    </p>
+                    <p className="text-[13px] font-bold text-gray-900 truncate">
+                      {stat.value}
                     </p>
                   </div>
                 </div>
-                <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-extrabold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 uppercase tracking-[0.15em]">
-                  <Shield className="w-3 h-3 text-gray-400" />
-                  Encrypted
+              </div>
+            ))}
+          </div>
+
+          {/* ═══════════════════ EMAIL COMPOSE ═══════════════════ */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl shadow-gray-100">
+            <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/40 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 shadow-2xl shadow-gray-100">
+                  <Mail className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-bold text-gray-900">
+                    Compose Email
+                  </h2>
+                  <p className="text-[11px] text-gray-400">
+                    Send personalized emails to your customers
+                  </p>
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="px-6 py-6">
-                <form onSubmit={handleSendEmail} className="space-y-5">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-[0.15em]">
-                        <AtSign className="w-3 h-3" />
-                        Recipient Email
-                      </Label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-gray-900 transition-colors duration-300" />
-                        <Input
-                          placeholder="client@example.com"
-                          type="email"
-                          required
-                          className="
-                            h-12 pl-11 rounded-xl
-                            border-2 border-gray-100 bg-gray-50/50
-                            text-sm font-medium
-                            placeholder:text-gray-300
-                            hover:border-gray-200
-                            focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 focus:bg-white
-                            transition-all duration-300
-                          "
-                          value={formData.to}
-                          onChange={(e) =>
-                            setFormData({ ...formData, to: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
+              <div className="flex items-center gap-2">
+                {hasContent && (
+                  <button
+                    type="button"
+                    onClick={clearForm}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200/70 bg-gray-50/30 px-2.5 py-1.5 text-[10px] font-bold text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Clear
+                  </button>
+                )}
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200">
+                  <Shield className="h-3 w-3" />
+                  Encrypted
+                </span>
+              </div>
+            </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-[0.15em]">
-                        <FileText className="w-3 h-3" />
-                        Subject Line
-                      </Label>
-                      <div className="relative group">
-                        <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-gray-900 transition-colors duration-300" />
-                        <Input
-                          placeholder="Regarding your booking..."
-                          required
-                          className="
-                            h-12 pl-11 rounded-xl
-                            border-2 border-gray-100 bg-gray-50/50
-                            text-sm font-medium
-                            placeholder:text-gray-300
-                            hover:border-gray-200
-                            focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 focus:bg-white
-                            transition-all duration-300
-                          "
-                          value={formData.subject}
-                          onChange={(e) =>
-                            setFormData({ ...formData, subject: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-[0.15em]">
-                      <AlignLeft className="w-3 h-3" />
-                      Message Body
-                    </Label>
-                    <Textarea
-                      placeholder="Write your message here..."
-                      required
-                      className="
-                        min-h-[260px] resize-none rounded-xl
-                        border-2 border-gray-100 bg-gray-50/50
-                        p-4 text-sm font-medium leading-relaxed
-                        placeholder:text-gray-300
-                        hover:border-gray-200
-                        focus:border-gray-900 focus:ring-2 focus:ring-gray-900/5 focus:bg-white
-                        transition-all duration-300
-                      "
-                      value={formData.message}
-                      onChange={(e) =>
-                        setFormData({ ...formData, message: e.target.value })
-                      }
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                        <Info className="w-3 h-3" />
-                        Sent from your configured support address
-                      </p>
-                      {formData.message.length > 0 && (
-                        <span className="text-[10px] font-mono text-gray-400">
-                          {formData.message.length} chars
-                        </span>
+            <div className="p-6">
+              <form onSubmit={handleSendEmail} className="space-y-5">
+                {/* To + Subject */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  {/* Recipient */}
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-gray-700">
+                      Recipient Email <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <AtSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" />
+                      <input
+                        placeholder="customer@example.com"
+                        type="email"
+                        required
+                        className={inputWithIcon}
+                        value={formData.to}
+                        onChange={(e) =>
+                          setFormData({ ...formData, to: e.target.value })
+                        }
+                      />
+                      {formData.to && formData.to.includes('@') && (
+                        <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-gray-300" />
-                      <span>All emails are logged</span>
+                  {/* Subject */}
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-gray-700">
+                      Subject Line <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <FileText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" />
+                      <input
+                        placeholder="Regarding your booking..."
+                        required
+                        className={inputWithIcon}
+                        value={formData.subject}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            subject: e.target.value,
+                          })
+                        }
+                      />
                     </div>
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[13px] font-semibold text-gray-700">
+                      Message Body <span className="text-rose-400">*</span>
+                    </label>
+                    {formData.message && (
+                      <button
+                        type="button"
+                        onClick={copyMessage}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    placeholder="Write your message here... Use templates below for quick start."
+                    required
+                    className="w-full min-h-[260px] rounded-xl border border-gray-200 bg-gray-50/50 p-4 text-[13px] leading-relaxed placeholder:text-gray-300 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-900/5 transition-all outline-none resize-none"
+                    value={formData.message}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        message: e.target.value,
+                      })
+                    }
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                      <Info className="h-3 w-3" />
+                      Replace{' '}
+                      <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-gray-500">
+                        [PLACEHOLDERS]
+                      </code>{' '}
+                      with actual data before sending
+                    </p>
+                    {formData.message.length > 0 && (
+                      <span className="text-[10px] font-bold text-gray-400 tabular-nums">
+                        {formData.message.length} chars
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-5">
+                  <p className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    All emails are logged & encrypted
+                  </p>
+                  <div className="flex items-center gap-2.5">
+                    {hasContent && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearForm}
+                        className="h-10 cursor-pointer rounded-xl border-gray-200 px-5 text-[13px] font-semibold text-gray-500 shadow-2xl shadow-gray-100 transition-all hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1.5" />
+                        Discard
+                      </Button>
+                    )}
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="
-                        h-12 cursor-pointer
-                        flex items-center gap-2.5
-                        rounded-xl px-8
-                        bg-gray-900 hover:bg-gray-800
-                        text-sm font-bold text-white
-                        shadow-lg shadow-gray-900/10
-                        transition-all duration-300
-                        active:scale-[0.97]
-                        disabled:opacity-60 disabled:cursor-not-allowed
-                      "
+                      className="h-10 cursor-pointer rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 px-6 text-[13px] font-bold text-white shadow-2xl shadow-gray-100 transition-all hover:from-gray-900 hover:to-gray-950 hover:shadow-md active:scale-[0.98] disabled:opacity-60"
                     >
                       {loading ? (
-                        <>
+                        <span className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Sending…</span>
-                        </>
+                          Sending...
+                        </span>
                       ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          <span>Send Email</span>
-                        </>
+                        <span className="flex items-center gap-2">
+                          <Send className="h-3.5 w-3.5" />
+                          Send Email
+                        </span>
                       )}
                     </Button>
                   </div>
-                </form>
-              </div>
-            </div>
-
-            {/* ═══ QUICK TEMPLATES ═══ */}
-            <div className="rounded-2xl bg-white border border-gray-200 shadow-gray-100 shadow-2xl">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-gray-100 rounded-xl">
-                    <Zap className="w-4 h-4 text-gray-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
-                      Quick Templates
-                    </h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      Click any template to auto-fill the email form
-                    </p>
-                  </div>
                 </div>
-                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
-                  {EMAIL_TEMPLATES.length} templates
-                </span>
-              </div>
-
-              <div className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {EMAIL_TEMPLATES.map((template, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => applyTemplate(template)}
-                      className="
-                        group flex items-start gap-3
-                        p-3.5 rounded-xl
-                        bg-white border border-gray-100
-                        hover:border-gray-300 hover:shadow-md hover:shadow-gray-100/50
-                        transition-all duration-300 cursor-pointer
-                        text-left active:scale-[0.98]
-                      "
-                    >
-                      <div
-                        className={`
-                          w-9 h-9 rounded-xl ${template.bg} ${template.border}
-                          border flex items-center justify-center
-                          shrink-0 mt-0.5
-                          group-hover:scale-110 transition-transform duration-300
-                        `}
-                      >
-                        <template.icon
-                          className={`w-4 h-4 ${template.color}`}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 truncate transition-colors">
-                          {template.title}
-                        </p>
-                        <p className="text-[10px] text-gray-400 truncate mt-0.5 leading-relaxed">
-                          {template.subject.replace(/[✅🎫💳⚠️✈️📞💰❌🧾🎉⭐⏰]/g, '').trim()}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              </form>
             </div>
           </div>
 
-          {/* ═══ RIGHT SIDEBAR ═══ */}
-          <div className="xl:col-span-4 space-y-5">
-            {/* ═══ CONTACT CARD ═══ */}
-            <div className="relative overflow-hidden rounded-2xl bg-gray-900">
-              <div className="absolute -right-8 -top-8 w-28 h-28 bg-gray-700/30 rounded-full blur-2xl" />
-              <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-gray-700/20 rounded-full blur-2xl" />
-              <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] bg-[size:20px_20px]" />
-
-              <div className="relative p-6 z-10">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="p-2.5 rounded-xl bg-white/[0.06] border border-white/[0.06]">
-                    <Sparkles className="w-4 h-4 text-gray-400" />
+          {/* ═══════════════════ TEMPLATES ═══════════════════ */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl shadow-gray-100">
+            {/* Header */}
+            <div className="border-b border-gray-50 bg-gray-50/40 px-6 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 shadow-2xl shadow-gray-100">
+                    <Zap className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-white tracking-tight">
-                      Need urgent help?
-                    </h3>
-                    <p className="text-[11px] text-white/40 font-medium">
-                      24/7 support available
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[15px] font-bold text-gray-900">
+                        Quick Templates
+                      </h3>
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 tabular-nums ring-1 ring-amber-200">
+                        {filteredTemplates.length}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      Click any template to auto-fill the compose form
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-2.5">
-                  <a
-                    href={`tel:${websiteDetails.whatsappNumber}`}
-                    className="
-                      flex items-center gap-3.5
-                      rounded-xl bg-white/[0.04] border border-white/[0.06]
-                      px-4 py-3.5
-                      hover:bg-white/[0.07]
-                      transition-all duration-300 group
-                    "
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06]">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-white/25">
-                        Call / WhatsApp
-                      </p>
-                      <p className="text-sm font-bold text-white/80 truncate">
-                        {websiteDetails.whatsappNumber}
-                      </p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-white/15 group-hover:text-white/30 transition-colors" />
-                  </a>
-
-                  <a
-                    href={`mailto:${websiteDetails.email || 'support@example.com'}`}
-                    className="
-                      flex items-center gap-3.5
-                      rounded-xl bg-white/[0.04] border border-white/[0.06]
-                      px-4 py-3.5
-                      hover:bg-white/[0.07]
-                      transition-all duration-300 group
-                    "
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06]">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-white/25">
-                        Email Support
-                      </p>
-                      <p className="text-sm font-bold text-white/80 truncate">
-                        {websiteDetails.email || 'support@example.com'}
-                      </p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-white/15 group-hover:text-white/30 transition-colors" />
-                  </a>
-
-                  <div className="
-                    flex items-start gap-3.5
-                    rounded-xl bg-white/[0.04] border border-white/[0.06]
-                    px-4 py-3.5
-                  ">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] shrink-0 mt-0.5">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-white/25">
-                        Office
-                      </p>
-                      <p className="text-sm font-bold text-white/80 leading-relaxed">
-                        {websiteDetails.address}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-2">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-300" />
+                    <input
+                      type="text"
+                      placeholder="Search templates..."
+                      value={templateSearch}
+                      onChange={(e) => setTemplateSearch(e.target.value)}
+                      className="h-9 w-40 rounded-xl border border-gray-200 bg-gray-50/50 pl-9 pr-3 text-[12px] placeholder:text-gray-300 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-900/5 transition-all outline-none"
+                    />
+                    {templateSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setTemplateSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
+
+                  {/* Collapse toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplates(!showTemplates)}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 transition-all hover:bg-gray-50 hover:text-gray-600 cursor-pointer"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform duration-300',
+                        !showTemplates && '-rotate-90'
+                      )}
+                    />
+                  </button>
                 </div>
               </div>
+
+              {/* Category Tabs */}
+              {showTemplates && (
+                <div className="flex items-center gap-1.5 mt-4 overflow-x-auto pb-0.5 scrollbar-none">
+                  {CATEGORIES.map((cat) => {
+                    const count =
+                      cat.key === 'all'
+                        ? EMAIL_TEMPLATES.length
+                        : EMAIL_TEMPLATES.filter(
+                            (t) => t.category === cat.key
+                          ).length;
+
+                    return (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        onClick={() => setActiveCategory(cat.key)}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap',
+                          activeCategory === cat.key
+                            ? 'bg-gray-900 text-white shadow-sm'
+                            : 'bg-white text-gray-500 border border-gray-200/70 hover:bg-gray-50 hover:text-gray-700'
+                        )}
+                      >
+                        {cat.label}
+                        <span
+                          className={cn(
+                            'rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums',
+                            activeCategory === cat.key
+                              ? 'bg-white/20 text-white'
+                              : 'bg-gray-100 text-gray-400'
+                          )}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-    
-            {/* ═══ TIP ═══ */}
-            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white rounded-xl border border-gray-200 shadow-2xl shadow-gray-100 shrink-0">
-                  <MessageSquare className="w-4 h-4 text-gray-500" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-gray-900 mb-1">
-                    Admin Tip
-                  </h4>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">
-                    Replace placeholders like{' '}
-                    <code className="text-[10px] bg-gray-200 px-1 py-0.5 rounded font-mono text-gray-700">
-                      [REF_NUMBER]
-                    </code>{' '}
-                    with actual booking data before sending.
-                  </p>
-                </div>
+            {/* Templates Grid */}
+            {showTemplates && (
+              <div className="p-6">
+                {filteredTemplates.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {filteredTemplates.map((template, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => applyTemplate(template)}
+                        className="group relative flex flex-col gap-3 rounded-xl border border-gray-200/70 bg-gray-50/30 p-4 text-left transition-all hover:border-gray-200 hover:bg-white hover:shadow-sm active:scale-[0.98] cursor-pointer overflow-hidden"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110',
+                              template.bg,
+                              template.ring
+                            )}
+                          >
+                            <template.icon
+                              className={cn('h-4 w-4', template.color)}
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-bold text-gray-700 group-hover:text-gray-900 truncate transition-colors">
+                              {template.title}
+                            </p>
+                            <p className="text-[10px] text-gray-400 truncate mt-0.5 leading-relaxed">
+                              {template.subject
+                                .replace(
+                                  /[✅🎫💳⚠️✈️📞💰❌🧾🎉⭐⏰]/g,
+                                  ''
+                                )
+                                .trim()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ring-1',
+                              template.bg,
+                              template.color,
+                              template.ring
+                            )}
+                          >
+                            {template.category}
+                          </span>
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-300 group-hover:text-gray-500 transition-colors">
+                            <Sparkles className="h-3 w-3" />
+                            Apply
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2.5 rounded-xl border-2 border-dashed border-gray-200/70 py-12 text-center">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-50">
+                      <Search className="h-5 w-5 text-gray-300" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-semibold text-gray-400">
+                        No templates found
+                      </p>
+                      <p className="text-[10px] text-gray-300">
+                        Try a different search or category
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTemplateSearch('');
+                        setActiveCategory('all');
+                      }}
+                      className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-[11px] font-bold text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-700 cursor-pointer"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ═══════════════════ ADMIN TIP ═══════════════════ */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl shadow-gray-100">
+            <div className="flex items-start gap-4 p-6">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 shadow-sm">
+                <MessageSquare className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[13px] font-bold text-gray-900">
+                  Admin Tip
+                </h4>
+                <p className="text-[12px] leading-relaxed text-gray-500">
+                  Replace placeholders like{' '}
+                  <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                    [REF_NUMBER]
+                  </code>
+                  ,{' '}
+                  <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                    [AMOUNT]
+                  </code>
+                  ,{' '}
+                  <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                    [DATE]
+                  </code>{' '}
+                  with actual booking data before sending. All emails are
+                  automatically logged for your records.
+                </p>
               </div>
             </div>
           </div>

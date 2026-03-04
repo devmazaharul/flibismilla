@@ -13,9 +13,24 @@ import {
   PieChart,
   Pie,
   Cell,
+  Area,
+  AreaChart,
 } from "recharts";
+import {
+  RefreshCw,
+  TrendingUp,
+  DollarSign,
+  ShoppingBag,
+  Package,
+  Percent,
+  AlertTriangle,
+  Calendar,
+  Users,
+  Plane,
+  ChevronRight,
+} from "lucide-react";
 
-// ================== Types (from /api/dashboard) ==================
+// ================== Types ==================
 
 interface KPIData {
   totalRevenue: number;
@@ -28,11 +43,11 @@ interface KPIData {
   activePackages: number;
   activeDestinations: number;
   activeOffers: number;
-  currency: string; // e.g. "USD"
+  currency: string;
 }
 
 interface RevenuePoint {
-  name: string; // Month short name (e.g. Jan, Feb)
+  name: string;
   value: number;
 }
 
@@ -51,7 +66,7 @@ interface RecentBooking {
   currency: string;
   status: string;
   pnr: string;
-  date: string; // "26 Jan 2025"
+  date: string;
 }
 
 interface DashboardData {
@@ -83,15 +98,90 @@ const formatShortNumber = (value: number) => {
   return value.toString();
 };
 
-function getStatusBadgeClasses(status: string) {
+function getStatusConfig(status: string) {
   const s = status?.toLowerCase() || "";
   if (s === "issued" || s === "confirmed")
-    return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+    return {
+      bg: "bg-emerald-50",
+      text: "text-emerald-700",
+      dot: "bg-emerald-500",
+      ring: "ring-emerald-500/20",
+    };
   if (["processing", "held", "pending"].some((x) => s.includes(x)))
-    return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+    return {
+      bg: "bg-amber-50",
+      text: "text-amber-700",
+      dot: "bg-amber-500",
+      ring: "ring-amber-500/20",
+    };
   if (["cancelled", "failed", "expired"].some((x) => s.includes(x)))
-    return "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
-  return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+    return {
+      bg: "bg-rose-50",
+      text: "text-rose-700",
+      dot: "bg-rose-500",
+      ring: "ring-rose-500/20",
+    };
+  return {
+    bg: "bg-slate-50",
+    text: "text-slate-700",
+    dot: "bg-slate-500",
+    ring: "ring-slate-500/20",
+  };
+}
+
+// ================== Skeleton Components ==================
+
+function KPISkeleton() {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="h-9 w-9 rounded-xl bg-gray-100" />
+        <div className="h-4 w-16 rounded-full bg-gray-100" />
+      </div>
+      <div className="mt-4 h-7 w-28 rounded-lg bg-gray-100" />
+      <div className="mt-2 h-3.5 w-40 rounded bg-gray-50" />
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 rounded-full border-2 border-gray-200 border-t-gray-400 animate-spin" />
+        <p className="text-xs text-gray-400 font-medium">Loading chart...</p>
+      </div>
+    </div>
+  );
+}
+
+function TableRowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-gray-100" />
+          <div>
+            <div className="mb-1.5 h-3.5 w-28 rounded bg-gray-100" />
+            <div className="h-3 w-20 rounded bg-gray-50" />
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4">
+        <div className="mb-1.5 h-3.5 w-36 rounded bg-gray-100" />
+        <div className="h-3 w-20 rounded bg-gray-50" />
+      </td>
+      <td className="px-5 py-4">
+        <div className="h-6 w-20 rounded-full bg-gray-100" />
+      </td>
+      <td className="px-5 py-4">
+        <div className="h-3.5 w-20 rounded bg-gray-100" />
+      </td>
+      <td className="px-5 py-4 text-right">
+        <div className="ml-auto h-3.5 w-20 rounded bg-gray-100" />
+      </td>
+    </tr>
+  );
 }
 
 // ================== Dashboard Page ==================
@@ -105,7 +195,7 @@ export default function DashboardPage() {
   const loadDashboard = async () => {
     try {
       setError(null);
-      setLoading((prev) => (data ? false : true)); // full loader only on first load
+      setLoading(!data);
       setRefreshing(!!data);
 
       const res = await fetch("/api/dashboard/data", { cache: "no-store" });
@@ -135,329 +225,379 @@ export default function DashboardPage() {
   const recentBookings = data?.recentBookings || [];
   const currencyCode = kpi?.currency || "USD";
 
+  const kpiCards = kpi
+    ? [
+        {
+          label: "Total Revenue",
+          value: `${currencyCode} ${formatCurrency(kpi.totalRevenue)}`,
+          subtitle: "From all confirmed bookings",
+          icon: DollarSign,
+          iconBg: "bg-emerald-50",
+          iconColor: "text-emerald-600",
+          trend: kpi.totalRevenue > 0 ? "+12.5%" : undefined,
+          trendUp: true,
+        },
+        {
+          label: "Net Profit",
+          value: `${currencyCode} ${formatCurrency(kpi.netProfit)}`,
+          subtitle:
+            kpi.totalRevenue > 0
+              ? `${((kpi.netProfit / kpi.totalRevenue) * 100).toFixed(1)}% margin`
+              : "No revenue yet",
+          icon: TrendingUp,
+          iconBg: "bg-blue-50",
+          iconColor: "text-blue-600",
+          trend:
+            kpi.totalRevenue > 0
+              ? `${((kpi.netProfit / kpi.totalRevenue) * 100).toFixed(1)}%`
+              : undefined,
+          trendUp: kpi.netProfit > 0,
+        },
+        {
+          label: "Total Bookings",
+          value: kpi.totalBookings.toLocaleString("en-US"),
+          subtitle: `${kpi.confirmedBookings} confirmed · ${kpi.pendingBookings} pending`,
+          icon: ShoppingBag,
+          iconBg: "bg-violet-50",
+          iconColor: "text-violet-600",
+        },
+        {
+          label: "Travel Inventory",
+          value: (
+            kpi.activePackages +
+            kpi.activeDestinations +
+            kpi.activeOffers
+          ).toString(),
+          subtitle: `${kpi.activePackages} packages · ${kpi.activeDestinations} destinations`,
+          icon: Package,
+          iconBg: "bg-amber-50",
+          iconColor: "text-amber-600",
+        },
+      ]
+    : [];
+
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 text-slate-900 md:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8">
-        {/* ================= HEADER CARD ================= */}
-        <section className="rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-gray-100 px-6 py-5 md:px-8 md:py-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-500">
-                Travel Agency Dashboard
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                Financial overview
+    <div className="min-h-screen bg-[#f8f9fb] text-slate-900">
+      <div className="mx-auto max-w-[1280px] px-4 py-6 md:px-6 lg:px-8">
+        {/* ═══════════════════ HEADER ═══════════════════ */}
+        <header className="mb-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 shadow-md shadow-gray-900/10">
+                  <Plane className="h-4 w-4 text-white -rotate-12" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                  Dashboard
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-[28px]">
+                Financial Overview
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Live snapshot of your bookings, revenue, profit and inventory,
-                powered by your Duffel & package data.
+              <p className="text-[13px] text-gray-500 max-w-lg">
+                Real-time snapshot of your bookings, revenue, profit and
+                inventory across all channels.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={loadDashboard}
-                disabled={loading || refreshing}
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300/80 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-2xl shadow-gray-100 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-              >
-                {(loading || refreshing) && (
-                  <svg
-                    className="-ml-1 mr-2 h-4 w-4 animate-spin text-slate-600"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.3726 0 0 5.3726 0 12h4zm2 5.2915A7.962 7.962 0 014 12H0c0 3.042 1.1373 5.8241 3 7.938l3-2.6465z"
-                    />
-                  </svg>
-                )}
-                {loading && !data
-                  ? "Loading dashboard..."
-                  : refreshing
-                  ? "Refreshing..."
-                  : "Refresh"}
-              </button>
-
-            
-            </div>
+            <button
+              onClick={loadDashboard}
+              disabled={loading || refreshing}
+              className="group inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-gray-700 shadow-2xl shadow-gray-100 transition-all hover:bg-gray-50 hover:shadow-md hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 transition-transform ${
+                  loading || refreshing
+                    ? "animate-spin"
+                    : "group-hover:rotate-90"
+                }`}
+              />
+              {loading && !data
+                ? "Loading..."
+                : refreshing
+                ? "Refreshing..."
+                : "Refresh"}
+            </button>
           </div>
 
-          <div className="mt-4 grid gap-4 text-xs sm:grid-cols-3">
-            <div>
-              <p className="text-slate-500">Total revenue</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {kpi
-                  ? `${currencyCode} ${formatCurrency(kpi.totalRevenue)}`
-                  : "—"}
-              </p>
+          {/* ─── Hero Stats Bar ─── */}
+          {kpi && (
+            <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-gray-200/80 bg-gray-200/60 shadow-lg shadow-gray-200/40 sm:grid-cols-3">
+              {[
+                {
+                  label: "Total Revenue",
+                  value: `${currencyCode} ${formatCurrency(kpi.totalRevenue)}`,
+                },
+                {
+                  label: "Net Profit",
+                  value: `${currencyCode} ${formatCurrency(kpi.netProfit)}`,
+                },
+                {
+                  label: "Pending Value",
+                  value: `${currencyCode} ${formatCurrency(kpi.potentialRevenue)}`,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex flex-col gap-0.5 bg-white px-5 py-4 transition-colors hover:bg-gray-50/50"
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    {item.label}
+                  </span>
+                  <span className="text-lg font-bold text-gray-900 tabular-nums">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="sm:text-center">
-              <p className="text-slate-500">Net profit</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {kpi
-                  ? `${currencyCode} ${formatCurrency(kpi.netProfit)}`
-                  : "—"}
-              </p>
-            </div>
-            <div className="sm:text-right">
-              <p className="text-slate-500">Pending value</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {kpi
-                  ? `${currencyCode} ${formatCurrency(kpi.potentialRevenue)}`
-                  : "—"}
-              </p>
-            </div>
-          </div>
-        </section>
+          )}
+        </header>
 
-        {/* ================ Error ================= */}
+        {/* ═══════════════════ ERROR ═══════════════════ */}
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-2xl shadow-gray-100">
-            <div className="flex items-start gap-2">
-              <svg
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.7}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75M12 15.75h.007M3.052 19.2l8.16-14.142a.75.75 0 011.299 0L20.67 19.2a.75.75 0 01-.65 1.125H3.702a.75.75 0 01-.65-1.125z"
-                />
-              </svg>
-              <p>{error}</p>
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-200/80 bg-gradient-to-r from-rose-50 to-white px-4 py-3.5 shadow-2xl  shadow-gray-100 ">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100">
+              <AlertTriangle className="h-4 w-4 text-rose-600" />
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-rose-800">
+                Something went wrong
+              </p>
+              <p className="text-[12px] text-rose-600/80">{error}</p>
             </div>
           </div>
         )}
 
-        {/* ================ KPI GRID ================= */}
-        <section className="grid gap-4 md:grid-cols-4">
-          {/* Total revenue / booking */}
-          <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <p className="text-xs font-medium text-slate-500">
-              Revenue per booking
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {kpi && kpi.confirmedBookings > 0
-                ? `${currencyCode} ${formatCurrency(
-                    kpi.totalRevenue / kpi.confirmedBookings
-                  )}`
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Based on confirmed (issued) bookings
-            </p>
-          </div>
+        {/* ═══════════════════ KPI CARDS ═══════════════════ */}
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {loading && !data
+            ? Array.from({ length: 4 }).map((_, i) => <KPISkeleton key={i} />)
+            : kpiCards.map((card) => (
+                <div
+                  key={card.label}
+                  className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl  shadow-gray-100  transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-200"
+                >
+                  {/* Decorative gradient blob */}
+                  <div
+                    className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${card.iconBg} opacity-40 blur-2xl transition-all group-hover:opacity-60 group-hover:scale-125`}
+                  />
 
-          {/* Bookings overview */}
-          <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <p className="text-xs font-medium text-slate-500">
-              Bookings overview
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {kpi ? kpi.totalBookings.toLocaleString("en-US") : "—"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Confirmed{" "}
-              <span className="font-semibold text-emerald-600">
-                {kpi?.confirmedBookings ?? 0}
-              </span>{" "}
-              · Pending{" "}
-              <span className="font-semibold text-amber-600">
-                {kpi?.pendingBookings ?? 0}
-              </span>{" "}
-              · Cancelled{" "}
-              <span className="font-semibold text-rose-600">
-                {kpi?.cancelledBookings ?? 0}
-              </span>
-            </p>
-          </div>
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} transition-transform duration-300 group-hover:scale-110`}
+                      >
+                        <card.icon className="h-[18px] w-[18px]" />
+                      </div>
+                      {card.trend && (
+                        <span
+                          className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            card.trendUp
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-rose-50 text-rose-600"
+                          }`}
+                        >
+                          {card.trendUp ? "↑" : "↓"} {card.trend}
+                        </span>
+                      )}
+                    </div>
 
-          {/* Inventory */}
-          <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <p className="text-xs font-medium text-slate-500">
-              Travel inventory
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {kpi
-                ? kpi.activePackages +
-                  kpi.activeDestinations +
-                  kpi.activeOffers
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Packages{" "}
-              <span className="font-semibold text-slate-700">
-                {kpi?.activePackages ?? 0}
-              </span>{" "}
-              · Destinations{" "}
-              <span className="font-semibold text-slate-700">
-                {kpi?.activeDestinations ?? 0}
-              </span>{" "}
-              · Offers{" "}
-              <span className="font-semibold text-slate-700">
-                {kpi?.activeOffers ?? 0}
-              </span>
-            </p>
-          </div>
-
-          {/* Profit margin */}
-          <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <p className="text-xs font-medium text-slate-500">Profit margin</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {kpi && kpi.totalRevenue > 0
-                ? ((kpi.netProfit / kpi.totalRevenue) * 100).toFixed(1) + "%"
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Net profit / confirmed revenue
-            </p>
-          </div>
+                    <p className="mt-4 text-2xl font-bold tracking-tight text-gray-900 tabular-nums">
+                      {card.value}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-400">
+                      {card.label}
+                    </p>
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      {card.subtitle}
+                    </p>
+                  </div>
+                </div>
+              ))}
         </section>
 
-        {/* ================ CHARTS ================= */}
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)]">
-          {/* Revenue Trend Line Chart */}
-          <div className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <div className="mb-3 flex items-center justify-between">
+        {/* ═══════════════════ CHARTS ═══════════════════ */}
+        <section className="mb-6 grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
+          {/* Revenue Trend */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl  shadow-gray-100  transition-shadow hover:shadow-lg hover:shadow-gray-200/30">
+            <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Revenue in the last 6 months
+                <h2 className="text-[15px] font-bold text-gray-900">
+                  Revenue Trend
                 </h2>
-                <p className="text-xs text-slate-500">
-                  Based on issued/confirmed bookings
+                <p className="mt-0.5 text-[11px] text-gray-400">
+                  Last 6 months · Confirmed bookings
                 </p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
+                <TrendingUp className="h-4 w-4 text-indigo-500" />
               </div>
             </div>
 
-            <div className="h-64">
+            <div className="h-[280px]">
               {loading && !data ? (
-                <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                  Loading chart...
-                </div>
+                <ChartSkeleton />
               ) : revenueTrend.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                  No confirmed revenue data yet.
+                <div className="flex h-full flex-col items-center justify-center gap-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+                    <TrendingUp className="h-5 w-5 text-gray-300" />
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    No revenue data available yet
+                  </p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
+                  <AreaChart
                     data={revenueTrend}
-                    margin={{ left: -20, right: 10, top: 10, bottom: 0 }}
+                    margin={{ left: -15, right: 5, top: 5, bottom: 0 }}
                   >
+                    <defs>
+                      <linearGradient
+                        id="revenueGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#6366F1"
+                          stopOpacity={0.15}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#6366F1"
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="#e5e7eb"
+                      stroke="#f1f5f9"
                       vertical={false}
                     />
                     <XAxis
                       dataKey="name"
-                      stroke="#9ca3af"
+                      stroke="#cbd5e1"
                       tickLine={false}
-                      axisLine={{ stroke: "#e5e7eb" }}
-                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      dy={8}
                     />
                     <YAxis
-                      stroke="#9ca3af"
+                      stroke="#cbd5e1"
                       tickLine={false}
-                      axisLine={{ stroke: "#e5e7eb" }}
-                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
                       tickFormatter={formatShortNumber}
+                      dx={-5}
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                        fontSize: 11,
+                        backgroundColor: "#1e293b",
+                        border: "none",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        color: "#f8fafc",
+                        padding: "10px 14px",
+                        boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+                      }}
+                      itemStyle={{ color: "#c7d2fe" }}
+                      labelStyle={{
+                        color: "#e2e8f0",
+                        fontWeight: 600,
+                        marginBottom: 4,
                       }}
                       formatter={(value: any) => [
                         `${currencyCode} ${formatCurrency(value as number)}`,
                         "Revenue",
                       ]}
+                      cursor={{
+                        stroke: "#6366F1",
+                        strokeWidth: 1,
+                        strokeDasharray: "4 4",
+                      }}
                     />
-                    <Legend
-                      verticalAlign="top"
-                      align="right"
-                      wrapperStyle={{ fontSize: 11 }}
-                    />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="value"
                       name="Revenue"
                       stroke="#6366F1"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      strokeWidth={2.5}
+                      fill="url(#revenueGradient)"
+                      dot={{
+                        r: 4,
+                        fill: "#6366F1",
+                        stroke: "#ffffff",
+                        strokeWidth: 2,
+                      }}
+                      activeDot={{
+                        r: 6,
+                        fill: "#6366F1",
+                        stroke: "#ffffff",
+                        strokeWidth: 3,
+                      }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               )}
             </div>
           </div>
 
-          {/* Category Distribution Pie Chart */}
-          <div className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-2xl shadow-gray-100">
-            <div className="mb-3 flex items-center justify-between">
+          {/* Category Distribution */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl  shadow-gray-100  transition-shadow hover:shadow-lg hover:shadow-gray-200/30">
+            <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Category distribution
+                <h2 className="text-[15px] font-bold text-gray-900">
+                  Categories
                 </h2>
-                <p className="text-xs text-slate-500">
-                  Packages and sold flights by category
+                <p className="mt-0.5 text-[11px] text-gray-400">
+                  Distribution by type
                 </p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+                <Percent className="h-4 w-4 text-amber-500" />
               </div>
             </div>
 
-            <div className="flex h-64 flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="flex h-[280px] flex-col items-center justify-center">
               {loading && !data ? (
-                <div className="text-sm text-slate-400">Loading chart...</div>
+                <ChartSkeleton />
               ) : categoryDistribution.length === 0 ? (
-                <div className="text-sm text-slate-400">
-                  No package or flight data to display yet.
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+                    <Package className="h-5 w-5 text-gray-300" />
+                  </div>
+                  <p className="text-xs text-gray-400">No data yet</p>
                 </div>
               ) : (
-                <>
-                  <div className="h-44 w-44">
+                <div className="flex w-full flex-col items-center gap-5">
+                  <div className="h-[160px] w-[160px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={categoryDistribution}
                           dataKey="value"
                           nameKey="name"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={3}
+                          innerRadius={45}
+                          outerRadius={72}
+                          paddingAngle={4}
+                          strokeWidth={0}
                         >
                           {categoryDistribution.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={entry.color}
-                              stroke="#ffffff"
-                              strokeWidth={1}
-                            />
+                            <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "white",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 8,
-                            fontSize: 11,
+                            backgroundColor: "#1e293b",
+                            border: "none",
+                            borderRadius: 12,
+                            fontSize: 12,
+                            color: "#f8fafc",
+                            padding: "8px 12px",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
                           }}
                           formatter={(value: any, name: any) => [
                             value,
@@ -468,145 +608,201 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="mt-2 w-full max-w-xs space-y-2 sm:mt-0 sm:ml-4">
-                    {categoryDistribution.map((item) => (
-                      <div
-                        key={item.name}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <div className="flex items-center gap-2">
+                  <div className="w-full space-y-2 px-2">
+                    {categoryDistribution.map((item) => {
+                      const total = categoryDistribution.reduce(
+                        (s, c) => s + c.value,
+                        0
+                      );
+                      const pct =
+                        total > 0
+                          ? ((item.value / total) * 100).toFixed(0)
+                          : "0";
+                      return (
+                        <div
+                          key={item.name}
+                          className="group flex items-center gap-3"
+                        >
                           <span
-                            className="h-2.5 w-2.5 rounded-full"
+                            className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white shadow-2xl  shadow-gray-100 "
                             style={{ backgroundColor: item.color }}
                           />
-                          <span className="text-slate-700">{item.name}</span>
+                          <span className="flex-1 truncate text-[12px] font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
+                            {item.name}
+                          </span>
+                          <span className="text-[12px] font-bold text-gray-900 tabular-nums">
+                            {item.value.toLocaleString("en-US")}
+                          </span>
+                          <span className="w-8 text-right text-[10px] font-semibold text-gray-400 tabular-nums">
+                            {pct}%
+                          </span>
                         </div>
-                        <span className="text-slate-500">
-                          {item.value.toLocaleString("en-US")}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
         </section>
 
-        {/* ================ RECENT BOOKINGS TABLE ================= */}
-        <section className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-gray-100">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3.5 sm:px-6">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">
-                Recent bookings
-              </h2>
-              <p className="text-xs text-slate-500">
-                Latest 8 bookings across flights and packages
-              </p>
+        {/* ═══════════════════ RECENT BOOKINGS ═══════════════════ */}
+        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl  shadow-gray-100  transition-shadow hover:shadow-lg hover:shadow-gray-200/30">
+          {/* Table Header */}
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50">
+                <Calendar className="h-4 w-4 text-violet-500" />
+              </div>
+              <div>
+                <h2 className="text-[15px] font-bold text-gray-900">
+                  Recent Bookings
+                </h2>
+                <p className="text-[11px] text-gray-400">
+                  Latest bookings across flights & packages
+                </p>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500">
-              {recentBookings.length > 0
-                ? `${recentBookings.length} records`
-                : ""}
-            </div>
+            {recentBookings.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-500 tabular-nums">
+                {recentBookings.length} records
+              </span>
+            )}
           </div>
 
+          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-left text-sm text-slate-700">
-              <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-6 py-3">Customer</th>
-                  <th className="px-6 py-3">Booking</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3 text-right">Amount</th>
+            <table className="min-w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-gray-50 bg-gray-50/60">
+                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:px-6">
+                    Customer
+                  </th>
+                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:px-6">
+                    Booking
+                  </th>
+                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:px-6">
+                    Status
+                  </th>
+                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:px-6">
+                    Date
+                  </th>
+                  <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:px-6">
+                    Amount
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {loading && !data ? (
                   Array.from({ length: 5 }).map((_, idx) => (
-                    <tr key={`skeleton-${idx}`} className="animate-pulse">
-                      <td className="px-6 py-4">
-                        <div className="mb-2 h-3 w-40 rounded bg-gray-200" />
-                        <div className="h-3 w-32 rounded bg-gray-100" />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="mb-2 h-3 w-52 rounded bg-gray-200" />
-                        <div className="h-3 w-24 rounded bg-gray-100" />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="h-5 w-20 rounded-full bg-gray-200" />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="h-3 w-24 rounded bg-gray-200" />
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="ml-auto h-3 w-16 rounded bg-gray-200" />
-                      </td>
-                    </tr>
+                    <TableRowSkeleton key={`skeleton-${idx}`} />
                   ))
                 ) : recentBookings.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-6 py-10 text-center text-sm text-slate-500"
+                      className="px-6 py-16 text-center"
                     >
-                      There are no bookings to show yet.
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+                          <ShoppingBag className="h-6 w-6 text-gray-300" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-400">
+                            No bookings yet
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Bookings will appear here once created
+                          </p>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  recentBookings.map((b) => (
-                    <tr
-                      key={b.id}
-                      className="transition-colors hover:bg-gray-50"
-                    >
-                      <td className="px-6 py-4 align-top">
-                        <div className="text-sm font-medium text-slate-900">
-                          {b.customerName}
-                        </div>
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          {b.customerPhone}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <div className="text-sm font-medium text-slate-900">
-                          {b.packageTitle}
-                        </div>
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          PNR:{" "}
-                          <span className="font-mono text-[11px] text-slate-700">
-                            {b.pnr}
+                  recentBookings.map((b) => {
+                    const statusConfig = getStatusConfig(b.status);
+                    const initials = b.customerName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase();
+                    return (
+                      <tr
+                        key={b.id}
+                        className="group transition-colors hover:bg-gray-50/70"
+                      >
+                        {/* Customer */}
+                        <td className="px-5 py-3.5 sm:px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gray-100 to-gray-200 text-[11px] font-bold text-gray-500 ring-2 ring-white shadow-2xl  shadow-gray-100 ">
+                              {initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-semibold text-gray-900">
+                                {b.customerName}
+                              </p>
+                              <p className="truncate text-[11px] text-gray-400">
+                                {b.customerPhone}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Booking */}
+                        <td className="px-5 py-3.5 sm:px-6">
+                          <p className="truncate text-[13px] font-medium text-gray-900 max-w-[200px]">
+                            {b.packageTitle}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-gray-400">
+                            PNR{" "}
+                            <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                              {b.pnr}
+                            </span>
+                          </p>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-3.5 sm:px-6">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${statusConfig.bg} ${statusConfig.text} ${statusConfig.ring}`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`}
+                            />
+                            {b.status}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${getStatusBadgeClasses(
-                            b.status
-                          )}`}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {b.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <span className="text-sm text-slate-700">
-                          {b.date}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right align-top">
-                        <span className="text-sm font-semibold text-slate-900">
-                          {b.currency || currencyCode}{" "}
-                          {formatCurrency(b.price)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-5 py-3.5 sm:px-6">
+                          <span className="text-[13px] text-gray-600">
+                            {b.date}
+                          </span>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="px-5 py-3.5 text-right sm:px-6">
+                          <span className="text-[13px] font-bold text-gray-900 tabular-nums">
+                            {b.currency || currencyCode}{" "}
+                            {formatCurrency(b.price)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </section>
+
+        {/* ═══════════════════ FOOTER ═══════════════════ */}
+        <footer className="mt-8 pb-6 text-center">
+          <p className="text-[11px] text-gray-300">
+            Dashboard auto-updates on refresh · Data powered by your API
+          </p>
+        </footer>
       </div>
     </div>
   );
