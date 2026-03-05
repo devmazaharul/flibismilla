@@ -141,6 +141,11 @@ const BookingSchema = new Schema(
         emailSent: {
     type: Boolean,
     default: false,
+  },
+  clientPayWith:{
+    type: String,
+    enum:["balance","stripe"],
+    default:"balance"
   }
     },
     { timestamps: true },

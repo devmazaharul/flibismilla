@@ -55,7 +55,11 @@ function buildBookingDataFromOrder(
 // ----------------------------------------------------------------
 // 🔒 HELPER: Verify Duffel Signature
 // ----------------------------------------------------------------
-function verifySignature(rawBody: string, signature: string, secret: string): boolean {
+function verifySignature(
+  rawBody: string,
+  signature: string,
+  secret: string
+): boolean {
   const timestampMatch = signature.match(/t=([^,]+)/);
   const hashMatch = signature.match(/v2=([^,]+)/);
 
@@ -79,6 +83,51 @@ function verifySignature(rawBody: string, signature: string, secret: string): bo
 }
 
 // ----------------------------------------------------------------
+// 📧 HELPER: Issue + Email (Reusable)
+// ----------------------------------------------------------------
+async function handleTicketIssuance(booking: any, orderData: any) {
+  // ✅ FIX: Double-check from fresh DB read (race condition prevent)
+  const freshBooking = await Booking.findById(booking._id);
+  if (!freshBooking || freshBooking.emailSent) {
+    console.log(`ℹ️ Email already sent or booking gone. Skipping.`);
+    return;
+  }
+
+  const docs = (orderData.documents || []).map((doc: any) => ({
+    unique_identifier: doc.unique_identifier || "",
+    type: doc.type || "electronic_ticket",
+    url: doc.url || "",
+  }));
+
+  if (docs.length === 0) return;
+
+  // Update DB first — emailSent: true set করো BEFORE sending
+  // এতে duplicate email prevent হবে
+  await Booking.findByIdAndUpdate(freshBooking._id, {
+    $set: {
+      status: "issued",
+      pnr: orderData.booking_reference || freshBooking.pnr,
+      documents: docs,
+      emailSent: true,
+      updatedAt: new Date(),
+    },
+  });
+
+  // Then send email
+  try {
+    const emailData = buildBookingDataFromOrder(freshBooking, orderData, docs);
+    await sendTicketIssuedEmail(emailData);
+    console.log(`✅ Ticket email sent | PNR: ${orderData.booking_reference}`);
+  } catch (emailErr) {
+    console.error("❌ Email sending failed:", emailErr);
+    // ⚠️ Email fail হলে emailSent false করে দাও — পরে retry করা যাবে
+    await Booking.findByIdAndUpdate(freshBooking._id, {
+      $set: { emailSent: false },
+    });
+  }
+}
+
+// ----------------------------------------------------------------
 // 🔄 MAIN WEBHOOK HANDLER
 // ----------------------------------------------------------------
 export async function POST(req: Request) {
@@ -90,18 +139,27 @@ export async function POST(req: Request) {
 
     // 1️⃣ Signature Verify
     if (!signature) {
-      return NextResponse.json({ message: "Missing signature" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Missing signature" },
+        { status: 401 }
+      );
     }
 
     const secret = process.env.DUFFEL_WEBHOOK_SECRET;
     if (!secret) {
-      console.error("❌ DUFFEL_WEBHOOK_SECRET missing in env");
-      return NextResponse.json({ message: "Server config error" }, { status: 500 });
+      console.error("❌ DUFFEL_WEBHOOK_SECRET missing");
+      return NextResponse.json(
+        { message: "Server config error" },
+        { status: 500 }
+      );
     }
 
     if (!verifySignature(rawBody, signature, secret)) {
       console.error("❌ Invalid webhook signature");
-      return NextResponse.json({ message: "Invalid signature" }, { status: 403 });
+      return NextResponse.json(
+        { message: "Invalid signature" },
+        { status: 403 }
+      );
     }
 
     // 2️⃣ Parse Event
@@ -115,18 +173,17 @@ export async function POST(req: Request) {
     const { type, data: rawData } = event;
     const data = rawData?.object ?? rawData;
 
-    console.log(`🔔 Webhook: ${type} | ID: ${data?.id || data?.order_id || "N/A"}`);
+    console.log(
+      `🔔 Webhook: ${type} | ID: ${data?.id || data?.order_id || "N/A"}`
+    );
 
     await dbConnect();
 
-    // ====================================================
-    // 📌 EVENT HANDLING - শুধু যা দরকার
-    // ====================================================
-
     switch (type) {
-      // ──────────────────────────────────────────────────
-      // ✅ ORDER CREATED → Ticket থাকলে Email পাঠাও
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
+      // ✅ ORDER CREATED
+      // তোমার case: সবসময় HOLD হবে (documents থাকবে না)
+      // ═══════════════════════════════════════════════
       case "order.created": {
         const orderId = data.id;
         const booking = await Booking.findOne({ duffelOrderId: orderId });
@@ -139,65 +196,57 @@ export async function POST(req: Request) {
         const hasTickets = data.documents?.length > 0;
 
         if (hasTickets) {
-          // ✈️ Instant issue হয়েছে — Email পাঠাও
-          const docs = data.documents.map((doc: any) => ({
-            unique_identifier: doc.unique_identifier,
-            type: doc.type,
-            url: doc.url,
-          }));
-
-          await Booking.findByIdAndUpdate(booking._id, {
-            $set: {
-              status: "issued",
-              pnr: data.booking_reference,
-              documents: docs,
-              emailSent: true,
-              updatedAt: new Date(),
-            },
-          });
-
-          // Send Email
-          try {
-            const emailData = buildBookingDataFromOrder(booking, data, docs);
-            await sendTicketIssuedEmail(emailData);
-            console.log(`✅ Ticket email sent | PNR: ${data.booking_reference}`);
-          } catch (emailErr) {
-            console.error("❌ Email sending failed:", emailErr);
-          }
+          // 🟢 Edge case: যদি কোনোভাবে instant issue হয়
+          await handleTicketIssuance(booking, data);
         } else {
-          // 🕐 Hold order — শুধু status update
+          // 🕐 তোমার MAIN FLOW: Hold Order
           await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               status: "held",
               pnr: data.booking_reference || booking.pnr,
               ...(data.payment_status?.payment_required_by && {
-                paymentDeadline: new Date(data.payment_status.payment_required_by),
+                paymentDeadline: new Date(
+                  data.payment_status.payment_required_by
+                ),
               }),
               updatedAt: new Date(),
             },
           });
-          console.log(`🕐 Order held | ID: ${orderId}`);
+          console.log(
+            `🕐 Order HELD | PNR: ${data.booking_reference} | Deadline: ${data.payment_status?.payment_required_by || "N/A"}`
+          );
         }
         break;
       }
 
-      // ──────────────────────────────────────────────────
-      // 🔄 ORDER UPDATED → নতুন ticket আসলে Email পাঠাও
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
+      // 🔄 ORDER UPDATED
+      // তোমার MAIN CASE: Admin payment করলে Duffel ticket
+      // issue করে → এই event আসে documents সহ
+      // ═══════════════════════════════════════════════
       case "order.updated": {
         const orderId = data.id;
         const booking = await Booking.findOne({ duffelOrderId: orderId });
 
-        if (!booking) break;
+        if (!booking) {
+          console.warn(`⚠️ No booking found for updated order: ${orderId}`);
+          break;
+        }
 
         const hasTickets = data.documents?.length > 0;
 
-        // যদি আগে email না গিয়ে থাকে এবং এখন ticket আছে
         if (hasTickets && !booking.emailSent) {
+          // 🎯 এটাই তোমার MAIN TRIGGER
+          // Admin dashboard থেকে payment confirm → Duffel ticket issue করে
+          // → এই webhook আসে → Email পাঠাও
+          console.log(`🎯 Ticket detected in order.updated | Sending email...`);
+          await handleTicketIssuance(booking, data);
+        } else if (hasTickets && booking.emailSent) {
+          // Email আগেই গেছে — শুধু documents update করো
           const docs = data.documents.map((doc: any) => ({
-            unique_identifier: doc.unique_identifier,
-            type: doc.type,
-            url: doc.url,
+            unique_identifier: doc.unique_identifier || "",
+            type: doc.type || "",
+            url: doc.url || "",
           }));
 
           await Booking.findByIdAndUpdate(booking._id, {
@@ -205,20 +254,12 @@ export async function POST(req: Request) {
               status: "issued",
               pnr: data.booking_reference || booking.pnr,
               documents: docs,
-              emailSent: true,
               updatedAt: new Date(),
             },
           });
-
-          try {
-            const emailData = buildBookingDataFromOrder(booking, data, docs);
-            await sendTicketIssuedEmail(emailData);
-            console.log(`✅ Ticket email sent (via update) | PNR: ${data.booking_reference}`);
-          } catch (emailErr) {
-            console.error("❌ Email sending failed:", emailErr);
-          }
+          console.log(`ℹ️ Docs updated, email already sent | PNR: ${booking.pnr}`);
         } else {
-          // শুধু DB sync রাখো
+          // Documents নেই — শুধু PNR sync
           await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               pnr: data.booking_reference || booking.pnr,
@@ -229,9 +270,9 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
       // ❌ ORDER CANCELLED
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
       case "order_cancellation.confirmed": {
         const result = await Booking.findOneAndUpdate(
           { duffelOrderId: data.order_id },
@@ -251,9 +292,9 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
       // ⚠️ AIRLINE SCHEDULE CHANGE
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
       case "order.airline_initiated_change_detected": {
         const result = await Booking.findOneAndUpdate(
           { duffelOrderId: data.id },
@@ -267,30 +308,30 @@ export async function POST(req: Request) {
         );
 
         if (result) {
-          console.log(`⚠️ Airline change detected | Order: ${data.id}`);
+          console.log(`⚠️ Airline change | Order: ${data.id}`);
         }
         break;
       }
 
-      // ──────────────────────────────────────────────────
-      // 🏓 PING (Duffel connectivity test)
-      // ──────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════
+      // 🏓 PING
+      // ═══════════════════════════════════════════════
       case "ping": {
-        console.log("🏓 Ping received from Duffel");
+        console.log("🏓 Ping OK");
         break;
       }
 
-      // ──────────────────────────────────────────────────
-      // বাকি সব IGNORE
-      // ──────────────────────────────────────────────────
       default: {
-        console.log(`ℹ️ Ignored event: ${type}`);
+        console.log(`ℹ️ Ignored: ${type}`);
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("🔥 Webhook Error:", error.message);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    console.error("🔥 Webhook Fatal Error:", error.message);
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
