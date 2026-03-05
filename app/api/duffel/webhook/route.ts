@@ -6,6 +6,7 @@ import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { sendTicketIssuedEmail } from '@/app/emails/email';
+import { getShortDateTime } from '../booking/utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -342,13 +343,13 @@ export async function POST(req: Request) {
                         },
                         $push: {
                             adminNotes: createAdminNote(
-                                `Order held. PNR: ${order.booking_reference || 'N/A'}. Payment deadline: ${order.payment_status?.payment_required_by || 'N/A'}`,
+                                `Order held. PNR: ${order.booking_reference || 'N/A'}. Payment deadline: ${getShortDateTime(order.payment_status?.payment_required_by) || 'N/A'}`,
                             ),
                         },
                     });
 
                     console.log(
-                        `🕐 Order held | PNR: ${order.booking_reference} | Deadline: ${order.payment_status?.payment_required_by || 'N/A'}`,
+                        `🕐 Order held | PNR: ${order.booking_reference} | Deadline:${getShortDateTime(order.payment_status?.payment_required_by)}`,
                     );
                 }
                 break;
@@ -462,10 +463,10 @@ export async function POST(req: Request) {
 
                     $push: {
                         adminNotes: createAdminNote(
-                            `✅ Payment Captured | Method: ${booking.clientPayWith}
-   💰 Client Paid: ${booking.pricing.total_amount} ${booking.pricing.currency}
-   💳 Duffel Payment ID: ${booking.payment_id}
-   🆔 Order: ${booking.duffelOrderId} | PNR: ${booking.pnr || 'N/A'}
+                            ` Payment Captured | Method: ${booking.clientPayWith}
+    Client Paid: ${booking.pricing.total_amount} ${booking.pricing.currency}
+   Duffel Payment ID: ${booking.payment_id}
+    Order: ${booking.duffelOrderId} | PNR: ${booking.pnr || 'N/A'}
    🏦 Duffel Balance Used: ${booking.pricing.base_amount}
    ⏳ Status: Waiting for webhook to issue ticket.`,
                         ),
