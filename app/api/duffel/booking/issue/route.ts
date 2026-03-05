@@ -248,8 +248,7 @@ export async function POST(req: Request) {
 
     // Build detailed admin note
     const adminNote = [
-      `✅ Payment Captured`,
-      `──────────────────────`,
+      `✅ Payment Captured - `,
       `Method: ${method === 'stripe' ? '💳 Stripe → Duffel Balance' : '💰 Duffel Balance (Direct)'}`,
       `Amount: ${amountToPay} ${currency}`,
       `Duffel Payment ID: ${payment.id}`,

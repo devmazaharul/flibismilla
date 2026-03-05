@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { Duffel } from "@duffel/api";
 import dbConnect from "@/connection/db";
 import Booking from "@/models/Booking.model";
 import { sendTicketIssuedEmail } from "@/app/emails/email";
@@ -9,10 +10,59 @@ import { sendTicketIssuedEmail } from "@/app/emails/email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const duffel = new Duffel({
+  token: process.env.DUFFEL_ACCESS_TOKEN || "",
+});
+
 // ----------------------------------------------------------------
-// 🛠️ HELPER: Build Email Data
+// 🔒 Verify Duffel Signature
 // ----------------------------------------------------------------
-function buildBookingDataFromOrder(
+function verifySignature(
+  rawBody: string,
+  signature: string,
+  secret: string
+): boolean {
+  const timestampMatch = signature.match(/t=([^,]+)/);
+  const hashMatch = signature.match(/v2=([^,]+)/);
+
+  const timestamp = timestampMatch?.[1]?.trim();
+  const receivedHash = hashMatch?.[1]?.trim();
+
+  if (!timestamp || !receivedHash) return false;
+
+  const signedPayload = `${timestamp}.${rawBody}`;
+  const expectedHash = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload)
+    .digest("hex");
+
+  const receivedBuffer = Buffer.from(receivedHash);
+  const expectedBuffer = Buffer.from(expectedHash);
+
+  if (receivedBuffer.length !== expectedBuffer.length) return false;
+
+  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+// ----------------------------------------------------------------
+// 🔍 Fetch Full Order from Duffel API
+// ----------------------------------------------------------------
+async function fetchOrder(orderId: string): Promise<any | null> {
+  try {
+    const res = await duffel.orders.get(orderId);
+    return res.data;
+  } catch (err: any) {
+    console.error(`❌ Duffel fetch failed [${orderId}]:`, err.message);
+    return null;
+  }
+}
+
+// ----------------------------------------------------------------
+// 🛠️ Build Email Data
+// bookingDoc → DB (contact, passengers)
+// order → Duffel API (slices, documents, PNR)
+// ----------------------------------------------------------------
+function buildEmailData(
   bookingDoc: any,
   order: any,
   documents: { url: string; unique_identifier: string; type: string }[]
@@ -53,48 +103,33 @@ function buildBookingDataFromOrder(
 }
 
 // ----------------------------------------------------------------
-// 🔒 HELPER: Verify Duffel Signature
+// 📧 Ticket Issue + Email Handler
 // ----------------------------------------------------------------
-function verifySignature(
-  rawBody: string,
-  signature: string,
-  secret: string
-): boolean {
-  const timestampMatch = signature.match(/t=([^,]+)/);
-  const hashMatch = signature.match(/v2=([^,]+)/);
-
-  const timestamp = timestampMatch?.[1]?.trim();
-  const receivedHash = hashMatch?.[1]?.trim();
-
-  if (!timestamp || !receivedHash) return false;
-
-  const signedPayload = `${timestamp}.${rawBody}`;
-  const expectedHash = crypto
-    .createHmac("sha256", secret)
-    .update(signedPayload)
-    .digest("hex");
-
-  const receivedBuffer = Buffer.from(receivedHash);
-  const expectedBuffer = Buffer.from(expectedHash);
-
-  if (receivedBuffer.length !== expectedBuffer.length) return false;
-
-  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
-}
-
-// ----------------------------------------------------------------
-// 📧 HELPER: Ticket Issue + Email (Reusable)
-// ----------------------------------------------------------------
-async function handleTicketIssuance(booking: any, orderData: any) {
-  // Fresh DB read — race condition prevent
-  const freshBooking = await Booking.findById(booking._id);
-  if (!freshBooking || freshBooking.emailSent) {
-    console.log(`ℹ️ Already handled or booking gone. Skip.`);
-    return;
+async function handleTicketIssuance(
+  bookingId: string,
+  duffelOrderId: string
+): Promise<boolean> {
+  // 1. Fresh DB read
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    console.log(`ℹ️ Booking gone: ${bookingId}`);
+    return false;
+  }
+  if (booking.emailSent) {
+    console.log(`ℹ️ Email already sent: ${bookingId}`);
+    return true;
   }
 
-  const docs = (orderData.documents || [])
-    .filter((doc: any) => doc.url) // শুধু URL আছে এমন documents
+  // 2. Fetch full order from Duffel
+  const order = await fetchOrder(duffelOrderId);
+  if (!order) {
+    console.error(`❌ Cannot fetch order: ${duffelOrderId}`);
+    return false;
+  }
+
+  // 3. Check documents
+  const docs = (order.documents || [])
+    .filter((doc: any) => doc.url)
     .map((doc: any) => ({
       unique_identifier: doc.unique_identifier || "",
       type: doc.type || "electronic_ticket",
@@ -102,32 +137,42 @@ async function handleTicketIssuance(booking: any, orderData: any) {
     }));
 
   if (docs.length === 0) {
-    console.log(`ℹ️ No documents with URLs yet. Skip email.`);
-    return;
+    console.log(`ℹ️ No documents yet: ${duffelOrderId}`);
+    // PNR sync only
+    await Booking.findByIdAndUpdate(bookingId, {
+      $set: {
+        pnr: order.booking_reference || booking.pnr,
+        updatedAt: new Date(),
+      },
+    });
+    return false;
   }
 
-  // DB update FIRST — emailSent: true BEFORE sending
-  await Booking.findByIdAndUpdate(freshBooking._id, {
+  // 4. DB update FIRST
+  await Booking.findByIdAndUpdate(bookingId, {
     $set: {
       status: "issued",
-      pnr: orderData.booking_reference || freshBooking.pnr,
+      pnr: order.booking_reference || booking.pnr,
       documents: docs,
       emailSent: true,
       updatedAt: new Date(),
     },
   });
 
-  // Send Email
+  // 5. Send Email
   try {
-    const emailData = buildBookingDataFromOrder(freshBooking, orderData, docs);
+    const emailData = buildEmailData(booking, order, docs);
     await sendTicketIssuedEmail(emailData);
-    console.log(`✅ Email sent | PNR: ${orderData.booking_reference}`);
+    console.log(
+      `✅ Email sent | PNR: ${order.booking_reference} | To: ${booking.contact?.email}`
+    );
+    return true;
   } catch (emailErr) {
     console.error("❌ Email failed:", emailErr);
-    // Fail হলে emailSent false → পরে retry possible
-    await Booking.findByIdAndUpdate(freshBooking._id, {
+    await Booking.findByIdAndUpdate(bookingId, {
       $set: { emailSent: false },
     });
+    return false;
   }
 }
 
@@ -141,7 +186,7 @@ export async function POST(req: Request) {
       req.headers.get("x-duffel-signature") ||
       req.headers.get("X-Duffel-Signature");
 
-    // 1️⃣ Signature Verify
+    // Signature Verify
     if (!signature) {
       return NextResponse.json(
         { message: "Missing signature" },
@@ -166,7 +211,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2️⃣ Parse Event
+    // Parse Event
     let event: any;
     try {
       event = JSON.parse(rawBody);
@@ -175,47 +220,69 @@ export async function POST(req: Request) {
     }
 
     const { type, data: rawData } = event;
-    const data = rawData?.object ?? rawData;
 
-    console.log(
-      `🔔 Webhook: ${type} | ID: ${data?.id || data?.order_id || "N/A"} | Key: ${event.idempotency_key || "N/A"}`
-    );
+    // ─── data.object extract ───
+    // Duffel sends: { data: { object: { ... } } }
+    const data = rawData?.object ?? rawData ?? {};
+
+    console.log(`🔔 [${type}] | Raw data keys: ${Object.keys(data).join(", ") || "empty"}`);
 
     await dbConnect();
-
-    // ====================================================
-    // 📌 EVENT HANDLING — Duffel Official Events Only
-    // ====================================================
 
     switch (type) {
       // ══════════════════════════════════════════════════
       // ✅ order.created
-      // Customer বুক করলে — Hold বা Instant Issue
+      //
+      // ACTUAL PAYLOAD:
+      // data.object = { id: "ord_xxx", offer_id: "off_xxx" }
+      //
+      // ❌ slices, documents, booking_reference নেই!
+      // ✅ Duffel API call করে full data আনতে হবে
       // ══════════════════════════════════════════════════
       case "order.created": {
         const orderId = data.id;
-        const booking = await Booking.findOne({ duffelOrderId: orderId });
+        if (!orderId) {
+          console.warn("⚠️ order.created: No order ID in payload");
+          break;
+        }
 
+        // Find booking by duffelOrderId
+        const booking = await Booking.findOne({ duffelOrderId: orderId });
         if (!booking) {
           console.warn(`⚠️ No booking for order: ${orderId}`);
           break;
         }
 
-        const hasTickets = data.documents?.length > 0;
+        // Fetch full order from Duffel API
+        const order = await fetchOrder(orderId);
+        if (!order) {
+          console.error(`❌ Cannot fetch order: ${orderId}`);
+          // Still update what we can
+          await Booking.findByIdAndUpdate(booking._id, {
+            $set: { status: "held", updatedAt: new Date() },
+          });
+          break;
+        }
+
+        const hasTickets =
+          order.documents && order.documents.length > 0;
 
         if (hasTickets) {
-          // Instant issue (rare for hold flow)
-          console.log(`🎫 Instant issue detected | Order: ${orderId}`);
-          await handleTicketIssuance(booking, data);
+          // Instant issue (rare)
+          console.log(`🎫 Instant issue | Order: ${orderId}`);
+          await handleTicketIssuance(
+            booking._id.toString(),
+            orderId
+          );
         } else {
-          // 🕐 Hold Order — তোমার MAIN FLOW
+          // 🕐 Hold Order — MAIN FLOW
           await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               status: "held",
-              pnr: data.booking_reference || booking.pnr,
-              ...(data.payment_status?.payment_required_by && {
+              pnr: order.booking_reference || booking.pnr,
+              ...(order.payment_status?.payment_required_by && {
                 paymentDeadline: new Date(
-                  data.payment_status.payment_required_by
+                  order.payment_status.payment_required_by
                 ),
               }),
               updatedAt: new Date(),
@@ -223,7 +290,7 @@ export async function POST(req: Request) {
           });
 
           console.log(
-            `🕐 HELD | PNR: ${data.booking_reference} | Deadline: ${data.payment_status?.payment_required_by || "N/A"}`
+            `🕐 HELD | PNR: ${order.booking_reference} | Deadline: ${order.payment_status?.payment_required_by || "N/A"}`
           );
         }
         break;
@@ -231,191 +298,281 @@ export async function POST(req: Request) {
 
       // ══════════════════════════════════════════════════
       // ❌ order.creation_failed
-      // Order create fail হলে
+      //
+      // data.object = { id: "ord_xxx" }
       // ══════════════════════════════════════════════════
       case "order.creation_failed": {
         const orderId = data.id || data.order_id;
+        if (!orderId) break;
 
         const result = await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
               status: "failed",
-              adminNotes: `❌ Order creation failed in Duffel.\nReason: ${data.failure_reason || data.message || "Unknown"}`,
+              adminNotes: `❌ Order creation failed.\nReason: ${data?.failure_reason || data?.message || "Unknown"}`,
               updatedAt: new Date(),
             },
           }
         );
 
-        if (result) {
-          console.log(`❌ Order creation failed | ID: ${orderId}`);
-        }
-        break;
-      }
-
-      // ══════════════════════════════════════════════════
-      //
-      // 🎯 এটাই তোমার MAIN TRIGGER!
-      // Admin payment করলে → Duffel ticket issue করে →
-      // এই event আসে documents সহ → Email পাঠাও
-      // ══════════════════════════════════════════════════
-      case "air.order.changed": {
-        const orderId = data.id;
-        const booking = await Booking.findOne({ duffelOrderId: orderId });
-
-        if (!booking) {
-          console.warn(`⚠️ No booking for changed order: ${orderId}`);
-          break;
-        }
-
-        const hasTickets = data.documents?.length > 0;
-
-        if (hasTickets && !booking.emailSent) {
-          // 🎯 TICKET ISSUED! Email পাঠাও
-          console.log(`🎯 Ticket detected in air.order.changed → Sending email...`);
-          await handleTicketIssuance(booking, data);
-        } else if (hasTickets && booking.emailSent) {
-          // Email already sent — শুধু documents refresh
-          const docs = data.documents.map((doc: any) => ({
-            unique_identifier: doc.unique_identifier || "",
-            type: doc.type || "",
-            url: doc.url || "",
-          }));
-
-          await Booking.findByIdAndUpdate(booking._id, {
-            $set: {
-              status: "issued",
-              pnr: data.booking_reference || booking.pnr,
-              documents: docs,
-              updatedAt: new Date(),
-            },
-          });
-
-          console.log(`ℹ️ Docs refreshed, email already sent | PNR: ${booking.pnr}`);
-        } else {
-          // No documents yet — শুধু PNR sync
-          await Booking.findByIdAndUpdate(booking._id, {
-            $set: {
-              pnr: data.booking_reference || booking.pnr,
-              updatedAt: new Date(),
-            },
-          });
-
-          console.log(`ℹ️ Order changed, no docs yet | Order: ${orderId}`);
-        }
+        if (result) console.log(`❌ Order creation failed | ${orderId}`);
         break;
       }
 
       // ══════════════════════════════════════════════════
       // 💰 air.payment.succeeded
-      // Duffel balance থেকে payment successful
+      //
+      // 🎯 MAIN TRIGGER — Admin issue করলে এটা আসে
+      //
+      // ACTUAL PAYLOAD:
+      // data.object = { payment_id: "pay_xxx" }
+      //
+      // ❌ order_id নেই!
+      // ❌ amount নেই!
+      // ❌ currency নেই!
+      //
+      // ✅ payment_id দিয়ে DB-তে booking খুঁজবো
+      // ✅ booking.duffelOrderId দিয়ে full order আনবো
       // ══════════════════════════════════════════════════
       case "air.payment.succeeded": {
-        const orderId = data.order_id;
-        const booking = await Booking.findOne({ duffelOrderId: orderId });
+        const paymentId = data.payment_id || data.id;
 
-        if (!booking) {
-          console.warn(`⚠️ No booking for payment: ${orderId}`);
+        if (!paymentId) {
+          console.warn("⚠️ air.payment.succeeded: No payment_id in payload");
           break;
         }
 
+        console.log(`💰 Payment succeeded | Payment: ${paymentId}`);
+
+        // ─── Find booking by payment_id ───
+        // Issue API-তে payment_id save করা হয়
+        let booking = await Booking.findOne({ payment_id: paymentId });
+
+        // Race condition: Issue API হয়তো এখনো DB update করেনি
+        if (!booking) {
+          console.log(`⏳ Booking not found by payment_id. Waiting 3s...`);
+          await new Promise((r) => setTimeout(r, 3000));
+          booking = await Booking.findOne({ payment_id: paymentId });
+        }
+
+        // Still not found? Try idempotency_key
+        if (!booking && event.idempotency_key) {
+          booking = await Booking.findOne({
+            payment_id: event.idempotency_key,
+          });
+        }
+
+        if (!booking) {
+          console.warn(
+            `⚠️ No booking found for payment: ${paymentId}. Maybe payment was created outside this system.`
+          );
+          break;
+        }
+
+        const duffelOrderId = booking.duffelOrderId;
+
+        if (!duffelOrderId) {
+          console.error(`❌ Booking has no duffelOrderId: ${booking._id}`);
+          break;
+        }
+
+        // Update payment status
         await Booking.findByIdAndUpdate(booking._id, {
           $set: {
             paymentStatus: "captured",
-            payment_id: data.id || booking.payment_id,
-            adminNotes:
-              booking.adminNotes ||
-              `💰 Payment succeeded: ${data.amount || ""} ${data.currency || ""}`,
+            payment_id: paymentId,
             updatedAt: new Date(),
           },
         });
 
-        console.log(
-          `💰 Payment OK | Order: ${orderId} | Amount: ${data.amount || "?"} ${data.currency || ""}`
+        console.log(`💰 Payment captured | Order: ${duffelOrderId}`);
+
+        // ─── Wait for airline to generate ticket ───
+        console.log(`⏳ Waiting 3s for ticket generation...`);
+        await new Promise((r) => setTimeout(r, 3000));
+
+        // Attempt 1
+        const sent1 = await handleTicketIssuance(
+          booking._id.toString(),
+          duffelOrderId
         );
+
+        if (!sent1) {
+          // Docs not ready — wait more
+          console.log(`⏳ Docs not ready. Waiting 5s more...`);
+          await new Promise((r) => setTimeout(r, 5000));
+
+          // Attempt 2
+          const sent2 = await handleTicketIssuance(
+            booking._id.toString(),
+            duffelOrderId
+          );
+
+          if (!sent2) {
+            // Still no docs — log and wait for air.order.changed
+            console.log(
+              `⚠️ Docs still not ready after 8s. Waiting for air.order.changed.`
+            );
+            await Booking.findByIdAndUpdate(booking._id, {
+              $set: {
+                adminNotes: `💰 Payment OK. ⏳ Waiting for ticket from airline.\nPayment: ${paymentId}`,
+              },
+            });
+          }
+        }
         break;
       }
 
       // ══════════════════════════════════════════════════
       // ❌ air.payment.failed
-      // Payment fail হলে
+      //
+      // data.object = { payment_id: "pay_xxx" }
       // ══════════════════════════════════════════════════
       case "air.payment.failed": {
-        const orderId = data.order_id;
+        const paymentId = data.payment_id || data.id;
+        if (!paymentId) break;
 
-        const result = await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
+        // Find by payment_id
+        let booking = await Booking.findOne({ payment_id: paymentId });
+
+        // Retry
+        if (!booking) {
+          await new Promise((r) => setTimeout(r, 2000));
+          booking = await Booking.findOne({ payment_id: paymentId });
+        }
+
+        if (booking) {
+          await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               paymentStatus: "failed",
-              adminNotes: `❌ Payment failed via webhook.\nReason: ${data.failure_reason || data.message || "Unknown"}`,
+              adminNotes: `❌ Payment failed.\nPayment: ${paymentId}\nReason: ${data?.failure_reason || "Unknown"}`,
               updatedAt: new Date(),
             },
-          }
-        );
-
-        if (result) {
-          console.log(`❌ Payment failed | Order: ${orderId}`);
+          });
+          console.log(`❌ Payment failed | Payment: ${paymentId}`);
+        } else {
+          console.warn(`⚠️ No booking for failed payment: ${paymentId}`);
         }
         break;
       }
 
       // ══════════════════════════════════════════════════
       // ⏳ air.payment.pending
-      // Payment processing
       // ══════════════════════════════════════════════════
       case "air.payment.pending": {
-        const orderId = data.order_id;
+        const paymentId = data.payment_id || data.id;
+        if (!paymentId) break;
 
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
+        let booking = await Booking.findOne({ payment_id: paymentId });
+        if (!booking) {
+          await new Promise((r) => setTimeout(r, 2000));
+          booking = await Booking.findOne({ payment_id: paymentId });
+        }
+
+        if (booking) {
+          await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               paymentStatus: "pending",
-              payment_id: data.id,
+              payment_id: paymentId,
               updatedAt: new Date(),
             },
-          }
-        );
-
-        console.log(`⏳ Payment pending | Order: ${orderId}`);
+          });
+          console.log(`⏳ Payment pending | Payment: ${paymentId}`);
+        }
         break;
       }
 
       // ══════════════════════════════════════════════════
       // 🚫 air.payment.cancelled
-      // Payment cancel হলে
       // ══════════════════════════════════════════════════
       case "air.payment.cancelled": {
-        const orderId = data.order_id;
+        const paymentId = data.payment_id || data.id;
+        if (!paymentId) break;
 
-        await Booking.findOneAndUpdate(
-          { duffelOrderId: orderId },
-          {
+        let booking = await Booking.findOne({ payment_id: paymentId });
+        if (!booking) {
+          await new Promise((r) => setTimeout(r, 2000));
+          booking = await Booking.findOne({ payment_id: paymentId });
+        }
+
+        if (booking) {
+          await Booking.findByIdAndUpdate(booking._id, {
             $set: {
               paymentStatus: "failed",
-              adminNotes: `🚫 Payment cancelled via webhook.`,
+              adminNotes: `🚫 Payment cancelled.\nPayment: ${paymentId}`,
               updatedAt: new Date(),
             },
-          }
-        );
+          });
+          console.log(`🚫 Payment cancelled | Payment: ${paymentId}`);
+        }
+        break;
+      }
 
-        console.log(`🚫 Payment cancelled | Order: ${orderId}`);
+      // ══════════════════════════════════════════════════
+      // 🔄 air.order.changed
+      //
+      // FALLBACK — payment.succeeded-এ docs না আসলে এখানে handle
+      //
+      // data.object structure unknown — try multiple fields
+      // ══════════════════════════════════════════════════
+      case "air.order.changed": {
+        const orderId = data.order_id || data.id;
+        if (!orderId) {
+          console.warn("⚠️ air.order.changed: No order ID");
+          break;
+        }
+
+        const booking = await Booking.findOne({ duffelOrderId: orderId });
+        if (!booking) {
+          console.warn(`⚠️ No booking for changed order: ${orderId}`);
+          break;
+        }
+
+        if (!booking.emailSent) {
+          console.log(`🎯 air.order.changed → Attempting issuance...`);
+          await handleTicketIssuance(
+            booking._id.toString(),
+            orderId
+          );
+        } else {
+          // Refresh documents
+          const order = await fetchOrder(orderId);
+          if (order?.documents?.length > 0) {
+            const docs = order.documents.map((doc: any) => ({
+              unique_identifier: doc.unique_identifier || "",
+              type: doc.type || "",
+              url: doc.url || "",
+            }));
+
+            await Booking.findByIdAndUpdate(booking._id, {
+              $set: {
+                documents: docs,
+                pnr: order.booking_reference || booking.pnr,
+                updatedAt: new Date(),
+              },
+            });
+          }
+          console.log(`ℹ️ Order changed, email already sent | PNR: ${booking.pnr}`);
+        }
         break;
       }
 
       // ══════════════════════════════════════════════════
       // 📋 order_cancellation.created
-      // Cancel request submitted
+      //
+      // ACTUAL PAYLOAD:
+      // data.object = { id: "ore_xxx", order_id: "ord_xxx" }
       // ══════════════════════════════════════════════════
       case "order_cancellation.created": {
         const orderId = data.order_id;
+        if (!orderId) break;
 
         await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
-              adminNotes: `📋 Cancellation requested. Waiting for airline confirmation.`,
+              adminNotes: `📋 Cancellation requested. Waiting for airline.`,
               updatedAt: new Date(),
             },
           }
@@ -427,10 +584,16 @@ export async function POST(req: Request) {
 
       // ══════════════════════════════════════════════════
       // ❌ order_cancellation.confirmed
-      // Cancel confirmed by airline
+      //
+      // ACTUAL PAYLOAD:
+      // data.object = { id: "ore_xxx", order_id: "ord_xxx" }
       // ══════════════════════════════════════════════════
       case "order_cancellation.confirmed": {
         const orderId = data.order_id;
+        if (!orderId) break;
+
+        // Fetch full order to get refund details
+        const order = await fetchOrder(orderId);
 
         const result = await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
@@ -438,53 +601,54 @@ export async function POST(req: Request) {
             $set: {
               status: "cancelled",
               paymentStatus: "refunded",
-              adminNotes: `❌ Cancellation confirmed.\nRefund: ${data.refund_amount || 0} ${data.refund_currency || ""}`,
+              adminNotes: `❌ Cancellation confirmed.${order ? `\nRefund Amount: ${order.total_amount || "N/A"} ${order.total_currency || ""}` : ""}`,
               updatedAt: new Date(),
             },
           }
         );
 
-        if (result) {
-          console.log(`❌ Cancel confirmed | Order: ${orderId}`);
-        }
+        if (result) console.log(`❌ Cancel confirmed | Order: ${orderId}`);
         break;
       }
 
       // ══════════════════════════════════════════════════
       // ⚠️ order.airline_initiated_change_detected
-      // Airline schedule/route change
       // ══════════════════════════════════════════════════
       case "order.airline_initiated_change_detected": {
-        const orderId = data.id;
+        const orderId = data.id || data.order_id;
+        if (!orderId) break;
+
+        // Fetch full order for change details
+        const order = await fetchOrder(orderId);
 
         const result = await Booking.findOneAndUpdate(
           { duffelOrderId: orderId },
           {
             $set: {
-              airlineInitiatedChanges: data,
-              adminNotes: `⚠️ ALERT: Airline schedule change detected!\nCheck dashboard immediately.`,
+              airlineInitiatedChanges: order || data,
+              adminNotes: `⚠️ ALERT: Airline schedule change!\nCheck dashboard.`,
               updatedAt: new Date(),
             },
           }
         );
 
-        if (result) {
-          console.log(`⚠️ Airline change | Order: ${orderId}`);
-        }
+        if (result) console.log(`⚠️ Airline change | Order: ${orderId}`);
         break;
       }
 
       // ══════════════════════════════════════════════════
-      // 🏓 ping.triggered ← আগে ভুলে "ping" ছিল
-      // Duffel connectivity test
+      // 🏓 ping.triggered
+      //
+      // ACTUAL PAYLOAD:
+      // data = {} (empty)
       // ══════════════════════════════════════════════════
       case "ping.triggered": {
-        console.log("🏓 Ping OK from Duffel");
+        console.log("🏓 Ping OK");
         break;
       }
 
       // ══════════════════════════════════════════════════
-      // 🔕 Ignored Events (Stays, Assistant, Credits)
+      // 🔕 Ignored
       // ══════════════════════════════════════════════════
       case "air.airline_credit.created":
       case "air.airline_credit.spent":
@@ -493,15 +657,12 @@ export async function POST(req: Request) {
       case "stays.booking.created":
       case "stays.booking.cancelled":
       case "assistant.conversation.updated": {
-        console.log(`🔕 Skipped (not relevant): ${type}`);
+        console.log(`🔕 Skipped: ${type}`);
         break;
       }
 
-      // ══════════════════════════════════════════════════
-      // ❓ Unknown Events
-      // ══════════════════════════════════════════════════
       default: {
-        console.log(`❓ Unknown event: ${type}`);
+        console.log(`❓ Unknown: ${type}`);
       }
     }
 

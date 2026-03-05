@@ -44,3 +44,28 @@ export const decrypt = (text: string): string => {
   decrypted = Buffer.concat([decrypted, decipher.final()]);
   return decrypted.toString();
 };
+
+
+/**
+ * Takes a Date object, timestamp, or date string and returns a short, beautiful format.
+ * Example Output: "Oct 24, 2023, 10:30 AM"
+ */
+export function getShortDateTime(dateInput:Date | number | string): string {
+  // Ensuring the input is a valid Date object
+  const date = new Date(dateInput);
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+
+  // Formatting the date
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',   // e.g., Oct, Jan
+    day: 'numeric',   // e.g., 24, 5
+    year: 'numeric',  // e.g., 2023
+    hour: 'numeric',  // e.g., 10, 2
+    minute: '2-digit',// e.g., 30, 05
+    hour12: true      // 12-hour format with AM/PM
+  }).format(date);
+}
