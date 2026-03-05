@@ -1,774 +1,1086 @@
+// app/(main)/booking/status/page.tsx
+
 'use client';
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Plane,
   Loader2,
-  ArrowRight,
-  AlertCircle,
-  Mail,
-  Hash,
   CheckCircle,
-  Calendar,
+  Copy,
+  ArrowRight,
   Clock,
+  Timer,
+  AlertTriangle,
   User,
+  Baby,
+  Users,
+  Mail,
+  Phone,
+  Calendar,
+  Shield,
+  RefreshCw,
+  ArrowLeftRight,
+  Route,
+  Ticket,
+  CircleCheck,
+  Ban,
+  Luggage,
+  Home,
+  ChevronDown,
+  ChevronUp,
   FileText,
-  ShieldCheck,
-  XCircle,
   Download,
-  MapPin,
-  RotateCcw,
-  Briefcase,
+  ArrowLeft,
+  X,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import axios from 'axios';
-import { format, parseISO } from 'date-fns';
+import { toast } from 'sonner';
 
-// -------------------------
-// TYPES
-// -------------------------
-
-type SearchFormData = {
-  pnr: string;
-  email: string;
-};
-
-type PublicSegment = {
+// ─── Types ───
+interface SegmentData {
   airline: string;
   airlineLogo: string;
   flightNumber: string;
   aircraft: string;
-  origin: string;
-  originCity: string;
-  destination: string;
-  destinationCity: string;
+  origin: { code: string; city: string; terminal: string | null };
+  destination: { code: string; city: string; terminal: string | null };
   departingAt: string;
   arrivingAt: string;
   duration: string;
+  durationFormatted: string;
+  cabin: string;
   baggage: string;
-};
+}
 
-type PublicPassenger = {
+interface LayoverData {
+  airport: string;
+  city: string;
+  duration: string;
+}
+
+interface SliceData {
+  label: string;
+  origin: { code: string; city: string };
+  destination: { code: string; city: string };
+  departingAt: string;
+  arrivingAt: string;
+  totalDuration: string;
+  stops: number;
+  stopsLabel: string;
+  segments: SegmentData[];
+  layovers: LayoverData[];
+}
+
+interface PassengerData {
   fullName: string;
   type: string;
   ticketNumber: string | null;
-};
+  isTicketed: boolean;
+}
 
-type PublicDocument = {
+interface DocumentData {
   type: string;
-  url: string;
-};
+  url: string | null;
+  identifier: string;
+}
 
-type PublicBooking = {
+interface BookingResult {
   pnr: string;
-  bookingRef: string;
+  bookingReference: string;
   status: string;
+  tripType: string;
+  contact: { email: string; phone: string };
+  slices: SliceData[];
+  passengers: PassengerData[];
+  documents: DocumentData[];
+  conditions: {
+    isRefundable: boolean;
+    isChangeable: boolean;
+    refundPenalty: string | null;
+    refundCurrency: string | null;
+    changePenalty: string | null;
+    changeCurrency: string | null;
+  };
+  paymentDeadline: string | null;
   bookedAt: string;
-  tripType: 'one_way' | 'round_trip' | 'multi_city';
-  segments: PublicSegment[];
-  passengers: PublicPassenger[];
-  documents: PublicDocument[];
-  isRefundable: boolean;
-  isChangeable: boolean;
+}
+
+// ─── Helpers ───
+function formatTime(d: string): string {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatDate(d: string): string {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatDuration(iso: string): string {
+  if (!iso) return '';
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!match) return iso;
+  const h = match[1] ? `${match[1]}h` : '';
+  const m = match[2] ? `${match[2]}m` : '';
+  return `${h} ${m}`.trim();
+}
+
+const statusConfig: Record<
+  string,
+  { label: string; color: string; bg: string; border: string; icon: any }
+> = {
+  issued: {
+    label: 'Ticket Issued',
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    icon: CheckCircle,
+  },
+  held: {
+    label: 'On Hold',
+    color: 'text-blue-700',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    icon: Timer,
+  },
+  confirmed: {
+    label: 'Confirmed',
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    icon: CheckCircle,
+  },
+  processing: {
+    label: 'Processing',
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    icon: Loader2,
+  },
+  cancelled: {
+    label: 'Cancelled',
+    color: 'text-red-700',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    icon: Ban,
+  },
 };
 
-// -------------------------
-// HELPERS
-// -------------------------
-
-const formatDuration = (isoDuration: string) => {
-  if (!isoDuration) return '';
-  const hMatch = isoDuration.match(/(\d+)H/);
-  const mMatch = isoDuration.match(/(\d+)M/);
-  const h = hMatch ? `${hMatch[1]}h` : '';
-  const m = mMatch ? `${mMatch[1]}m` : '';
-  return [h, m].filter(Boolean).join(' ') || isoDuration;
+const tripConfig: Record<
+  string,
+  { label: string; icon: any; color: string; bg: string; border: string }
+> = {
+  one_way: {
+    label: 'One Way',
+    icon: ArrowRight,
+    color: 'text-sky-700',
+    bg: 'bg-sky-50',
+    border: 'border-sky-200',
+  },
+  round_trip: {
+    label: 'Round Trip',
+    icon: ArrowLeftRight,
+    color: 'text-violet-700',
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+  },
+  multi_city: {
+    label: 'Multi City',
+    icon: Route,
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+  },
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const map: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
-    issued: {
-      label: 'Issued',
-      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      icon: <CheckCircle size={10} className="text-emerald-500" />,
-    },
-    held: {
-      label: 'On Hold',
-      className: 'bg-amber-50 text-amber-700 border-amber-200',
-      icon: <Clock size={10} className="text-amber-500" />,
-    },
-    cancelled: {
-      label: 'Cancelled',
-      className: 'bg-gray-100 text-gray-600 border-gray-200',
-      icon: <XCircle size={10} className="text-gray-500" />,
-    },
-    expired: {
-      label: 'Expired',
-      className: 'bg-rose-50 text-rose-700 border-rose-200',
-      icon: <AlertCircle size={10} className="text-rose-500" />,
-    },
-    processing: {
-      label: 'Processing',
-      className: 'bg-blue-50 text-blue-700 border-blue-200',
-      icon: <Loader2 size={10} className="text-blue-500 animate-spin" />,
-    },
-  };
+// ─── Countdown ───
+function useCountdown(deadline: string | null) {
+  const [timeLeft, setTimeLeft] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
 
-  const data = map[status] || {
-    label: status,
-    className: 'bg-gray-50 text-gray-700 border-gray-200',
-    icon: <span className="h-1.5 w-1.5 rounded-full bg-current" />,
-  };
+  useEffect(() => {
+    if (!deadline) return;
+    const tick = () => {
+      const diff = new Date(deadline).getTime() - Date.now();
+      if (diff <= 0) {
+        setIsExpired(true);
+        setTimeLeft('Expired');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [deadline]);
+
+  return { timeLeft, isExpired };
+}
+
+// ─── Download Helper ───
+async function downloadTicket(url: string, filename: string) {
+  try {
+    toast.loading('Downloading ticket...', { id: 'download' });
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+    toast.success('Ticket downloaded!', { id: 'download' });
+  } catch {
+    toast.error('Download failed. Try opening the link directly.', {
+      id: 'download',
+    });
+    window.open(url, '_blank');
+  }
+}
+
+// ─── Segment Card ───
+function SegmentCard({ seg }: { seg: SegmentData }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        {seg.airlineLogo ? (
+          <img
+            src={seg.airlineLogo}
+            alt={seg.airline}
+            className="w-9 h-9 rounded-lg object-contain bg-gray-50 p-1 border border-gray-100"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+            <Plane className="w-4 h-4 text-gray-400" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-bold text-gray-900">
+              {seg.flightNumber}
+            </span>
+            <span className="text-[10px] text-gray-300">•</span>
+            <span className="text-xs text-gray-500 truncate">
+              {seg.airline}
+            </span>
+          </div>
+          {seg.aircraft && (
+            <p className="text-[10px] text-gray-400 mt-0.5">{seg.aircraft}</p>
+          )}
+        </div>
+        {seg.cabin && (
+          <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100 flex-shrink-0">
+            {seg.cabin}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-center flex-1">
+          <p className="text-xl font-black text-gray-900">
+            {seg.origin.code}
+          </p>
+          <p className="text-[10px] text-gray-400 truncate">
+            {seg.origin.city}
+          </p>
+          {seg.origin.terminal && (
+            <p className="text-[9px] text-gray-300 mt-0.5">
+              T{seg.origin.terminal}
+            </p>
+          )}
+          <p className="text-xs font-bold text-gray-700 mt-1">
+            {formatTime(seg.departingAt)}
+          </p>
+          <p className="text-[10px] text-gray-400">
+            {formatDate(seg.departingAt)}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-center gap-1 px-2 flex-shrink-0">
+          <p className="text-[10px] font-bold text-gray-400">
+            {seg.durationFormatted || formatDuration(seg.duration)}
+          </p>
+          <div className="flex items-center gap-0.5">
+            <div className="w-1.5 h-1.5 rounded-full border-2 border-rose-400 bg-white" />
+            <div className="w-14 h-[2px] bg-gradient-to-r from-rose-300 to-rose-400 rounded-full relative">
+              <Plane className="w-3 h-3 text-rose-500 absolute -top-[5px] left-1/2 -translate-x-1/2" />
+            </div>
+            <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+          </div>
+          <p className="text-[9px] text-gray-300">DIRECT</p>
+        </div>
+
+        <div className="text-center flex-1">
+          <p className="text-xl font-black text-gray-900">
+            {seg.destination.code}
+          </p>
+          <p className="text-[10px] text-gray-400 truncate">
+            {seg.destination.city}
+          </p>
+          {seg.destination.terminal && (
+            <p className="text-[9px] text-gray-300 mt-0.5">
+              T{seg.destination.terminal}
+            </p>
+          )}
+          <p className="text-xs font-bold text-gray-700 mt-1">
+            {formatTime(seg.arrivingAt)}
+          </p>
+          <p className="text-[10px] text-gray-400">
+            {formatDate(seg.arrivingAt)}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+        <Luggage className="w-3.5 h-3.5 text-gray-400" />
+        <span className="text-[11px] text-gray-500">{seg.baggage}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slice Section ───
+function SliceSection({ slice }: { slice: SliceData }) {
+  const [expanded, setExpanded] = useState(true);
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide ${data.className}`}
-    >
-      {data.icon}
-      {data.label}
-    </span>
+    <div className="rounded-2xl border border-gray-100 bg-gray-50/50 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center shadow-2xl shadow-gray-100">
+            <Plane className="w-4 h-4 text-rose-500" />
+          </div>
+          <div className="text-left">
+            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-[0.15em]">
+              {slice.label}
+            </p>
+            <p className="text-sm font-bold text-gray-900">
+              {slice.origin.city} → {slice.destination.city}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-gray-700">
+              {slice.totalDuration}
+            </p>
+            <p className="text-[10px] text-gray-400">{slice.stopsLabel}</p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-2">
+          {slice.segments.map((seg, i) => (
+            <div key={i}>
+              <SegmentCard seg={seg} />
+              {slice.layovers[i] && (
+                <div className="flex items-center justify-center gap-2 py-2">
+                  <div className="h-[1px] flex-1 bg-amber-200" />
+                  <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                    <Clock className="w-3 h-3 text-amber-500" />
+                    <span className="text-[10px] font-bold text-amber-700">
+                      {slice.layovers[i].duration} layover in{' '}
+                      {slice.layovers[i].city} ({slice.layovers[i].airport})
+                    </span>
+                  </div>
+                  <div className="h-[1px] flex-1 bg-amber-200" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
-};
+}
 
-const TripTypePill = ({ type }: { type: PublicBooking['tripType'] }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
-    <Plane size={10} />
-    {type ? type.split('_').join(' ') : 'one way'}
-  </span>
-);
+// ═══════════════════════════════════════
+// ─── MAIN PAGE ───
+// ═══════════════════════════════════════
+export default function BookingStatusPage() {
+  const [pnr, setPnr] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<BookingResult | null>(null);
+  const [error, setError] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-// -------------------------
-// MAIN PAGE
-// -------------------------
+  const { timeLeft, isExpired } = useCountdown(
+    result?.paymentDeadline || null
+  );
 
-export default function CheckBookingPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<PublicBooking | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SearchFormData>();
-
-  const onSubmit = async (data: SearchFormData) => {
-    setIsLoading(true);
-    setHasSearched(true);
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
     setResult(null);
 
+    if (!pnr.trim() || !email.trim()) {
+      setError('Please enter both PNR and Email.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await axios.post('/api/public/status-booking', {
-        pnr: data.pnr.toUpperCase(),
-        email: data.email,
+        pnr: pnr.trim(),
+        email: email.trim(),
       });
-
       if (res.data.success) {
-        setResult(res.data.data as PublicBooking);
-        toast.success('Booking found');
+        setResult(res.data.data);
+        // Scroll to results after short delay
+        setTimeout(() => {
+          resultRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        }, 100);
+      } else {
+        setError(res.data.message || 'Booking not found.');
       }
-    } catch (error: any) {
-      console.error(error);
-      const msg =
-        error.response?.data?.message ||
-        'Something went wrong. Please try again.';
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Something went wrong.';
+      setError(msg);
       toast.error(msg);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
+  };
+
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    toast.success('Copied!');
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleNewSearch = () => {
     setResult(null);
-    setHasSearched(false);
+    setError('');
+    setPnr('');
+    setEmail('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const mainRoute = (() => {
-    if (!result || !result.segments?.length) return null;
-    const first = result.segments[0];
-    const last = result.segments[result.segments.length - 1];
-    return {
-      from: `${first.originCity} (${first.origin})`,
-      to: `${last.destinationCity} (${last.destination})`,
-    };
-  })();
-
-  const firstDeparture = result?.segments?.[0]
-    ? parseISO(result.segments[0].departingAt)
+  const sInfo = result
+    ? statusConfig[result.status] || statusConfig.processing
+    : null;
+  const tInfo = result
+    ? tripConfig[result.tripType] || tripConfig.one_way
     : null;
 
+  const adultCount =
+    result?.passengers.filter((p) => p.type === 'adult').length || 0;
+  const childCount =
+    result?.passengers.filter((p) => p.type === 'child').length || 0;
+  const infantCount =
+    result?.passengers.filter((p) => p.type === 'infant_without_seat')
+      .length || 0;
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-rose-50/50 via-slate-50 to-sky-50/50 px-4 py-10 sm:px-6 lg:px-8">
-      {/* Background accents */}
+    <div className="min-h-screen bg-[#f8faf9] relative overflow-hidden">
+      {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-rose-200/30 blur-3xl" />
-        <div className="absolute bottom-[-140px] right-[-100px] h-96 w-96 rounded-full bg-sky-200/25 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-rose-100/20 blur-3xl" />
-        <div className="absolute inset-x-0 top-0 h-60 bg-gradient-to-b from-rose-100/30 via-transparent to-transparent" />
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-gradient-to-br from-rose-100/40 via-pink-50/30 to-transparent rounded-full blur-[100px]" />
+        <div className="absolute -bottom-40 -right-32 w-[400px] h-[400px] bg-gradient-to-br from-rose-100/30 via-orange-50/20 to-transparent rounded-full blur-[100px]" />
+        <div
+          className="absolute inset-0 opacity-[0.2]"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, rgb(244 63 94 / 0.03) 1px, transparent 0)',
+            backgroundSize: '40px 40px',
+          }}
+        />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-5xl">
-        {/* Heading */}
-        <motion.div
-          className="mb-8 max-w-xl text-center mx-auto space-y-3"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-rose-100 px-4 py-1.5 text-[11px] font-semibold text-rose-600 shadow-sm backdrop-blur-sm mb-2">
-            <Search size={12} />
-            Booking Lookup
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Find your flight booking
-          </h1>
-          <p className="max-w-md text-sm mx-auto text-slate-500 leading-relaxed">
-            Use your 6‑character PNR and the email used during booking to view
-            ticket status, passengers, and your flight itinerary.
-          </p>
-        </motion.div>
+      <div className="relative z-10 max-w-2xl mx-auto px-4 py-10 sm:py-16 space-y-6">
+        {/* ═══════════════════════════════
+            SEARCH FORM — Hidden when result exists
+        ═══════════════════════════════ */}
+        {!result && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl shadow-gray-200/40 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="h-1.5 bg-gradient-to-r from-rose-400 via-rose-500 to-pink-500 rounded-t-3xl" />
 
-        {/* Main card */}
-        <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.08 }}
-          className="max-w-xl mx-auto rounded-3xl border border-slate-200/80 bg-white/95 px-5 py-6 shadow-[0_20px_50px_rgba(15,23,42,0.1)] backdrop-blur-sm sm:px-7 sm:py-8 relative overflow-hidden"
-        >
-          {/* Card accent */}
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-400 via-rose-300 to-rose-400 opacity-80" />
-
-          {/* ---- FORM VIEW ---- */}
-          {!result && (
-            <>
-              <div className="mb-6">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center">
-                    <Plane className="w-4 h-4 text-rose-500" />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Retrieve your booking
-                  </h2>
+            <div className="px-6 sm:px-8 pt-8 pb-7">
+              {/* Header */}
+              <div className="text-center mb-7">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-200/50">
+                  <Search className="w-6 h-6 text-white" />
                 </div>
-                <p className="mt-1 text-xs text-slate-500 pl-[42px]">
-                  Enter the details exactly as they appear in your confirmation
-                  email.
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                  Check Booking Status
+                </h1>
+                <p className="text-sm text-gray-400 mt-1">
+                  Enter your PNR and email to view your booking
                 </p>
               </div>
 
-              <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                {/* PNR */}
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <label
-                      htmlFor="pnr"
-                      className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700"
-                    >
-                      <Hash className="w-3 h-3 text-rose-400" />
-                      Booking Reference (PNR)
+              {/* Form */}
+              <form onSubmit={handleSearch} className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] uppercase font-bold text-gray-500 tracking-wider mb-1.5 block">
+                      Airline PNR / Booking Code
                     </label>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      6 characters
-                    </span>
-                  </div>
-                  <div className="mt-2 relative group">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                      <Hash className="h-4 w-4 text-slate-300 group-focus-within:text-rose-400 transition-colors" />
-                    </div>
-                    <input
-                      id="pnr"
-                      type="text"
-                      placeholder="e.g. 4SFMSP"
-                      maxLength={6}
-                      className={`
-                        block w-full rounded-2xl border bg-slate-50/50
-                        py-3.5 pl-10 pr-10
-                        text-sm font-mono tracking-[0.25em] uppercase
-                        text-slate-900 placeholder:text-slate-300
-                        outline-none transition-all duration-200
-                        focus:bg-white focus:border-rose-300 focus:ring-2 focus:ring-rose-100
-                        ${errors.pnr ? 'border-rose-300 bg-rose-50/50 ring-2 ring-rose-100' : 'border-slate-200'}
-                      `}
-                      {...register('pnr', {
-                        required: 'PNR is required',
-                        minLength: { value: 6, message: 'PNR must be 6 characters' },
-                        maxLength: { value: 6, message: 'PNR must be 6 characters' },
-                      })}
-                    />
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
-                      {errors.pnr && <AlertCircle className="h-4 w-4 text-rose-400" />}
+                    <div className="relative">
+                      <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={pnr}
+                        onChange={(e) => setPnr(e.target.value.toUpperCase())}
+                        placeholder="e.g. XJ4K2L"
+                        maxLength={8}
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-mono font-bold text-gray-900 placeholder:text-gray-300 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 transition-all tracking-widest uppercase"
+                      />
                     </div>
                   </div>
-                  <AnimatePresence>
-                    {errors.pnr && (
-                      <motion.p
-                        className="mt-1.5 text-[11px] text-rose-500 font-medium flex items-center gap-1 pl-1"
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                      >
-                        <AlertCircle size={10} />
-                        {errors.pnr.message}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
 
-                {/* Email */}
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700"
-                  >
-                    <Mail className="w-3 h-3 text-rose-400" />
-                    Email Address
-                  </label>
-                  <div className="mt-2 relative group">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                      <Mail className="h-4 w-4 text-slate-300 group-focus-within:text-rose-400 transition-colors" />
-                    </div>
-                    <input
-                      id="email"
-                      type="email"
-                      placeholder="passenger@example.com"
-                      className={`
-                        block w-full rounded-2xl border bg-slate-50/50
-                        py-3.5 pl-10 pr-10
-                        text-sm text-slate-900 placeholder:text-slate-300
-                        outline-none transition-all duration-200
-                        focus:bg-white focus:border-rose-300 focus:ring-2 focus:ring-rose-100
-                        ${errors.email ? 'border-rose-300 bg-rose-50/50 ring-2 ring-rose-100' : 'border-slate-200'}
-                      `}
-                      {...register('email', {
-                        required: 'Email is required',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address',
-                        },
-                      })}
-                    />
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
-                      {errors.email && <AlertCircle className="h-4 w-4 text-rose-400" />}
+                  <div>
+                    <label className="text-[11px] uppercase font-bold text-gray-500 tracking-wider mb-1.5 block">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 transition-all"
+                      />
                     </div>
                   </div>
-                  <AnimatePresence>
-                    {errors.email && (
-                      <motion.p
-                        className="mt-1.5 text-[11px] text-rose-500 font-medium flex items-center gap-1 pl-1"
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                      >
-                        <AlertCircle size={10} />
-                        {errors.email.message}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
                 </div>
 
-                {/* Submit */}
-                <div className="pt-3">
-                  <motion.button
-                    type="submit"
-                    whileTap={{ scale: 0.97 }}
-                    disabled={isLoading}
-                    className="
-                      relative flex w-full cursor-pointer items-center justify-center gap-2.5
-                      rounded-2xl bg-rose-500 hover:bg-rose-600
-                      py-3.5 text-sm font-semibold text-white
-                      shadow-lg shadow-rose-200/60
-                      transition-all duration-200
-                      focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2
-                      disabled:cursor-not-allowed disabled:opacity-70
-                      overflow-hidden group/btn
-                    "
-                  >
-                    {/* Shimmer effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                {/* Error */}
+                {error && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-700 font-medium">{error}</p>
+                  </div>
+                )}
 
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Finding your booking…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4" />
-                        <span>Find My Booking</span>
-                        <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-0.5 transition-transform" />
-                      </>
-                    )}
-                  </motion.button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white py-4 text-sm font-bold shadow-lg shadow-rose-200/50 hover:from-rose-600 hover:to-pink-600 hover:shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Find My Booking
+                    </>
+                  )}
+                </button>
               </form>
+            </div>
+          </div>
+        )}
 
-              {/* Helper */}
-              <div className="mt-6 space-y-3">
-                <div className="flex items-start gap-2 text-[11px] text-slate-500 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                  <CheckCircle size={13} className="text-emerald-500 mt-0.5 shrink-0" />
-                  <span className="leading-relaxed">
-                    Your PNR (booking reference) is a 6‑character code found in your
-                    confirmation email — look for something like <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700 text-[10px]">4SFMSP</code>.
+        {/* ═══════════════════════════════
+            RESULTS — Show when result exists
+        ═══════════════════════════════ */}
+        {result && sInfo && tInfo && (
+          <div
+            ref={resultRef}
+            className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            {/* ── Back Button ── */}
+            <button
+              onClick={handleNewSearch}
+              className="group flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Back to Search
+            </button>
+
+            {/* ── Header Card ── */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/30 overflow-hidden">
+              <div
+                className={`h-1.5 ${
+                  result.status === 'cancelled'
+                    ? 'bg-red-400'
+                    : result.status === 'held'
+                    ? 'bg-blue-400'
+                    : 'bg-gradient-to-r from-rose-400 to-pink-400'
+                }`}
+              />
+
+              <div className="px-6 sm:px-8 py-6">
+                {/* Badges */}
+                <div className="flex items-center gap-2 flex-wrap mb-4">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full ${sInfo.bg} border ${sInfo.border} px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] ${sInfo.color}`}
+                  >
+                    <sInfo.icon className="w-3 h-3" />
+                    {sInfo.label}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full ${tInfo.bg} border ${tInfo.border} px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] ${tInfo.color}`}
+                  >
+                    <tInfo.icon className="w-3 h-3" />
+                    {tInfo.label}
                   </span>
                 </div>
 
-                <AnimatePresence>
-                  {hasSearched && !result && !isLoading && (
-                    <motion.div
-                      className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center shrink-0 mt-0.5">
-                          <AlertCircle size={14} className="text-rose-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-rose-800">
-                            No booking found
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-rose-600 leading-relaxed">
-                            Please check that you entered the correct 6‑character
-                            PNR and the same email address used during booking.
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </>
-          )}
-
-          {/* ---- RESULT VIEW ---- */}
-          <AnimatePresence>
-            {result && (
-              <motion.div
-                className="space-y-5"
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 14 }}
-              >
-                {/* Booking header */}
-                <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                      Your Booking
+                {/* PNR + Ref */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-[0.2em] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                      PNR
                     </p>
-                    {mainRoute && (
-                      <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-rose-400" />
-                        {mainRoute.from}
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-                        {mainRoute.to}
-                      </h3>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2">
-                      {firstDeparture && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-100 px-2.5 py-1 text-[11px] font-medium text-rose-700">
-                          <Calendar size={10} />
-                          {format(firstDeparture, 'EEE, dd MMM yyyy')}
-                        </span>
-                      )}
-                      <TripTypePill type={result.tripType} />
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <StatusBadge status={result.status} />
+                    <div className="mt-1.5 flex items-center gap-2.5">
+                      <p className="text-3xl font-mono font-black text-rose-600 tracking-[0.15em]">
+                        {result.pnr}
+                      </p>
                       <button
-                        onClick={handleNewSearch}
-                        className="
-                          flex items-center gap-1.5
-                          rounded-full border border-slate-200 bg-white
-                          px-3 py-1 text-[11px] font-medium text-slate-600
-                          hover:bg-slate-50 hover:border-slate-300
-                          transition-colors cursor-pointer
-                        "
+                        onClick={() => handleCopy(result.pnr, 'pnr')}
+                        className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition-all cursor-pointer ${
+                          copiedField === 'pnr'
+                            ? 'bg-rose-50 border-rose-200 text-rose-600'
+                            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                        }`}
                       >
-                        <RotateCcw size={10} />
-                        New Search
+                        {copiedField === 'pnr' ? (
+                          <CheckCircle className="w-3 h-3" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        {copiedField === 'pnr' ? 'Copied' : 'Copy'}
                       </button>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[10px] text-slate-700 border border-slate-200">
-                        <Hash size={9} /> PNR: {result.pnr}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[10px] text-slate-700 border border-slate-200">
-                        REF: {result.bookingRef}
-                      </span>
+                  </div>
+
+                  <div className="sm:text-right space-y-2">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-[0.2em]">
+                        Booking Ref
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 sm:justify-end">
+                        <span className="text-sm font-mono font-bold text-gray-800 bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
+                          {result.bookingReference}
+                        </span>
+                        <button
+                          onClick={() =>
+                            handleCopy(result.bookingReference, 'ref')
+                          }
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      Booked: {format(new Date(result.bookedAt), 'dd MMM yyyy, hh:mm a')}
+                    {result.bookedAt && (
+                      <p className="text-[10px] text-gray-400 flex items-center gap-1 sm:justify-end">
+                        <Calendar className="w-3 h-3" />
+                        Booked on {formatDate(result.bookedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Hold Deadline ── */}
+            {result.status === 'held' && result.paymentDeadline && (
+              <div
+                className={`rounded-2xl border p-5 ${
+                  isExpired
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-blue-50 border-blue-200'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      isExpired ? 'bg-red-100' : 'bg-blue-100'
+                    }`}
+                  >
+                    <Timer
+                      className={`w-5 h-5 ${
+                        isExpired ? 'text-red-600' : 'text-blue-600'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className={`text-sm font-bold ${
+                        isExpired ? 'text-red-800' : 'text-blue-800'
+                      }`}
+                    >
+                      {isExpired
+                        ? 'Payment Deadline Expired'
+                        : 'Payment Required'}
+                    </p>
+                    <p
+                      className={`text-[11px] mt-0.5 ${
+                        isExpired ? 'text-red-600' : 'text-blue-600'
+                      }`}
+                    >
+                      {isExpired
+                        ? 'This hold has expired.'
+                        : `Time remaining: ${timeLeft}`}
+                    </p>
+                    <p
+                      className={`text-xs font-mono font-bold mt-2 ${
+                        isExpired ? 'text-red-700' : 'text-blue-700'
+                      }`}
+                    >
+                      Deadline: {formatDate(result.paymentDeadline)},{' '}
+                      {formatTime(result.paymentDeadline)}
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* Flight Segments */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    <div className="w-6 h-6 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center">
-                      <Plane size={11} className="text-rose-500" />
-                    </div>
-                    Flight Itinerary
+            {/* ── Flight Slices ── */}
+            <div className="space-y-3">
+              {result.slices.map((slice, i) => (
+                <SliceSection key={i} slice={slice} />
+              ))}
+            </div>
+
+            {/* ── Passengers ── */}
+            {result.passengers.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-100/50 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-bold text-gray-900">
+                      Passengers
+                    </span>
                   </div>
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                    {result.segments.map((seg, idx) => {
-                      const dep = parseISO(seg.departingAt);
-                      const arr = parseISO(seg.arrivingAt);
-                      return (
-                        <div
-                          key={idx}
-                          className="
-                            relative rounded-2xl border border-slate-200/80 bg-slate-50/60
-                            p-4 hover:border-rose-200 hover:bg-rose-50/20
-                            transition-all duration-200
-                          "
-                        >
-                          {/* Left accent */}
-                          <div className="absolute left-0 top-3 bottom-3 w-1 rounded-full bg-rose-300" />
-
-                          <div className="flex items-start gap-3 pl-2">
-                            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shrink-0">
-                              {seg.airlineLogo ? (
-                                <img
-                                  src={seg.airlineLogo}
-                                  alt={seg.airline}
-                                  className="h-full w-full object-contain p-1"
-                                />
-                              ) : (
-                                <Plane className="w-4 h-4 text-slate-300" />
-                              )}
-                            </div>
-                            <div className="flex-1 space-y-2">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                  <p className="text-sm font-bold text-slate-900">
-                                    {seg.airline}
-                                  </p>
-                                  <p className="text-[11px] text-slate-500 font-medium">
-                                    {seg.flightNumber} · {seg.aircraft}
-                                  </p>
-                                </div>
-                                <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-                                  <Clock size={10} className="inline mr-1" />
-                                  {formatDuration(seg.duration)}
-                                </span>
-                              </div>
-
-                              {/* Times row */}
-                              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 mt-1">
-                                <div>
-                                  <p className="text-base font-black text-slate-900">
-                                    {format(dep, 'hh:mm a')}
-                                  </p>
-                                  <p className="text-[11px] font-medium text-slate-600">
-                                    {seg.originCity} ({seg.origin})
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">
-                                    {format(dep, 'dd MMM yyyy')}
-                                  </p>
-                                </div>
-
-                                <div className="flex flex-col items-center gap-1">
-                                  <div className="w-2 h-2 rounded-full border-2 border-rose-300 bg-white" />
-                                  <div className="h-8 w-[2px] bg-rose-200 rounded-full relative">
-                                    <Plane className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 text-rose-400 rotate-90" />
-                                  </div>
-                                  <div className="w-2 h-2 rounded-full bg-rose-400" />
-                                </div>
-
-                                <div className="text-right">
-                                  <p className="text-base font-black text-slate-900">
-                                    {format(arr, 'hh:mm a')}
-                                  </p>
-                                  <p className="text-[11px] font-medium text-slate-600">
-                                    {seg.destinationCity} ({seg.destination})
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">
-                                    {format(arr, 'dd MMM')}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200">
-                                  <Briefcase size={9} className="text-slate-400" />
-                                  {seg.baggage}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                    {adultCount > 0 && (
+                      <span className="bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                        {adultCount} Adult{adultCount > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {childCount > 0 && (
+                      <span className="bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                        {childCount} Child{childCount > 1 ? 'ren' : ''}
+                      </span>
+                    )}
+                    {infantCount > 0 && (
+                      <span className="bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                        {infantCount} Infant{infantCount > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Passengers & Policies */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {/* Passengers */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
-                        <User size={11} className="text-slate-500" />
+                <div className="divide-y divide-gray-50">
+                  {result.passengers.map((p, i) => (
+                    <div key={i} className="px-6 py-3.5 flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          p.type === 'infant_without_seat'
+                            ? 'bg-pink-50 border border-pink-100'
+                            : p.type === 'child'
+                            ? 'bg-amber-50 border border-amber-100'
+                            : 'bg-rose-50 border border-rose-100'
+                        }`}
+                      >
+                        {p.type === 'infant_without_seat' ? (
+                          <Baby className="w-4 h-4 text-pink-500" />
+                        ) : (
+                          <User className="w-4 h-4 text-rose-500" />
+                        )}
                       </div>
-                      Passengers
-                    </div>
-                    <div className="space-y-2">
-                      {result.passengers.map((p, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50/60 px-3 py-3 hover:bg-white transition-colors"
-                        >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-[12px] font-bold text-rose-600 shrink-0">
-                            {p.fullName.charAt(0).toUpperCase()}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {p.fullName}
+                        </p>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          {p.type === 'infant_without_seat'
+                            ? 'Infant'
+                            : p.type === 'child'
+                            ? 'Child'
+                            : 'Adult'}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        {p.isTicketed ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono text-gray-500 hidden sm:inline">
+                              {p.ticketNumber}
+                            </span>
+                            <CircleCheck className="w-4 h-4 text-emerald-400" />
                           </div>
-                          <div className="text-xs text-slate-900 space-y-1">
-                            <p className="font-bold text-sm">{p.fullName}</p>
-                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">
-                              {p.type}
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Documents / E-Tickets ── */}
+            {result.documents.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-lg shadow-gray-100/50 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-bold text-gray-900">
+                    Documents & E-Tickets
+                  </span>
+                </div>
+
+                <div className="divide-y divide-gray-50">
+                  {result.documents.map((doc, i) => (
+                    <div
+                      key={i}
+                      className="px-6 py-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center">
+                          <Ticket className="w-5 h-5 text-rose-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            {doc.type === 'electronic_ticket'
+                              ? 'E-Ticket'
+                              : doc.type}
+                          </p>
+                          {doc.identifier && (
+                            <p className="text-[10px] font-mono text-gray-400">
+                              {doc.identifier}
                             </p>
-                            <div>
-                              {p.ticketNumber ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                                  <CheckCircle size={10} />
-                                  {p.ticketNumber}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 border border-slate-200">
-                                  <Clock size={10} />
-                                  Pending issuance
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Policies & Documents */}
-                  <div className="space-y-4">
-                    {/* Policies */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
-                          <ShieldCheck size={11} className="text-slate-500" />
-                        </div>
-                        Fare Conditions
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className={`rounded-xl border px-3 py-2.5 ${
-                          result.isRefundable
-                            ? 'border-emerald-200 bg-emerald-50/60'
-                            : 'border-rose-200 bg-rose-50/60'
-                        }`}>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                            Refund
-                          </p>
-                          <p className={`mt-1 text-xs font-bold ${
-                            result.isRefundable ? 'text-emerald-700' : 'text-rose-700'
-                          }`}>
-                            {result.isRefundable ? '✓ Refundable' : '✕ Non-refundable'}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
-                            {result.isRefundable
-                              ? 'Cancellation may incur airline fees.'
-                              : 'Ticket value cannot be refunded.'}
-                          </p>
-                        </div>
-                        <div className={`rounded-xl border px-3 py-2.5 ${
-                          result.isChangeable
-                            ? 'border-emerald-200 bg-emerald-50/60'
-                            : 'border-rose-200 bg-rose-50/60'
-                        }`}>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                            Changes
-                          </p>
-                          <p className={`mt-1 text-xs font-bold ${
-                            result.isChangeable ? 'text-emerald-700' : 'text-rose-700'
-                          }`}>
-                            {result.isChangeable ? '✓ Changeable' : '✕ Non-changeable'}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
-                            {result.isChangeable
-                              ? 'Fare difference may apply.'
-                              : 'Dates cannot be changed.'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Documents */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
-                          <FileText size={11} className="text-slate-500" />
-                        </div>
-                        Documents
-                      </div>
-                      {result.documents.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-center">
-                          <FileText size={18} className="text-slate-300 mx-auto mb-1.5" />
-                          <p className="text-[11px] text-slate-500 leading-relaxed">
-                            No documents available yet. Your e‑ticket will appear here once issued.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {result.documents.map((doc, i) => (
-                            <a
-                              key={i}
-                              href={doc.url}
-                              target="_blank"
-                              className="
-                                flex items-center justify-between gap-3
-                                rounded-xl border border-slate-200 bg-white
-                                px-3.5 py-2.5 text-slate-900
-                                hover:border-rose-200 hover:bg-rose-50/30
-                                transition-all duration-200 group/doc
-                              "
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center">
-                                  <FileText size={14} className="text-rose-500" />
-                                </div>
-                                <div>
-                                  <p className="text-[12px] font-semibold">{doc.type}</p>
-                                  <p className="text-[10px] text-slate-400">
-                                    Click to download
-                                  </p>
-                                </div>
-                              </div>
-                              <Download
-                                size={16}
-                                className="text-slate-400 group-hover/doc:text-rose-500 transition-colors"
-                              />
-                            </a>
-                          ))}
-                        </div>
+                      {doc.url && (
+                        <button
+                          onClick={() =>
+                            downloadTicket(
+                              doc.url!,
+                              `ticket-${doc.identifier || result.pnr}.pdf`
+                            )
+                          }
+                          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white px-4 py-2.5 text-[11px] font-bold shadow-md shadow-rose-200/40 hover:from-rose-600 hover:to-pink-600 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
 
-        {/* Footer note */}
-        <p className="text-center text-[11px] text-slate-400 mt-5">
-          Need help?{' '}
-          <a href="/contact" className="text-rose-500 hover:text-rose-600 font-medium underline underline-offset-2">
-            Contact our support team
-          </a>
-        </p>
+                {/* Download All — if multiple docs */}
+                {result.documents.filter((d) => d.url).length > 1 && (
+                  <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/50">
+                    <button
+                      onClick={() => {
+                        result.documents.forEach((doc, i) => {
+                          if (doc.url) {
+                            setTimeout(() => {
+                              downloadTicket(
+                                doc.url!,
+                                `ticket-${i + 1}-${result.pnr}.pdf`
+                              );
+                            }, i * 500);
+                          }
+                        });
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-rose-200 text-rose-600 py-2.5 text-[11px] font-bold hover:bg-rose-50 hover:border-rose-300 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download All Tickets
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Conditions ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                className={`rounded-2xl border p-4 ${
+                  result.conditions.isRefundable
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <RefreshCw
+                    className={`w-4 h-4 ${
+                      result.conditions.isRefundable
+                        ? 'text-emerald-500'
+                        : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    Refund
+                  </span>
+                </div>
+                <p
+                  className={`text-sm font-bold ${
+                    result.conditions.isRefundable
+                      ? 'text-emerald-700'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {result.conditions.isRefundable
+                    ? 'Refundable'
+                    : 'Non-refundable'}
+                </p>
+                {result.conditions.isRefundable &&
+                  result.conditions.refundPenalty && (
+                    <p className="text-[10px] text-emerald-600 mt-0.5">
+                      Penalty: {result.conditions.refundCurrency}{' '}
+                      {result.conditions.refundPenalty}
+                    </p>
+                  )}
+              </div>
+
+              <div
+                className={`rounded-2xl border p-4 ${
+                  result.conditions.isChangeable
+                    ? 'bg-sky-50 border-sky-200'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowLeftRight
+                    className={`w-4 h-4 ${
+                      result.conditions.isChangeable
+                        ? 'text-sky-500'
+                        : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    Change
+                  </span>
+                </div>
+                <p
+                  className={`text-sm font-bold ${
+                    result.conditions.isChangeable
+                      ? 'text-sky-700'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {result.conditions.isChangeable
+                    ? 'Changeable'
+                    : 'Non-changeable'}
+                </p>
+                {result.conditions.isChangeable &&
+                  result.conditions.changePenalty && (
+                    <p className="text-[10px] text-sky-600 mt-0.5">
+                      Penalty: {result.conditions.changeCurrency}{' '}
+                      {result.conditions.changePenalty}
+                    </p>
+                  )}
+              </div>
+            </div>
+
+            {/* ── Contact ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-2xl shadow-gray-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-3.5 h-3.5 text-rose-400" />
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-[0.15em]">
+                    Email
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-gray-900 break-all">
+                  {result.contact.email}
+                </p>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-2xl shadow-gray-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone className="w-3.5 h-3.5 text-rose-400" />
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-[0.15em]">
+                    Phone
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-gray-900">
+                  {result.contact.phone}
+                </p>
+              </div>
+            </div>
+
+            {/* ── Action Buttons ── */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleNewSearch}
+                className="flex-1 group flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white py-4 text-sm font-bold shadow-xl shadow-rose-200/40 hover:from-rose-600 hover:to-pink-600 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+              >
+                <Search className="w-4 h-4" />
+                Search Another Booking
+              </button>
+
+              <button
+                onClick={() => (window.location.href = '/')}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white text-gray-600 py-4 text-sm font-semibold shadow-2xl shadow-gray-100 hover:bg-gray-50 hover:border-rose-200 hover:text-rose-600 transition-all duration-300 cursor-pointer"
+              >
+                <Home className="w-4 h-4" />
+                Back to Home
+              </button>
+            </div>
+
+            {/* ── Footer ── */}
+            <div className="text-center pt-2 pb-6">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+                <Shield className="w-3 h-3" />
+                <span>Secured & verified booking</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">
+                Need help?{' '}
+                <a
+                  href="/contact"
+                  className="text-rose-500 hover:text-rose-600 font-semibold underline underline-offset-2 transition-colors"
+                >
+                  Contact support
+                </a>
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

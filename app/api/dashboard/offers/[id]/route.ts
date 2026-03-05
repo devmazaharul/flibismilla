@@ -31,6 +31,13 @@ export async function GET(
       );
     }
 
+    if (!offer.isActive) {
+      return NextResponse.json(
+        { success: false, message: "Offer is not active" },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ success: true, data: offer });
   } catch (error: any) {
     return NextResponse.json(

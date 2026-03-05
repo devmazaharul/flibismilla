@@ -36,6 +36,13 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
             );
         }
 
+        if (!destination.isActive) {
+            return NextResponse.json(
+                { success: false, message: 'Destination is not active' },
+                { status: 403 },
+            );
+        }
+
         return NextResponse.json({ success: true, data: destination });
     } catch (error: any) {
         return NextResponse.json(

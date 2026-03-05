@@ -1,142 +1,288 @@
+// app/api/public/booking/search/route.ts
+
 import { NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 
-// 1. Duffel Init
 const duffel = new Duffel({ token: process.env.DUFFEL_ACCESS_TOKEN || '' });
+
+// ─── Helpers ───
+function formatDuration(iso: string): string {
+  if (!iso) return '';
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!match) return iso;
+  const h = match[1] ? `${match[1]}h` : '';
+  const m = match[2] ? `${match[2]}m` : '';
+  return `${h} ${m}`.trim();
+}
+
+function detectTripType(slices: any[]): string {
+  if (!slices || slices.length <= 1) return 'one_way';
+  if (slices.length === 2) {
+    const s1Origin = slices[0]?.origin?.iata_code;
+    const s1Dest = slices[0]?.destination?.iata_code;
+    const s2Origin = slices[1]?.origin?.iata_code;
+    const s2Dest = slices[1]?.destination?.iata_code;
+    if (s1Origin === s2Dest && s1Dest === s2Origin) return 'round_trip';
+    return 'multi_city';
+  }
+  return 'multi_city';
+}
+
+function getSliceLabel(tripType: string, index: number, total: number): string {
+  if (tripType === 'round_trip') return index === 0 ? 'Outbound' : 'Return';
+  if (tripType === 'multi_city') return `Flight ${index + 1} of ${total}`;
+  return 'Departure';
+}
+
+function resolveStatus(dbStatus: string, order: any): string {
+  if (dbStatus === 'cancelled') return 'cancelled';
+  if (order.documents?.length > 0) return 'issued';
+  if (order.payment_status?.awaiting_payment || order.payment_status?.payment_required_by) {
+    return 'held';
+  }
+  return dbStatus || 'processing';
+}
+
+function calculateLayover(arrTime: string, depTime: string): string {
+  if (!arrTime || !depTime) return '';
+  const diff = new Date(depTime).getTime() - new Date(arrTime).getTime();
+  if (diff <= 0) return '';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
 
 export async function POST(req: Request) {
   try {
-    // 🟢 1. Input Parsing & Validation
     const body = await req.json();
     const { pnr, email } = body;
 
-    // Validation: Check if fields exist
+    // ─── Validation ───
     if (!pnr || !email) {
       return NextResponse.json(
-        { success: false, message: "PNR and Email are required." },
+        { success: false, message: 'PNR and Email are required.' },
         { status: 400 }
       );
     }
 
-    // Validation: PNR Length (Standard 6 chars)
-    if (pnr.length !== 6) {
+    const trimmedPnr = pnr.trim().toUpperCase();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (trimmedPnr.length < 5 || trimmedPnr.length > 8) {
       return NextResponse.json(
-        { success: false, message: "Invalid PNR format. Must be 6 characters." },
+        { success: false, message: 'Invalid PNR format.' },
         { status: 400 }
       );
     }
 
-    // Validation: Email Format (Basic Regex)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(trimmedEmail)) {
       return NextResponse.json(
-        { success: false, message: "Invalid email address format." },
+        { success: false, message: 'Invalid email address.' },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    // 🟢 2. Database Search (Secure Match)
-    // PNR এবং Email দুটোই মিলতে হবে। Case Insensitive করার জন্য Regex বা UpperCase ব্যবহার করা হয়েছে।
+    // ─── Find Booking ───
     const booking = await Booking.findOne({
-      pnr: pnr.toUpperCase(),
-      'contact.email': { $regex: new RegExp(`^${email}$`, 'i') } // Case insensitive email check
-    }).lean();
+      pnr: trimmedPnr,
+      'contact.email': { $regex: new RegExp(`^${trimmedEmail}$`, 'i') },
+    }).lean() as any;
 
     if (!booking) {
-      // Security Tip: জেনেরিক এরর মেসেজ দিন যাতে কেউ বুঝতে না পারে কোনটা ভুল ছিল
       return NextResponse.json(
-        { success: false, message: "No booking found with this PNR and Email combination." },
+        { success: false, message: 'No booking found with this PNR and Email.' },
         { status: 404 }
       );
     }
 
-    // 🟢 3. Fetch Fresh Data from Duffel (Real-time Status)
-    // ডাটাবেস আপডেট না থাকলেও যেন ইউজার রিয়েল টাইম স্ট্যাটাস দেখে
-    let airlineData;
-    try {
-      const duffelRes = await duffel.orders.get(booking.duffelOrderId);
-      airlineData = duffelRes.data;
-    } catch (err) {
-      console.error("Duffel Sync Error:", err);
-      // Duffel ফেইল করলে ডাটাবেস থেকে দেখাবে, তবে একটি ফ্ল্যাগ থাকবে
-      // এখানে আমরা সিম্পল রাখার জন্য ডাটাবেস ডাটা ব্যবহার করতে পারি অথবা এরর দিতে পারি
-    }
-
-    if (!airlineData) {
-       return NextResponse.json({ success: false, message: "Unable to retrieve flight details." }, { status: 502 });
-    }
-
-    // 🟢 4. Data Sanitization (Very Important) 🛡️
-    // আমরা ফ্রন্টএন্ডে সব ডাটা পাঠাব না। সেনসিটিভ ডাটা রিমুভ করে "Safe Public Object" বানাব।
-
-    // A. Flight Segments (Only essential info)
-    const safeSegments = airlineData.slices.map((slice: any) => {
-        return slice.segments.map((seg: any) => ({
-            airline: seg.operating_carrier.name,
-            airlineLogo: seg.operating_carrier.logo_symbol_url, // Duffel logo url if available
-            flightNumber: `${seg.operating_carrier.iata_code} ${seg.operating_carrier_flight_number}`,
-            aircraft: seg.aircraft?.name || 'Aircraft',
-            origin: seg.origin.iata_code,
-            originCity: seg.origin.city_name,
-            destination: seg.destination.iata_code,
-            destinationCity: seg.destination.city_name,
-            departingAt: seg.departing_at,
-            arrivingAt: seg.arriving_at,
-            duration: seg.duration,
-           baggage: seg.passengers?.[0]?.baggages?.[0]
-                        ? `${seg.passengers[0].baggages[0].quantity} PC (${seg.passengers[0].baggages[0].quantity * 23} KG)`
-                        : 'Check Airline Rule',
-        }));
-    }).flat();
-
-    // B. Passengers (Hide IDs, show Names)
-    const safePassengers = airlineData.passengers.map((p: any) => ({
-        fullName: `${p.given_name} ${p.family_name}`,
-        type: p.type, // adult, child etc.
-        ticketNumber: airlineData.documents?.find((d:any) => d.passenger_ids.includes(p.id))?.unique_identifier || null
-    }));
-
-    // C. Documents (Only Ticket PDF)
-    const safeDocuments = airlineData.documents?.map((doc: any) => ({
-        type: doc.type,
-        url: doc?.url
-    })) || [];
-
-    // 🟢 5. Final Safe Response
-    const publicResponse = {
-        pnr: booking.pnr,
-        bookingRef: booking.bookingReference,
-        status: booking.status, // issued, held, cancelled
-        bookedAt: booking.createdAt,
-        
-        // Flight Info
-        segments: safeSegments,
-        
-        // People
-        passengers: safePassengers,
-        
-        // Files (Ticket)
-        documents: safeDocuments,
-
-        // Policies (Simple View)
-        isRefundable: airlineData.conditions?.refund_before_departure?.allowed || false,
-        isChangeable: airlineData.conditions?.change_before_departure?.allowed || false,
-        
-    };
-
-    return NextResponse.json({
+    // ─── No Duffel Order ───
+    if (!booking.duffelOrderId) {
+      return NextResponse.json({
         success: true,
-        data: publicResponse
+        data: {
+          pnr: booking.pnr,
+          bookingReference: booking.bookingReference || '',
+          status: booking.status || 'processing',
+          tripType: 'one_way',
+          contact: {
+            email: booking.contact?.email || '',
+            phone: booking.contact?.phone || '',
+          },
+          slices: [],
+          passengers: [],
+          documents: [],
+          conditions: { isRefundable: false, isChangeable: false },
+          paymentDeadline: null,
+          bookedAt: booking.createdAt,
+        },
+      });
+    }
+
+    // ─── Fetch Duffel Order ───
+    let order: any;
+    try {
+      const res = await duffel.orders.get(booking.duffelOrderId);
+      order = res.data;
+    } catch (err: any) {
+      console.error('Duffel fetch error:', err.message);
+      return NextResponse.json(
+        { success: false, message: 'Unable to retrieve flight details from airline.' },
+        { status: 502 }
+      );
+    }
+
+    // ─── Status ───
+    const status = resolveStatus(booking.status, order);
+
+    // ─── Trip Type ───
+    const tripType = detectTripType(order.slices || []);
+
+    // ─── Build Slices ───
+    const slices = (order.slices || []).map((slice: any, sliceIdx: number) => {
+      const segments = (slice.segments || []).map((seg: any, segIdx: number) => {
+        const baggage = seg.passengers?.[0]?.baggages;
+        let baggageText = 'Check airline policy';
+
+        if (baggage && baggage.length > 0) {
+          baggageText = baggage
+            .map((b: any) => {
+              if (b.quantity && b.type === 'checked') {
+                return `${b.quantity} PC (${b.quantity * 23} KG)`;
+              }
+              return `${b.quantity}x ${b.type}`;
+            })
+            .join(', ');
+        }
+
+        return {
+          airline: seg.operating_carrier?.name || seg.marketing_carrier?.name || '',
+          airlineLogo: seg.operating_carrier?.logo_symbol_url || seg.marketing_carrier?.logo_symbol_url || '',
+          flightNumber: `${seg.marketing_carrier?.iata_code || ''}${seg.marketing_carrier_flight_number || ''}`,
+          aircraft: seg.aircraft?.name || '',
+          origin: {
+            code: seg.origin?.iata_code || '',
+            city: seg.origin?.city_name || seg.origin?.name || '',
+            terminal: seg.origin?.terminal || null,
+          },
+          destination: {
+            code: seg.destination?.iata_code || '',
+            city: seg.destination?.city_name || seg.destination?.name || '',
+            terminal: seg.destination?.terminal || null,
+          },
+          departingAt: seg.departing_at || '',
+          arrivingAt: seg.arriving_at || '',
+          duration: seg.duration || '',
+          durationFormatted: formatDuration(seg.duration || ''),
+          cabin: seg.passengers?.[0]?.cabin_class_marketing_name || seg.passengers?.[0]?.cabin_class || '',
+          baggage: baggageText,
+        };
+      });
+
+      // Layovers
+      const layovers: any[] = [];
+      for (let i = 0; i < segments.length - 1; i++) {
+        layovers.push({
+          airport: segments[i].destination.code,
+          city: segments[i].destination.city,
+          duration: calculateLayover(segments[i].arrivingAt, segments[i + 1].departingAt),
+        });
+      }
+
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+
+      // Total duration
+      let totalDuration = '';
+      if (first && last) {
+        const diff = new Date(last.arrivingAt).getTime() - new Date(first.departingAt).getTime();
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        totalDuration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      }
+
+      return {
+        label: getSliceLabel(tripType, sliceIdx, (order.slices || []).length),
+        origin: first?.origin || { code: '', city: '' },
+        destination: last?.destination || { code: '', city: '' },
+        departingAt: first?.departingAt || '',
+        arrivingAt: last?.arrivingAt || '',
+        totalDuration,
+        stops: segments.length - 1,
+        stopsLabel: segments.length === 1 ? 'Direct' : `${segments.length - 1} Stop${segments.length > 2 ? 's' : ''}`,
+        segments,
+        layovers,
+      };
     });
 
+    // ─── Passengers ───
+    const passengers = (order.passengers || []).map((p: any) => {
+      const ticket = order.documents?.find((d: any) => d.passenger_ids?.includes(p.id));
+      return {
+        fullName: [p.given_name, p.family_name].filter(Boolean).join(' '),
+        type: p.type || 'adult',
+        ticketNumber: ticket?.unique_identifier || null,
+        isTicketed: !!ticket,
+      };
+    });
+
+    // ─── Documents ───
+    const documents = (order.documents || []).map((doc: any) => ({
+      type: doc.type || 'electronic_ticket',
+      url: doc.url || null,
+      identifier: doc.unique_identifier || '',
+    }));
+
+    // ─── Conditions ───
+    const conditions = {
+      isRefundable: order.conditions?.refund_before_departure?.allowed || false,
+      isChangeable: order.conditions?.change_before_departure?.allowed || false,
+      refundPenalty: order.conditions?.refund_before_departure?.penalty_amount || null,
+      refundCurrency: order.conditions?.refund_before_departure?.penalty_currency || null,
+      changePenalty: order.conditions?.change_before_departure?.penalty_amount || null,
+      changeCurrency: order.conditions?.change_before_departure?.penalty_currency || null,
+    };
+
+    // ─── Payment Deadline ───
+    const paymentDeadline =
+      status === 'held' ? order.payment_status?.payment_required_by || null : null;
+
+    // ─── Sync if changed ───
+    if (booking.status !== status) {
+      await Booking.findByIdAndUpdate(booking._id, {
+        $set: { status, pnr: order.booking_reference || booking.pnr, updatedAt: new Date() },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        pnr: order.booking_reference || booking.pnr,
+        bookingReference: booking.bookingReference || '',
+        status,
+        tripType,
+        contact: {
+          email: booking.contact?.email || '',
+          phone: booking.contact?.phone || '',
+        },
+        slices,
+        passengers,
+        documents,
+        conditions,
+        paymentDeadline,
+        bookedAt: booking.createdAt,
+      },
+    });
   } catch (error: any) {
-    console.error("Search API Error:", error);
+    console.error('Search API Error:', error.message);
     return NextResponse.json(
-      { success: false, message: "Internal Server Error" },
+      { success: false, message: 'Internal Server Error' },
       { status: 500 }
     );
   }

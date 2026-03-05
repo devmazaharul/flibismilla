@@ -82,6 +82,10 @@ export async function GET(req: Request, { params }: Props) {
       return NextResponse.json({ error: "Package not found" }, { status: 404 });
     }
 
+    if(!singlePackage.isFeatured) {
+      return NextResponse.json({ error: "Package is not published" }, { status: 403 });
+    }
+
     return NextResponse.json({ success: true, data: singlePackage },{ status: 200 });
 
   } catch (error) {
