@@ -410,7 +410,7 @@ export async function POST(req: Request) {
           );
 
           if (!sent2) {
-            // Still no docs — log and wait for air.order.changed
+            // Still no docs — 
             console.log(
               `⚠️ Docs still not ready after 8s. Waiting for air.order.changed.`
             );
