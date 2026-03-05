@@ -350,7 +350,7 @@ const Navbar = () => {
                               <div className="grid grid-cols-3 gap-2">
                                 {/* ✅ Close menu when clicking Dashboard */}
                                 <Link
-                                  href="/admin/dashboard"
+                                  href="/admin"
                                   className="col-span-2"
                                   onClick={closeMobileMenu}
                                 >

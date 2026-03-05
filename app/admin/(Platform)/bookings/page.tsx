@@ -650,7 +650,7 @@ export default function BookingsDashboard() {
           </div>
 
           {/* Quick profit badge */}
-          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/50 px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/50 px-4 py-2.5 shadow-2xl shadow-gray-100">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
               <TrendingUp size={15} />
             </div>

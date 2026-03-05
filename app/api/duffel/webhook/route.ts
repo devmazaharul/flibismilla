@@ -177,16 +177,16 @@ async function handleTicketIssuance(bookingId: string, duffelOrderId: string): P
     // 4. Check if documents (e-tickets) are available
     const rawDocs = (order.documents || []).filter((doc: any) => doc.url);
 
-    if (rawDocs.length === 0) {
-        // Documents not ready yet — sync PNR only
-        console.log(`ℹ️ No documents available yet: ${duffelOrderId}`);
-        await Booking.findByIdAndUpdate(bookingId, {
-            $set: {
-                pnr: order.booking_reference || booking.pnr,
-            },
-        });
-        return false;
-    }
+    // if (rawDocs.length === 0) {
+    //     // Documents not ready yet — sync PNR only
+    //     console.log(`ℹ️ No documents available yet: ${duffelOrderId}`);
+    //     await Booking.findByIdAndUpdate(bookingId, {
+    //         $set: {
+    //             pnr: order.booking_reference || booking.pnr,
+    //         },
+    //     });
+    //     return false;
+    // }
 
     // 5. Map documents for DB storage and email separately
     const dbDocs = mapDocsForDb(rawDocs);
@@ -465,7 +465,7 @@ export async function POST(req: Request) {
                             `✅ Payment Captured | Method: ${booking.clientPayWith}
    💰 Client Paid: ${booking.pricing.total_amount} ${booking.pricing.currency}
    💳 Duffel Payment ID: ${booking.payment_id}
-   🆔 Order: ${booking.duffelOrderId} | PNR: ${booking.duffelOrderId || booking.pnr || 'N/A'}
+   🆔 Order: ${booking.duffelOrderId} | PNR: ${booking.pnr || 'N/A'}
    🏦 Duffel Balance Used: ${booking.pricing.base_amount}
    ⏳ Status: Waiting for webhook to issue ticket.`,
                         ),
