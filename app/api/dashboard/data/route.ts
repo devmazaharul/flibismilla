@@ -1,113 +1,270 @@
-export const dynamic = "force-dynamic"; // always dynamic in production to avoid caching
+// app/api/dashboard/stats/route.ts
 
-import { NextResponse } from "next/server";
-import dbConnect from "@/connection/db";
-import Booking from "@/models/Booking.model";
-import Destination from "@/models/Destination.model";
-import Offer from "@/models/Offer.model";
-import Package from "@/models/Package.model";
+export const dynamic = 'force-dynamic';
 
-export async function GET() {
+import { NextResponse } from 'next/server';
+import dbConnect from '@/connection/db';
+import Booking from '@/models/Booking.model';
+import Destination from '@/models/Destination.model';
+import Offer from '@/models/Offer.model';
+import Package from '@/models/Package.model';
+import { isAdmin } from '@/app/api/lib/auth';
+
+// ================================================================
+// CONSTANTS
+// ================================================================
+
+/**
+ * Server-safe month names.
+ * Avoids toLocaleString() which is locale-dependent
+ * and produces inconsistent results across Node environments.
+ */
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function getMonthName(date: Date): string {
+  return MONTH_NAMES[date.getMonth()];
+}
+
+/**
+ * Generate last N month keys for revenue trend chart.
+ * Returns array of { key: "Mar", year: 2025 } objects
+ * to handle year boundaries correctly.
+ */
+function getLast6Months(): { key: string; year: number }[] {
+  const months: { key: string; year: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    months.push({
+      key: getMonthName(d),
+      year: d.getFullYear(),
+    });
+  }
+  return months;
+}
+
+// ================================================================
+// RATE LIMITER
+// ================================================================
+
+const rateLimitMap = new Map<
+  string,
+  { count: number; startTime: number }
+>();
+
+function isRateLimited(ip: string): boolean {
+  const windowMs = 60 * 1000;
+  const maxRequests = 30; // Dashboard refreshes frequently
+  const now = Date.now();
+  const data = rateLimitMap.get(ip) || {
+    count: 0,
+    startTime: now,
+  };
+
+  if (now - data.startTime > windowMs) {
+    data.count = 1;
+    data.startTime = now;
+  } else {
+    data.count++;
+  }
+
+  rateLimitMap.set(ip, data);
+  return data.count > maxRequests;
+}
+
+// ================================================================
+// GET /api/dashboard/stats
+//
+// Admin-only. Returns aggregated dashboard data:
+// - KPI metrics (revenue, profit, booking counts)
+// - Revenue trend chart (last 6 months)
+// - Category distribution chart
+// - Recent bookings table
+//
+// IMPORTANT: Only counts isLiveMode=true bookings for
+// financial metrics. Test bookings are excluded from
+// revenue, profit, and booking status counts.
+// ================================================================
+
+export async function GET(req: Request) {
+  // ── Auth Check ──
+  const auth = await isAdmin();
+  if (!auth.success) return auth.response;
+
+  // ── Rate Limit ──
+  const ip =
+    req.headers.get('x-forwarded-for') ||
+    req.headers.get('x-real-ip') ||
+    'unknown-ip';
+
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Too many requests',
+      },
+      { status: 429 },
+    );
+  }
+
   try {
     await dbConnect();
 
-    // 1. Fetch all required data in parallel (performance-optimized)
-    const [allBookings, allPackages, totalDestinations, totalOffers] =
-      await Promise.all([
-        // Only select the fields we actually need
-        Booking.find({})
-          .select(
-            "pricing status createdAt contact flightDetails pnr bookingReference"
-          )
-          .sort({ createdAt: -1 })
-          .lean(),
+    // ══════════════════════════════════════════════
+    // PARALLEL DATA FETCH
+    //
+    // Fetch all required data concurrently.
+    // Bookings: select only needed fields for
+    // performance (no passenger/payment data needed).
+    // ══════════════════════════════════════════════
 
-        // Package categories for the category distribution chart
-        Package.find({}).select("category").lean(),
+    const [
+      allBookings,
+      allPackages,
+      totalDestinations,
+      totalOffers,
+    ] = await Promise.all([
+      Booking.find({})
+        .select(
+          'pricing status createdAt contact flightDetails pnr bookingReference isLiveMode',
+        )
+        .sort({ createdAt: -1 })
+        .lean(),
 
-        Destination.countDocuments(),
-        Offer.countDocuments(),
-      ]);
+      Package.find({}).select('category').lean(),
 
-    // ================= AGGREGATION & BUSINESS LOGIC =================
+      Destination.countDocuments(),
+
+      Offer.countDocuments(),
+    ]);
+
+    // ══════════════════════════════════════════════
+    // AGGREGATION & BUSINESS LOGIC
+    // ══════════════════════════════════════════════
 
     const statsCount = {
-      total: allBookings.length,
-      pending: 0, // Held + Processing
-      confirmed: 0, // Issued
-      cancelled: 0, // Cancelled + Failed + Expired
+      total: 0, // Only live bookings
+      pending: 0, // held + processing
+      confirmed: 0, // issued
+      cancelled: 0, // cancelled + failed + expired
     };
 
-    let totalRevenue = 0; // Confirmed (issued) bookings only
-    let totalProfit = 0; // Markup sum
-    let potentialRevenue = 0; // Pending / held bookings
+    // Test booking counter (for admin awareness)
+    let testBookingCount = 0;
 
-    // Track a "base" currency from bookings (assumes most bookings use same currency)
-    let detectedCurrency: string | null = null;
+    let totalRevenue = 0; // Sum of issued booking amounts
+    let totalProfit = 0; // Sum of markup from issued bookings
+    let potentialRevenue = 0; // Sum of pending/held booking amounts
 
-    // --- Revenue Trend: last 6 calendar months ---
-    const last6Months = new Map<string, number>();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const monthName = d.toLocaleString("default", { month: "short" });
-      last6Months.set(monthName, 0);
-    }
+    // Currency tracking — find most common currency
+    const currencyCount = new Map<string, number>();
 
-    // --- Booking Loop: compute all stats ---
+    // Revenue trend: last 6 calendar months
+    const last6Months = getLast6Months();
+    const revenueByMonth = new Map<string, number>();
+    last6Months.forEach((m) => revenueByMonth.set(m.key, 0));
+
+    // Year boundaries for month matching
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    // ── Main Booking Loop ──
     allBookings.forEach((booking: any) => {
-      const amount = Number(booking.pricing?.total_amount) || 0;
-      const markup = Number(booking.pricing?.markup) || 0;
+      const isLive = booking.isLiveMode === true;
+
+      // Count test bookings separately
+      if (!isLive) {
+        testBookingCount++;
+        return; // Skip test bookings from financial calculations
+      }
+
+      const amount =
+        Number(booking.pricing?.total_amount) || 0;
+      const markup =
+        Number(booking.pricing?.markup) || 0;
       const status = booking.status
         ? String(booking.status).toLowerCase()
-        : "processing";
+        : 'processing';
+      const currency = booking.pricing?.currency as
+        | string
+        | undefined;
 
-      const currency = booking.pricing?.currency as string | undefined;
-      if (!detectedCurrency && currency) {
-        detectedCurrency = currency;
+      // Track currency frequency
+      if (currency) {
+        currencyCount.set(
+          currency,
+          (currencyCount.get(currency) || 0) + 1,
+        );
       }
 
       const createdAt = booking.createdAt
         ? new Date(booking.createdAt)
         : new Date();
-      const bookingMonth = createdAt.toLocaleString("default", {
-        month: "short",
-      });
 
-      if (status === "issued") {
-        // Confirmed sale
-        statsCount.confirmed += 1;
+      // Increment total live bookings
+      statsCount.total++;
+
+      if (status === 'issued') {
+        // ── Confirmed Sale ──
+        statsCount.confirmed++;
         totalRevenue += amount;
         totalProfit += markup;
 
-        // Revenue trend chart (issued bookings only)
-        if (last6Months.has(bookingMonth)) {
-          last6Months.set(
-            bookingMonth,
-            (last6Months.get(bookingMonth) || 0) + amount
-          );
+        // Revenue trend (issued bookings within last 6 months)
+        if (createdAt >= sixMonthsAgo) {
+          const monthKey = getMonthName(createdAt);
+          if (revenueByMonth.has(monthKey)) {
+            revenueByMonth.set(
+              monthKey,
+              (revenueByMonth.get(monthKey) || 0) +
+                amount,
+            );
+          }
         }
-      } else if (["cancelled", "failed", "expired"].includes(status)) {
-        // Lost sale
-        statsCount.cancelled += 1;
+      } else if (
+        ['cancelled', 'failed', 'expired'].includes(
+          status,
+        )
+      ) {
+        // ── Lost Sale ──
+        statsCount.cancelled++;
       } else {
-        // Pending / opportunity
-        statsCount.pending += 1;
+        // ── Pending Opportunity (held, processing) ──
+        statsCount.pending++;
         potentialRevenue += amount;
       }
     });
 
-    // Use detected currency if any booking has it; otherwise default
-    const baseCurrency = detectedCurrency || "USD";
+    // ── Determine Primary Currency ──
+    // Use most frequently occurring currency across live bookings
+    let baseCurrency = 'USD';
+    let maxCurrencyCount = 0;
+    currencyCount.forEach((count, currency) => {
+      if (count > maxCurrencyCount) {
+        maxCurrencyCount = count;
+        baseCurrency = currency;
+      }
+    });
 
-    // Revenue Chart Formatting
-    const revenueChartData = Array.from(
-      last6Months,
-      ([name, value]) => ({ name, value })
-    );
+    // ── Revenue Chart Data ──
+    const revenueChartData = last6Months.map((m) => ({
+      name: m.key,
+      value: Number(
+        (revenueByMonth.get(m.key) || 0).toFixed(2),
+      ),
+    }));
 
-    // --- Category Distribution Chart (Package inventory + flights) ---
-    const categoryStats = {
+    // ══════════════════════════════════════════════
+    // CATEGORY DISTRIBUTION CHART
+    // Package inventory + flight bookings sold
+    // ══════════════════════════════════════════════
+
+    const categoryStats: Record<string, number> = {
       hajj: 0,
       umrah: 0,
       holiday: 0,
@@ -116,87 +273,141 @@ export async function GET() {
     };
 
     allPackages.forEach((pkg: any) => {
-      const cat = pkg.category ? String(pkg.category).toLowerCase() : "others";
-      if (cat === "hajj") categoryStats.hajj++;
-      else if (cat === "umrah") categoryStats.umrah++;
-      else if (cat === "holiday") categoryStats.holiday++;
-      else if (cat === "tour" || cat === "islamic tour") categoryStats.tour++;
+      const cat = pkg.category
+        ? String(pkg.category).toLowerCase()
+        : 'others';
+
+      if (cat === 'hajj') categoryStats.hajj++;
+      else if (cat === 'umrah') categoryStats.umrah++;
+      else if (cat === 'holiday')
+        categoryStats.holiday++;
+      else if (
+        cat === 'tour' ||
+        cat === 'islamic tour'
+      )
+        categoryStats.tour++;
       else categoryStats.others++;
     });
 
     const categoryChartData = [
-      { name: "Hajj", value: categoryStats.hajj, color: "#10B981" }, // Green
-      { name: "Umrah", value: categoryStats.umrah, color: "#F59E0B" }, // Amber
-      { name: "Holiday", value: categoryStats.holiday, color: "#EC4899" }, // Pink
-      { name: "Tour", value: categoryStats.tour, color: "#6366F1" }, // Indigo
       {
-        name: "Flight (Sold)",
+        name: 'Hajj',
+        value: categoryStats.hajj,
+        color: '#10B981',
+      },
+      {
+        name: 'Umrah',
+        value: categoryStats.umrah,
+        color: '#F59E0B',
+      },
+      {
+        name: 'Holiday',
+        value: categoryStats.holiday,
+        color: '#EC4899',
+      },
+      {
+        name: 'Tour',
+        value: categoryStats.tour,
+        color: '#6366F1',
+      },
+      {
+        name: 'Flight (Sold)',
         value: statsCount.confirmed,
-        color: "#3B82F6",
-      }, // Blue (comparison)
-    ].filter((item) => item.value > 0); // Do not show zero-value segments
+        color: '#3B82F6',
+      },
+    ].filter((item) => item.value > 0);
 
-    // --- Recent Bookings (Top 8) ---
-    const recentBookings = allBookings.slice(0, 8).map((b: any) => ({
-      id: b._id,
-      customerName: b.contact?.email || "Guest",
-      customerPhone: b.contact?.phone || "N/A",
-      packageTitle: b.flightDetails?.route
-        ? `${b.flightDetails.route} (${b.flightDetails.airline})`
-        : "Flight Booking",
-      price: Number(b.pricing?.total_amount) || 0,
-      currency: b.pricing?.currency || baseCurrency, // <<< expose booking currency here
-      status: b.status,
-      pnr: b.pnr || b.bookingReference,
-      date: new Date(b.createdAt).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    }));
+    // ══════════════════════════════════════════════
+    // RECENT BOOKINGS TABLE (Top 8)
+    //
+    // Shows all bookings (live + test) in recents
+    // but marks test bookings for admin visibility.
+    // ══════════════════════════════════════════════
 
-    // ================= FINAL RESPONSE =================
+    const recentBookings = allBookings
+      .slice(0, 8)
+      .map((b: any) => ({
+        id: b._id,
+        customerName:
+          b.contact?.email || 'Guest',
+        customerPhone:
+          b.contact?.phone || 'N/A',
+        packageTitle: b.flightDetails?.route
+          ? `${b.flightDetails.route} (${b.flightDetails.airline || 'Airline'})`
+          : 'Flight Booking',
+        price:
+          Number(b.pricing?.total_amount) || 0,
+        currency:
+          b.pricing?.currency || baseCurrency,
+        status: b.status,
+        pnr: b.pnr || b.bookingReference,
+        isLiveMode: b.isLiveMode === true,
+        date: b.createdAt
+          ? new Date(b.createdAt).toLocaleDateString(
+              'en-GB',
+              {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              },
+            )
+          : 'N/A',
+      }));
+
+    // ══════════════════════════════════════════════
+    // RESPONSE
+    // ══════════════════════════════════════════════
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          // 1. KPI cards data
+          // KPI Cards
           kpi: {
-            totalRevenue,
-            netProfit: totalProfit,
-            potentialRevenue,
+            totalRevenue: Number(
+              totalRevenue.toFixed(2),
+            ),
+            netProfit: Number(
+              totalProfit.toFixed(2),
+            ),
+            potentialRevenue: Number(
+              potentialRevenue.toFixed(2),
+            ),
             totalBookings: statsCount.total,
             pendingBookings: statsCount.pending,
-            confirmedBookings: statsCount.confirmed,
-            cancelledBookings: statsCount.cancelled,
+            confirmedBookings:
+              statsCount.confirmed,
+            cancelledBookings:
+              statsCount.cancelled,
+            testBookings: testBookingCount,
             activePackages: allPackages.length,
             activeDestinations: totalDestinations,
             activeOffers: totalOffers,
-            currency: baseCurrency, // <<< main currency for dashboard numbers
+            currency: baseCurrency,
           },
 
-          // 2. Charts data
+          // Charts
           charts: {
             revenueTrend: revenueChartData,
-            categoryDistribution: categoryChartData,
+            categoryDistribution:
+              categoryChartData,
           },
 
-          // 3. Recent bookings table
+          // Recent Bookings Table
           recentBookings,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
-    console.error("Dashboard API Error:", error);
+    console.error('Dashboard API Error:', error);
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to load dashboard data",
+        message: 'Failed to load dashboard data',
         error: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

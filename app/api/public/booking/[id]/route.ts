@@ -147,7 +147,7 @@ export async function GET(
 
     // ─── Passengers ───
     const passengers = (order.passengers || []).map((p: any) => ({
-      name: [p.title, p.given_name, p.family_name]
+      name: [ p.given_name, p.family_name]
         .filter(Boolean)
         .join(' '),
       type: p.type || 'adult',

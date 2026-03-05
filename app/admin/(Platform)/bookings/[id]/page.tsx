@@ -49,7 +49,7 @@ import { Button } from "@/components/ui/button";
 import StripeWrapper from "@/app/admin/components/StripeWrapper";
 
 // ==========================================
-// 1. TYPES
+// 1. TYPES — Fixed to match API response
 // ==========================================
 
 interface BaggageDetail {
@@ -112,6 +112,13 @@ interface Segment {
   baggageInfo?: BaggageInfo;
 }
 
+// ─── FIX #1: adminNotes is an array of objects, not a string ───
+interface AdminNote {
+  note: string;
+  addedBy: string;
+  createdAt: string | null;
+}
+
 type BookingStatus =
   | "held"
   | "issued"
@@ -161,35 +168,49 @@ interface BookingData {
     dob: string;
     carryingInfant: string;
   }[];
+  // ─── FIX #2: yourMarkup is number from API (booking.pricing?.markup || 0) ───
   finance: {
     basePrice: string;
     tax: string;
     clientTotal: string;
     currency: string;
-    yourMarkup: string;
+    yourMarkup: number;
     duffelTotal: string;
   };
+  // ─── FIX #3: paymentSource matches API structure (removed cardLast4, added zipCode) ───
   paymentSource?: {
     holderName: string;
     cardNumber: string;
     expiryDate: string;
-    cardLast4?: string;
+    cvv: null;
     billingAddress?: {
       zipCode?: string;
+      [key: string]: any;
     };
-  };
-  documents?: any[];
-  timings?: { deadline: string };
+    zipCode?: string | null;
+    error?: string;
+  } | null;
+  documents?: {
+    unique_identifier: string;
+    type: string;
+    url: string;
+    passenger_ids?: string[];
+    passenger?: { id: string };
+  }[];
+  timings?: { deadline: string | null };
   paymentStatus: PaymentStatus;
-  adminNotes?: string | null;
+  // ─── FIX #4: adminNotes is AdminNote[], not string | null ───
+  adminNotes: AdminNote[];
   tripBaggage?: TripBaggage;
   cancellation?: {
+    id?: string | null;
     cancelled_at: string | null;
     refund_amount: string | null;
     refund_currency: string | null;
     penalty_amount: string | null;
     penalty_currency: string | null;
     refunded_at: string | null;
+    raw?: any;
   } | null;
 }
 
@@ -423,7 +444,6 @@ const SegmentBaggageDisplay = ({
   baggageInfo?: BaggageInfo;
   fallback: string;
 }) => {
-  // Fallback to simple string if no structured data
   if (!baggageInfo || !baggageInfo.details || baggageInfo.details.length === 0) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-sm bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-600 ring-1 ring-violet-200">
@@ -514,7 +534,9 @@ export default function BookingDetailsPage() {
     if (!data) return;
     setRefundLoading(true);
     try {
-      const res = await axios.get(`/api/duffel/booking/${data.id}/refund`);
+      const res = await axios.get(
+        `/api/dashboard/bookings/${data.id}/refund`
+      );
       if (res.data.success) {
         setRefundData(res.data.data);
         toast.success("Refund information updated from airline");
@@ -537,9 +559,10 @@ export default function BookingDetailsPage() {
   const [cvv, setCvv] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // ─── FIX #5: Correct fetch URL to match API route ───
   const fetchBooking = async () => {
     try {
-      const res = await axios.get(`/api/duffel/booking/${id}`);
+      const res = await axios.get(`/api/dashboard/bookings/${id}`);
       if (res.data.success) {
         setData(res.data.data);
       }
@@ -991,7 +1014,6 @@ export default function BookingDetailsPage() {
 
                     {/* ──── Segment Footer with Smart Baggage ──── */}
                     <div className="mt-5 space-y-3 border-t border-dashed border-gray-100 pt-4">
-                      {/* Row 1: Cabin + Route */}
                       <div className="flex flex-wrap gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-sm bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600 ring-1 ring-blue-200">
                           <User className="h-3 w-3" /> {seg.cabinClass}
@@ -1002,16 +1024,12 @@ export default function BookingDetailsPage() {
                           <ArrowRight className="h-3 w-3" />
                           {seg.destinationCity}
                         </span>
-                         <SegmentBaggageDisplay
-                        baggageInfo={seg.baggageInfo}
-                        fallback={seg.baggage}
-                      />
+                        <SegmentBaggageDisplay
+                          baggageInfo={seg.baggageInfo}
+                          fallback={seg.baggage}
+                        />
                       </div>
 
-                      {/* Row 2: Smart Baggage Display */}
-                     
-
-                      {/* Row 3: Weight summary (if structured data exists) */}
                       {seg.baggageInfo &&
                         seg.baggageInfo.totalWeight > 0 && (
                           <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
@@ -1124,7 +1142,6 @@ export default function BookingDetailsPage() {
                       })}
                     </div>
 
-                    {/* Trip baggage footer info */}
                     <div className="mt-4 flex items-center gap-1.5 text-[10px] text-gray-400">
                       <Info className="h-3 w-3" />
                       <span>
@@ -1513,8 +1530,9 @@ export default function BookingDetailsPage() {
                   </div>
                   <div className="flex justify-between text-[12px]">
                     <span className="text-gray-500">Taxes & Markup</span>
+                    {/* FIX #6: yourMarkup is number, convert to string for display */}
                     <span className="font-medium text-gray-700 tabular-nums">
-                      {data.finance.currency} {data.finance.yourMarkup}
+                      {data.finance.currency} {String(data.finance.yourMarkup)}
                     </span>
                   </div>
                 </div>
@@ -1552,7 +1570,7 @@ export default function BookingDetailsPage() {
                 </div>
 
                 {/* Card Info */}
-                {data.paymentSource && (
+                {data.paymentSource && !data.paymentSource.error && (
                   <div className="relative overflow-hidden rounded-xl bg-gray-900 text-gray-300 shadow-lg mt-2">
                     <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gray-800/50 blur-2xl" />
                     <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-blue-900/20 blur-xl" />
@@ -1608,6 +1626,18 @@ export default function BookingDetailsPage() {
                           </p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show error if payment decryption failed */}
+                {data.paymentSource?.error && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3 text-[11px] text-rose-600">
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span className="font-semibold">
+                        {data.paymentSource.error}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1715,21 +1745,49 @@ export default function BookingDetailsPage() {
                   )}
                 </div>
 
-                {/* Admin Notes */}
+                {/* ═══════════════════════════════════════════════
+                    FIX #7: Admin Notes — render as array of objects
+                    API returns: [{ note, addedBy, createdAt }]
+                    Old code treated it as a single string.
+                    ═══════════════════════════════════════════════ */}
                 <div className="rounded-xl border border-gray-200/70 bg-gray-50/30 p-3 mt-2">
                   <div className="flex gap-2">
                     <Info className="h-3.5 w-3.5 shrink-0 text-gray-400 mt-0.5" />
-                    <div className="text-[11px]">
+                    <div className="text-[11px] w-full">
                       <span className="font-bold text-gray-700">
                         Admin notes:
-                      </span>{" "}
-                      {data.adminNotes &&
-                      data.adminNotes.trim().length > 0 ? (
-                        <span className="text-gray-600">
-                          {data.adminNotes}
-                        </span>
+                      </span>
+                      {data.adminNotes && data.adminNotes.length > 0 ? (
+                        <div className="mt-2 space-y-2">
+                          {[...data.adminNotes].reverse().slice(0,15).map((note, idx) => (
+                            <div
+                              key={idx}
+                              className="rounded-lg border border-gray-100 bg-white p-2.5 space-y-1"
+                            >
+                              <p className="text-[11px] text-gray-600 leading-relaxed">
+                                {note.note}
+                              </p>
+                              <div className="flex items-center gap-2 text-[9px] text-gray-400">
+                                <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono font-semibold text-gray-500">
+                                  {note.addedBy}
+                                </span>
+                                {note.createdAt && (
+                                  <>
+                                    <span>•</span>
+                                    <span>
+                                      {format(
+                                        parseISO(note.createdAt),
+                                        "dd MMM yyyy, hh:mm a"
+                                      )}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-gray-400 italic">
+                        <span className="text-gray-400 italic ml-1">
                           No admin notes added.
                         </span>
                       )}

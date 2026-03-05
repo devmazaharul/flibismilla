@@ -1,16 +1,31 @@
+// app/api/duffel/booking/route.ts
+
 import { NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
-import { decrypt, encrypt, generateBookingReference } from './utils';
+import { encrypt, generateBookingReference } from './utils';
 import Booking from '@/models/Booking.model';
 import { format, parseISO } from 'date-fns';
 import {
   sendBookingProcessingEmail,
   sendNewBookingAdminNotification,
 } from '@/app/emails/email';
-import { isAdmin } from '../../lib/auth';
 
-// --- Type Definitions ---
+// ================================================================
+// CONSTANTS & CONFIG
+// ================================================================
+
+const ACTOR_BOOKING_API = 'booking-api';
+const ACTOR_SYNC = 'sync-engine';
+
+const duffel = new Duffel({
+  token: process.env.DUFFEL_ACCESS_TOKEN || '',
+});
+
+// ================================================================
+// TYPE DEFINITIONS
+// ================================================================
+
 interface PassengerInput {
   id: string;
   type: 'adult' | 'child' | 'infant_without_seat';
@@ -26,17 +41,92 @@ interface PassengerInput {
   passportCountry?: string;
 }
 
-const duffel = new Duffel({
-  token: process.env.DUFFEL_ACCESS_TOKEN || '',
-});
+// ================================================================
+// HELPERS: Schema-compliant data transformers
+// ================================================================
 
-// --- 🛡️ Rate Limiter ---
-const rateLimitMap = new Map<string, { count: number; startTime: number }>();
-function isRateLimited(ip: string) {
+/**
+ * Create an admin note matching the schema structure:
+ * { note: String, addedBy: String, createdAt: Date }
+ */
+function createAdminNote(
+  message: string,
+  actor: string = ACTOR_BOOKING_API
+) {
+  return {
+    note: message,
+    addedBy: actor,
+    createdAt: new Date(),
+  };
+}
+
+/**
+ * Map Duffel documents to DB schema format.
+ * Duffel returns 'type', but schema uses 'docType' to avoid
+ * Mongoose reserved keyword conflict.
+ */
+function mapDocsForDb(duffelDocs: any[]) {
+  return (duffelDocs || [])
+    .filter((doc: any) => doc.url)
+    .map((doc: any) => ({
+      unique_identifier: doc.unique_identifier || '',
+      docType: doc.type || 'electronic_ticket',
+      url: doc.url || '',
+    }));
+}
+
+/**
+ * Extract flight segments from Duffel offer/order slices.
+ * Maps to schema: flightDetails.segments[]
+ */
+function extractSegments(slices: any[]): any[] {
+  if (!Array.isArray(slices)) return [];
+
+  return slices.flatMap((slice: any) =>
+    (slice.segments || []).map((seg: any) => ({
+      segmentId: seg.id || null,
+      carrier:
+        seg.operating_carrier?.name ||
+        seg.marketing_carrier?.name ||
+        null,
+      flightNumber: `${
+        seg.operating_carrier?.iata_code ||
+        seg.marketing_carrier?.iata_code ||
+        ''
+      }${
+        seg.operating_carrier_flight_number ||
+        seg.marketing_carrier_flight_number ||
+        ''
+      }`,
+      origin: seg.origin?.iata_code || null,
+      destination: seg.destination?.iata_code || null,
+      departureAt: seg.departing_at || null,
+      arrivingAt: seg.arriving_at || null,
+      duration: seg.duration || null,
+      cabin:
+        seg.passengers?.[0]?.cabin_class || 'economy',
+    })),
+  );
+}
+
+// ================================================================
+// RATE LIMITER (In-memory, per-instance)
+// In production, use Redis-based rate limiting for multi-instance.
+// ================================================================
+
+const rateLimitMap = new Map<
+  string,
+  { count: number; startTime: number }
+>();
+
+export function isRateLimited(ip: string): boolean {
   const windowMs = 60 * 1000;
   const maxRequests = 20;
   const now = Date.now();
-  const clientData = rateLimitMap.get(ip) || { count: 0, startTime: now };
+  const clientData = rateLimitMap.get(ip) || {
+    count: 0,
+    startTime: now,
+  };
 
   if (now - clientData.startTime > windowMs) {
     clientData.count = 1;
@@ -49,17 +139,34 @@ function isRateLimited(ip: string) {
   return clientData.count > maxRequests;
 }
 
-// Phone validation (basic length + digits/+ only)
-const validatePhoneNumber = (phone: string | undefined) => {
+// ================================================================
+// PHONE VALIDATOR (Basic E.164-like validation)
+// ================================================================
+
+function validatePhoneNumber(
+  phone: string | undefined
+): string | undefined {
   if (!phone) return undefined;
   const cleaned = phone.trim().replace(/[\s-]/g, '');
   if (!/^\+?[0-9]{10,17}$/.test(cleaned)) return undefined;
   return cleaned;
-};
+}
+
+// ================================================================
+// POST /api/duffel/booking
+//
+// Creates a new flight booking via Duffel "pay_later" flow:
+// 1. Validate offer & price
+// 2. Create local booking record (status: processing)
+// 3. Call Duffel API to create hold order
+// 4. Update booking with Duffel response (status: held)
+// 5. Send confirmation emails
+// ================================================================
 
 export async function POST(request: Request) {
   let newBookingId: string | null = null;
-  const ip = request.headers.get('x-forwarded-for') || 'unknown-ip';
+  const ip =
+    request.headers.get('x-forwarded-for') || 'unknown-ip';
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
@@ -71,6 +178,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
 
+    // ── Parse Request Body ──
     let body: any;
     try {
       body = await request.json();
@@ -81,13 +189,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const { offer_id, contact, passengers, payment, flight_details, pricing } =
-      body || {};
+    const {
+      offer_id,
+      contact,
+      passengers,
+      payment,
+      flight_details,
+      pricing,
+    } = body || {};
 
-    // Basic required fields check (pricing সহ)
-    if (!offer_id || !passengers || !payment || !flight_details || !pricing) {
+    // ── Required Fields Check ──
+    if (
+      !offer_id ||
+      !passengers ||
+      !payment ||
+      !flight_details ||
+      !pricing
+    ) {
       return NextResponse.json(
-        { success: false, message: 'Missing required booking fields' },
+        {
+          success: false,
+          message: 'Missing required booking fields',
+        },
         { status: 400 },
       );
     }
@@ -103,9 +226,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // ============================================================
-    // 🛡️ STEP 0: OFFER VALIDATION + PRICE CHECK
-    // ============================================================
+    // ==========================================================
+    // STEP 0: OFFER VALIDATION & PRICE CHECK
+    // Verify the offer is still available and price hasn't changed
+    // ==========================================================
+
     let validatedOffer: any;
     try {
       const offerCheck = await duffel.offers.get(offer_id);
@@ -114,15 +239,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Offer expired or no longer available. Please search again.',
+          message:
+            'Offer expired or no longer available. Please search again.',
           errorType: 'OFFER_EXPIRED',
         },
         { status: 400 },
       );
     }
 
-    // Optional chaining: কিছু offer এ payment_requirements নাও থাকতে পারে
-    if (validatedOffer.payment_requirements?.requires_instant_payment) {
+    // Reject offers that require instant payment (can't hold)
+    if (
+      validatedOffer.payment_requirements?.requires_instant_payment
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -134,7 +262,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Client amount validate + price mismatch guard
+    // Validate client-sent total amount
     const customerTotalAmount = Number(pricing.total_amount);
     if (
       !Number.isFinite(customerTotalAmount) ||
@@ -150,41 +278,38 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate client-sent base fare (airline price before markup)
+    const clientBaseFare = Number(pricing.base_fare);
+    if (
+      !Number.isFinite(clientBaseFare) ||
+      clientBaseFare <= 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid base fare on client side',
+          errorType: 'PRICE_INVALID',
+        },
+        { status: 400 },
+      );
+    }
 
+    // Validate Duffel offer price
+    const offerAmount = Number(validatedOffer.total_amount);
+    if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Invalid price information from airline. Please search again.',
+          errorType: 'OFFER_INVALID',
+        },
+        { status: 400 },
+      );
+    }
 
-// Client base fare (airline actual price without markup)
-const clientBaseFare = Number(pricing.base_fare);
-if (!Number.isFinite(clientBaseFare) || clientBaseFare <= 0) {
-  return NextResponse.json(
-    {
-      success: false,
-      message: 'Invalid base fare on client side',
-      errorType: 'PRICE_INVALID',
-    },
-    { status: 400 },
-  );
-}
-
-// Duffel offer price (যদি তোমার base_fare আসলে offer.total_amount হয়)
-const offerAmount = Number(validatedOffer.total_amount);
-// যদি তোমার UI তে base_fare = offer.base_amount পাঠাও, তাহলে উপরটা বাদ দিয়ে এটা ব্যবহার করবে:
-// const offerAmount = Number(validatedOffer.base_amount);
-
-if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
-  return NextResponse.json(
-    {
-      success: false,
-      message:
-        'Invalid price information from airline. Please search again.',
-      errorType: 'OFFER_INVALID',
-    },
-    { status: 400 },
-  );
-}
-
-
-    // বেশি পার্থক্য থাকলে mismatch
-    if (Math.abs(pricing.base_fare - offerAmount) > 0.01) {
+    // Price mismatch guard (tolerance: $0.01)
+    if (Math.abs(clientBaseFare - offerAmount) > 0.01) {
       return NextResponse.json(
         {
           success: false,
@@ -195,34 +320,61 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
         { status: 400 },
       );
     }
-    // ============================================================
 
-    // --- Route Logic Fix ---
+    // ==========================================================
+    // STEP 1: PREPARE FLIGHT DETAILS
+    // ==========================================================
+
+    // Route formatting for round trips
     let finalRoute = flight_details.route;
     if (
       flight_details.flightType === 'round_trip' &&
       typeof finalRoute === 'string' &&
       !finalRoute.includes('|')
     ) {
-      const parts = finalRoute.split('➝').map((s: string) => s.trim());
+      const parts = finalRoute
+        .split('➝')
+        .map((s: string) => s.trim());
       if (parts.length === 2) {
         finalRoute = `${parts[0]} ➝ ${parts[1]} | ${parts[1]} ➝ ${parts[0]}`;
       }
     }
 
-    // 🟢 Card encryption & booking ref
+    // Extract segments from validated offer for the schema
+    const offerSegments = extractSegments(
+      validatedOffer.slices || [],
+    );
+
+    // ==========================================================
+    // STEP 2: CREATE INITIAL BOOKING RECORD
+    // Status: 'processing' — will be updated after Duffel response
+    // ==========================================================
+
     const bookingRef = generateBookingReference();
     const encryptedCardNumber = encrypt(payment.cardNumber);
 
-    // 🟢 DB: Create initial booking record
     const newBooking = await Booking.create({
       bookingReference: bookingRef,
       offerId: offer_id,
+
       contact,
+
+      // Map passengers with proper Date types for dob/passportExpiry
       passengers: (passengers as PassengerInput[]).map((p) => ({
-        ...p,
-        passportCountry: p.passportCountry || 'US',
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        gender: p.gender,
+        dob: p.dob ? new Date(p.dob) : undefined,
+        passportNumber: p.passportNumber || null,
+        passportExpiry: p.passportExpiry
+          ? new Date(p.passportExpiry)
+          : null,
+        passportCountry: p.passportCountry || undefined,
       })),
+
       flightDetails: {
         airline: flight_details.airline,
         flightNumber: flight_details.flightNumber,
@@ -231,110 +383,139 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
         arrivalDate: flight_details.arrivalDate,
         duration: flight_details.duration,
         flightType: flight_details.flightType,
-        logoUrl: validatedOffer.owner?.logo_symbol_url || null,
+        logoUrl:
+          validatedOffer.owner?.logo_symbol_url || null,
+        segments: offerSegments,
       },
+
       pricing: {
-        currency: pricing.currency || validatedOffer.total_currency || 'USD',
+        currency:
+          pricing.currency ||
+          validatedOffer.total_currency ||
+          'USD',
         total_amount: customerTotalAmount,
         markup: 0,
+        base_amount: offerAmount,
       },
+
       paymentInfo: {
         cardName: payment.cardName,
         cardNumber: encryptedCardNumber,
         expiryDate: payment.expiryDate,
         billingAddress: payment.billingAddress,
       },
+
       documents: [],
       airlineInitiatedChanges: null,
+      adminNotes: [],
       status: 'processing',
       isLiveMode: false,
     });
 
     newBookingId = newBooking._id.toString();
 
-    // 🟢 4. Duffel Passenger Payload (with AUTO TITLE + validation)
-    const duffelPassengers = (passengers as PassengerInput[]).map((p) => {
-      // DOB validation
-      const birthDate = new Date(p.dob);
-      if (Number.isNaN(birthDate.getTime())) {
-        throw new Error(
-          `Invalid date of birth for passenger ${p.firstName} ${p.lastName}`,
-        );
-      }
+    // ==========================================================
+    // STEP 3: BUILD DUFFEL PASSENGER PAYLOAD
+    // Auto-calculates title from gender/age, validates phone
+    // ==========================================================
 
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
+    const duffelPassengers = (passengers as PassengerInput[]).map(
+      (p) => {
+        // DOB validation
+        const birthDate = new Date(p.dob);
+        if (Number.isNaN(birthDate.getTime())) {
+          throw new Error(
+            `Invalid date of birth for passenger ${p.firstName} ${p.lastName}`,
+          );
+        }
 
-      // 🔥 AUTO TITLE CALCULATION
-      let autoTitle = 'mr'; // Default fallback
-      if (p.gender === 'male') {
-        autoTitle = 'mr';
-      } else {
-        if (age < 12) {
-          autoTitle = 'miss';
+        // Age calculation for auto-title
+        const today = new Date();
+        let age =
+          today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (
+          m < 0 ||
+          (m === 0 && today.getDate() < birthDate.getDate())
+        ) {
+          age--;
+        }
+
+        // Auto title based on gender and age
+        let autoTitle = 'mr';
+        if (p.gender === 'male') {
+          autoTitle = 'mr';
         } else {
-          autoTitle = 'ms';
+          autoTitle = age < 12 ? 'miss' : 'ms';
         }
-      }
 
-      // ✅ PHONE VALIDATION
-      const validPhone = validatePhoneNumber(p.phone || contact?.phone);
+        // Phone validation
+        const validPhone = validatePhoneNumber(
+          p.phone || contact?.phone,
+        );
 
-      const passengerData: any = {
-        id: p.id,
-        type: p.type,
-        given_name: p.firstName,
-        family_name: p.lastName,
-        gender: p.gender === 'male' ? 'm' : 'f',
-        title: autoTitle,
-        born_on: p.dob,
-        email: p.email || contact?.email,
-        ...(validPhone && { phone_number: validPhone }),
-      };
+        const passengerData: any = {
+          id: p.id,
+          type: p.type,
+          given_name: p.firstName,
+          family_name: p.lastName,
+          gender: p.gender === 'male' ? 'm' : 'f',
+          title: autoTitle,
+          born_on: p.dob,
+          email: p.email || contact?.email,
+          ...(validPhone && { phone_number: validPhone }),
+        };
 
-      if (p.passportNumber) {
-        // Passport expiry validation (only format)
-        if (p.passportExpiry) {
-          const expDate = new Date(p.passportExpiry);
-          if (Number.isNaN(expDate.getTime())) {
-            throw new Error(
-              `Invalid passport expiry date for passenger ${p.firstName} ${p.lastName}`,
-            );
+        // Passport / identity documents (required for international)
+        if (p.passportNumber) {
+          if (p.passportExpiry) {
+            const expDate = new Date(p.passportExpiry);
+            if (Number.isNaN(expDate.getTime())) {
+              throw new Error(
+                `Invalid passport expiry date for ${p.firstName} ${p.lastName}`,
+              );
+            }
           }
+
+          passengerData.identity_documents = [
+            {
+              unique_identifier: `ID-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              type: 'passport',
+              number: p.passportNumber,
+              expires_on: p.passportExpiry,
+              issuing_country_code:
+                p.passportCountry || 'US',
+            },
+          ];
         }
 
-        passengerData.identity_documents = [
-          {
-            unique_identifier: `ID-${Math.random()
-              .toString(36)
-              .substr(2, 9)}`,
-            type: 'passport',
-            number: p.passportNumber,
-            expires_on: p.passportExpiry,
-            issuing_country_code: p.passportCountry || 'US',
-          },
-        ];
-      }
+        return passengerData;
+      },
+    );
 
-      return passengerData;
-    });
+    // ==========================================================
+    // STEP 4: PASSENGER VALIDATION (Business Rules)
+    // - At least one adult required
+    // - Infants cannot exceed adults (1 infant per adult)
+    // ==========================================================
 
-    // ============================================================
-    // 🛡️ PASSENGER VALIDATION (CHILD & INFANT RULES)
-    // ============================================================
-    const adults = duffelPassengers.filter((p: any) => p.type === 'adult');
+    const adults = duffelPassengers.filter(
+      (p: any) => p.type === 'adult',
+    );
     const infants = duffelPassengers.filter(
       (p: any) => p.type === 'infant_without_seat',
     );
 
     if (adults.length === 0) {
       await Booking.findByIdAndUpdate(newBookingId, {
-        status: 'failed',
-        adminNotes: 'Validation: No Adult',
+        $set: { status: 'failed' },
+        $push: {
+          adminNotes: createAdminNote(
+            'Validation failed: No adult passenger provided',
+          ),
+        },
       });
       return NextResponse.json(
         {
@@ -349,8 +530,12 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
 
     if (infants.length > adults.length) {
       await Booking.findByIdAndUpdate(newBookingId, {
-        status: 'failed',
-        adminNotes: 'Validation: Infant Ratio',
+        $set: { status: 'failed' },
+        $push: {
+          adminNotes: createAdminNote(
+            `Validation failed: ${infants.length} infants but only ${adults.length} adults`,
+          ),
+        },
       });
       return NextResponse.json(
         {
@@ -361,20 +546,23 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
         { status: 400 },
       );
     }
-    // ============================================================
 
-    // Link infants to adults
+    // Link infants to their accompanying adults
     infants.forEach((infant: any, index: number) => {
       if (adults[index]) {
         adults[index].infant_passenger_id = infant.id;
       }
     });
 
+    // Remove 'type' from Duffel payload (Duffel infers from offer)
     const finalDuffelPayload = duffelPassengers.map(
       ({ type, ...rest }: any) => rest,
     );
 
-    // 🟢 5. Call Duffel API (pay_later order)
+    // ==========================================================
+    // STEP 5: CREATE DUFFEL ORDER (pay_later / hold)
+    // ==========================================================
+
     let order;
     try {
       order = await duffel.orders.create({
@@ -394,11 +582,18 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
         duffelError ||
         {};
       const errorBody =
-        raw.errors?.[0] || raw.error || raw.meta?.error || null;
+        raw.errors?.[0] ||
+        raw.error ||
+        raw.meta?.error ||
+        null;
 
-      let errorMessage = 'Flight booking failed with airline.';
+      let errorMessage =
+        'Flight booking failed with airline.';
       const errCode =
-        errorBody?.code || errorBody?.type || raw.code || undefined;
+        errorBody?.code ||
+        errorBody?.type ||
+        raw.code ||
+        undefined;
 
       if (errCode === 'offer_no_longer_available') {
         errorMessage =
@@ -415,8 +610,12 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
 
       if (newBookingId) {
         await Booking.findByIdAndUpdate(newBookingId, {
-          status: 'failed',
-          adminNotes: `Duffel Error Code: ${errCode} - ${errorMessage}`,
+          $set: { status: 'failed' },
+          $push: {
+            adminNotes: createAdminNote(
+              `Duffel API error. Code: ${errCode || 'unknown'}. Message: ${errorMessage}`,
+            ),
+          },
         });
       }
 
@@ -434,71 +633,98 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
       );
     }
 
-    // 🟢 6. Success: Update Database pricing/hold info
+    // ==========================================================
+    // STEP 6: UPDATE BOOKING WITH DUFFEL RESPONSE
+    // Confirmed hold: save PNR, pricing, deadlines, segments
+    // ==========================================================
+
     const duffelActualCost = Number(order.data.total_amount);
-    const calculatedMarkup = customerTotalAmount - duffelActualCost;
+    const calculatedMarkup =
+      customerTotalAmount - duffelActualCost;
+
+    // Extract segments from the confirmed order (may differ from offer)
+    const orderSegments = extractSegments(
+      order.data.slices || [],
+    );
 
     await Booking.findByIdAndUpdate(newBookingId, {
-      duffelOrderId: order.data.id,
-      pnr: order.data.booking_reference,
-      paymentDeadline: order.data.payment_status.payment_required_by,
-      priceExpiry: order.data.payment_status.price_guarantee_expires_at,
-      pricing: {
-        currency: order.data.total_currency,
-        total_amount: customerTotalAmount,
-        markup: Number(calculatedMarkup.toFixed(2)),
-        base_amount: duffelActualCost,
+      $set: {
+        duffelOrderId: order.data.id,
+        pnr: order.data.booking_reference,
+        paymentDeadline:
+          order.data.payment_status.payment_required_by,
+        priceExpiry:
+          order.data.payment_status
+            .price_guarantee_expires_at,
+        pricing: {
+          currency: order.data.total_currency,
+          total_amount: customerTotalAmount,
+          markup: Number(calculatedMarkup.toFixed(2)),
+          base_amount: duffelActualCost,
+        },
+        isLiveMode: order.data.live_mode,
+        documents: mapDocsForDb(
+          order.data.documents || [],
+        ),
+        airlineInitiatedChanges:
+          order.data.airline_initiated_changes || null,
+        status: 'held',
+        'flightDetails.segments': orderSegments,
       },
-      isLiveMode: order.data.live_mode,
-      documents: order.data.documents || [],
-      airlineInitiatedChanges: order.data.airline_initiated_changes || [],
-      status: 'held',
-      updatedAt: new Date(),
+      $push: {
+        adminNotes: createAdminNote(
+          `Order created successfully. Duffel Order: ${order.data.id}. PNR: ${order.data.booking_reference}. Payment deadline: ${order.data.payment_status.payment_required_by || 'N/A'}`,
+        ),
+      },
     });
 
-    // 🟢 7. SEND EMAILS (customer + admin) – সম্পূর্ণ try/catch এ
+    // ==========================================================
+    // STEP 7: SEND NOTIFICATION EMAILS
+    // Non-blocking: email failure does not fail the booking
+    // ==========================================================
+
     try {
-      // Departure date safe parse
+      // Safe date parsing for email template
       let depDate: Date;
       if (typeof flight_details.departureDate === 'string') {
         depDate = parseISO(flight_details.departureDate);
       } else {
         depDate = new Date(flight_details.departureDate);
       }
-
       const emailDate = format(depDate, 'dd MMM, yyyy');
 
-      const firstLeg = (finalRoute || '').split('|')[0] || finalRoute;
+      const firstLeg =
+        (finalRoute || '').split('|')[0] || finalRoute;
       const routeParts = (firstLeg || '').split('➝');
-
-
-      const emailOrigin = routeParts[0]?.trim() || 'Origin';
+      const emailOrigin =
+        routeParts[0]?.trim() || 'Origin';
       const emailDest =
-        routeParts[routeParts.length - 1]?.trim() || 'Destination';
+        routeParts[routeParts.length - 1]?.trim() ||
+        'Destination';
 
       const primaryPassenger =
-        (passengers as PassengerInput[])[0] || ({} as PassengerInput);
+        (passengers as PassengerInput[])[0] ||
+        ({} as PassengerInput);
       const primaryPassengerName =
-        `${primaryPassenger.title || ''} ${primaryPassenger.firstName || ''} ${
-          primaryPassenger.lastName || ''
-        }`.trim() || 'Traveler';
+        `${primaryPassenger.title || ''} ${primaryPassenger.firstName || ''} ${primaryPassenger.lastName || ''}`.trim() ||
+        'Traveler';
 
-      // Customer email (if email present)
+      // Customer confirmation email
       if (contact?.email) {
         await sendBookingProcessingEmail({
           to: contact.email,
           customerName: primaryPassengerName,
           bookingReference: order.data.booking_reference,
-          route:finalRoute,
+          route: finalRoute,
           flightDate: emailDate,
         });
       } else {
         console.warn(
-          'No contact.email found, skipping booking processing email.',
+          'No contact email found, skipping customer email',
         );
       }
 
-      // Admin notification (always try to send, but safe fallbacks)
+      // Admin notification email
       await sendNewBookingAdminNotification({
         pnr: order.data.booking_reference,
         customerName:
@@ -516,23 +742,32 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
         bookingId: newBookingId!,
       });
     } catch (emailError) {
-      console.error('Failed to send booking emails:', emailError);
-      // ইমেইল fail হলেও main response success থাকবে
+      // Email failure is non-fatal — log and continue
+      console.error(
+        'Failed to send booking emails:',
+        emailError,
+      );
     }
+
+    // ==========================================================
+    // SUCCESS RESPONSE
+    // ==========================================================
 
     return NextResponse.json({
       success: true,
       bookingId: newBookingId,
       reference: bookingRef,
       pnr: order.data.booking_reference,
-      expiry: order.data.payment_status.payment_required_by,
+      expiry:
+        order.data.payment_status.payment_required_by,
     });
   } catch (error: any) {
     console.error('Global Booking Error:', error);
 
-    // Duplicate key (e.g. bookingReference)
+    // Handle MongoDB duplicate key error
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern || {})[0] || 'field';
+      const field =
+        Object.keys(error.keyPattern || {})[0] || 'field';
       return NextResponse.json(
         {
           success: false,
@@ -543,7 +778,7 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
       );
     }
 
-    // Mongoose validation error
+    // Handle Mongoose validation error
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(
         (val: any) => val.message,
@@ -558,15 +793,22 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
       );
     }
 
-    // Already-created booking কে failed mark করো
+    // Mark booking as failed if it was already created
     if (newBookingId) {
       try {
         await Booking.findByIdAndUpdate(newBookingId, {
-          status: 'failed',
-          adminNotes: error.message || 'Unknown error',
+          $set: { status: 'failed' },
+          $push: {
+            adminNotes: createAdminNote(
+              `Unexpected error: ${error.message || 'Unknown error'}`,
+            ),
+          },
         });
-      } catch (e) {
-        console.error('Failed to mark booking as failed:', e);
+      } catch (updateErr) {
+        console.error(
+          'Failed to mark booking as failed:',
+          updateErr,
+        );
       }
     }
 
@@ -581,69 +823,92 @@ if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
   }
 }
 
+// ================================================================
+// SYNC ENGINE
+//
+// Fetches latest order state from Duffel API and reconciles
+// local booking record. Handles:
+// - Cancellation detection (with refund details)
+// - Payment deadline expiry
+// - Payment status sync
+// - Ticket issuance detection (documents)
+// - Schedule change detection
+// - Segment data sync
+//
+// Uses $push for adminNotes (never overwrites history)
+// ================================================================
 
-
-
-// --- 🔄 Smart Sync Function (Always Fresh Data + Status/Payment/Date Sync) ---
-async function syncSingleBooking(booking: any) {
-  // ১. Duffel Order ID না থাকলে সিঙ্ক করা সম্ভব না
-  if (!booking.duffelOrderId) {
-    return booking;
-  }
+export async function syncSingleBooking(booking: any) {
+  if (!booking.duffelOrderId) return booking;
 
   try {
-    // ২. 🚀 Always Call Duffel API
-    const response = await duffel.orders.get(booking.duffelOrderId);
-    const orderData: any = response.data; // Duffel এর লেটেস্ট ডাটা
+    const response = await duffel.orders.get(
+      booking.duffelOrderId,
+    );
+    const orderData: any = response.data;
 
     const updates: any = {};
+    const notesToAdd: any[] = []; // Accumulate notes, $push at the end
     let needsUpdate = false;
     const now = new Date();
     const nowIso = now.toISOString();
 
-    // ✅ আগে থেকেই documents আছে কি না (Issued কিনা বোঝার জন্য)
     const hasRemoteDocs =
-      Array.isArray(orderData.documents) && orderData.documents.length > 0;
+      Array.isArray(orderData.documents) &&
+      orderData.documents.length > 0;
 
     const isCancelledRemote =
       !!orderData.cancellation || !!orderData.cancelled_at;
     const cancellation = orderData.cancellation || null;
 
-    // --- ৩. Status / PaymentStatus / Deadline Sync ---
+    // ─────────────────────────────────────────────────
+    // CASE A: CANCELLATION DETECTED
+    // ─────────────────────────────────────────────────
 
-    // 🟥 Case A: Cancellation Check (with details)
     if (isCancelledRemote) {
-      // ১) Local status আপডেট
       if (booking.status !== 'cancelled') {
         updates.status = 'cancelled';
 
-        const cancelledAtRemote =
-          orderData.cancelled_at || cancellation?.cancelled_at || nowIso;
+        const cancelledAt =
+          orderData.cancelled_at ||
+          cancellation?.cancelled_at ||
+          nowIso;
 
-        updates.adminNotes =
-          booking.adminNotes ||
-          `Auto-Sync: Cancelled on Duffel at ${cancelledAtRemote}`;
+        notesToAdd.push(
+          createAdminNote(
+            `Auto-sync: Order cancelled on Duffel at ${cancelledAt}`,
+            ACTOR_SYNC,
+          ),
+        );
       }
 
-      // ২) Cancellation details airlineInitiatedChanges এ log করো
+      // Store cancellation details in airlineInitiatedChanges
       updates.airlineInitiatedChanges = {
         ...(booking.airlineInitiatedChanges || {}),
         cancellation: {
           id: cancellation?.id || null,
           cancelled_at:
-            orderData.cancelled_at || cancellation?.cancelled_at || null,
-          refund_amount: cancellation?.refund_amount || null,
-          refund_currency: cancellation?.refund_currency || null,
-          penalty_amount: cancellation?.penalty_amount || null,
-          penalty_currency: cancellation?.penalty_currency || null,
-          refunded_at: cancellation?.refunded_at || null,
+            orderData.cancelled_at ||
+            cancellation?.cancelled_at ||
+            null,
+          refund_amount:
+            cancellation?.refund_amount || null,
+          refund_currency:
+            cancellation?.refund_currency || null,
+          penalty_amount:
+            cancellation?.penalty_amount || null,
+          penalty_currency:
+            cancellation?.penalty_currency || null,
+          refunded_at:
+            cancellation?.refunded_at || null,
           raw: cancellation || null,
         },
       };
 
-      // ৩) PaymentStatus আপডেট: refund থাকলে refunded, না থাকলে captured/failed ইত্যাদি 그대로
+      // Payment status: refunded if refund exists, otherwise failed
       if (
-        (cancellation?.refund_amount && Number(cancellation.refund_amount) > 0) ||
+        (cancellation?.refund_amount &&
+          Number(cancellation.refund_amount) > 0) ||
         cancellation?.refunded_at
       ) {
         if (booking.paymentStatus !== 'refunded') {
@@ -653,56 +918,71 @@ async function syncSingleBooking(booking: any) {
         booking.paymentStatus === 'pending' ||
         booking.paymentStatus === 'authorized'
       ) {
-        // Cancelled but never captured → fail করে দিচ্ছি
         updates.paymentStatus = 'failed';
       }
 
       needsUpdate = true;
 
-      // ❗ Cancelled হলে নিচের expiry/payment/doc/schedule logic আর apply করব না
+      // Skip remaining checks for cancelled orders
     } else {
-      // --- 🟡 Non-cancelled order এর জন্য বাকি লজিক ---
+      // ─────────────────────────────────────────────
+      // NON-CANCELLED ORDER: Check expiry, payment, docs, schedule
+      // ─────────────────────────────────────────────
 
-      const paymentStatusObj = orderData.payment_status || {};
-
+      const paymentStatusObj =
+        orderData.payment_status || {};
       const paidAt =
-        (paymentStatusObj.paid_at as string | null) || null;
+        (paymentStatusObj.paid_at as string | null) ||
+        null;
       const paymentRequiredBy =
-        (paymentStatusObj.payment_required_by as string | null) || null;
+        (paymentStatusObj.payment_required_by as
+          | string
+          | null) || null;
       const priceGuaranteeExpiresAt =
-        (paymentStatusObj.price_guarantee_expires_at as string | null) || null;
+        (paymentStatusObj.price_guarantee_expires_at as
+          | string
+          | null) || null;
       const awaitingPayment =
         paymentStatusObj.awaiting_payment === true;
+      const remoteDeadline =
+        paymentRequiredBy || priceGuaranteeExpiresAt;
 
-      const remoteDeadline = paymentRequiredBy || priceGuaranteeExpiresAt;
+      // ── CASE B: Payment Deadline Sync + Expiry Check ──
 
-      // ⏳ Case B: Payment Deadline Sync + Expiry (Duffel যেটা দেয়)
       if (remoteDeadline) {
         const localDeadlineIso = booking.paymentDeadline
-          ? new Date(booking.paymentDeadline).toISOString()
+          ? new Date(
+              booking.paymentDeadline,
+            ).toISOString()
           : null;
 
+        // Sync deadline if changed on Duffel side
         if (localDeadlineIso !== remoteDeadline) {
-          updates.paymentDeadline = remoteDeadline; // Mongoose Date এ কাস্ট করবে
+          updates.paymentDeadline = remoteDeadline;
           needsUpdate = true;
         }
 
-        // Deadline cross হয়ে গেছে, paid হয় নাই → expired
-        if (!paidAt && remoteDeadline < nowIso && booking.status !== 'expired') {
+        // Deadline passed + not paid = expired
+        if (
+          !paidAt &&
+          remoteDeadline < nowIso &&
+          booking.status !== 'expired'
+        ) {
           updates.status = 'expired';
-          updates.adminNotes =
-            booking.adminNotes ||
-            `Auto-Sync: Booking expired on Duffel at ${remoteDeadline}`;
+          notesToAdd.push(
+            createAdminNote(
+              `Auto-sync: Booking expired. Deadline was ${remoteDeadline}`,
+              ACTOR_SYNC,
+            ),
+          );
 
           if (booking.paymentStatus === 'pending') {
             updates.paymentStatus = 'failed';
           }
-
           needsUpdate = true;
         }
       } else {
-        // ⚠️ Duffel কোন payment window দেয় নাই:
-        // paid না, awaiting_payment=false, আর কোনো docsও নাই → ধরে নিচ্ছি hold expire হয়ে গেছে
+        // No payment window from Duffel
         const noPaymentWindow =
           !paidAt &&
           !paymentRequiredBy &&
@@ -712,50 +992,56 @@ async function syncSingleBooking(booking: any) {
         if (
           noPaymentWindow &&
           !hasRemoteDocs &&
-          !['expired', 'cancelled', 'failed', 'issued'].includes(
-            booking.status,
-          )
+          ![
+            'expired',
+            'cancelled',
+            'failed',
+            'issued',
+          ].includes(booking.status)
         ) {
           updates.status = 'expired';
-          updates.adminNotes =
-            booking.adminNotes ||
-            'Auto-Sync: Hold expired (no payment window, unpaid).';
+          notesToAdd.push(
+            createAdminNote(
+              'Auto-sync: Hold expired (no payment window, unpaid, no documents)',
+              ACTOR_SYNC,
+            ),
+          );
 
           if (booking.paymentStatus === 'pending') {
             updates.paymentStatus = 'failed';
           }
-
           needsUpdate = true;
         }
 
-        // Extra: local paymentDeadline থাকলে সেটাও cross হয়ে গেলে expire করতে পারো
+        // Local deadline check
         if (
           booking.paymentDeadline &&
           new Date(booking.paymentDeadline) < now &&
           booking.status !== 'expired'
         ) {
           updates.status = 'expired';
-          updates.adminNotes =
-            booking.adminNotes ||
-            `Auto-Sync: Booking expired locally at ${booking.paymentDeadline.toISOString()}`;
+          notesToAdd.push(
+            createAdminNote(
+              `Auto-sync: Local payment deadline expired at ${new Date(booking.paymentDeadline).toISOString()}`,
+              ACTOR_SYNC,
+            ),
+          );
 
           if (booking.paymentStatus === 'pending') {
             updates.paymentStatus = 'failed';
           }
-
           needsUpdate = true;
         }
       }
 
-      // 🟢 Case C: Payment Status Sync (Duffel)
+      // ── CASE C: Payment Status Sync ──
+
       if (paidAt) {
-        // Airline side এ payment complete
         if (booking.paymentStatus !== 'captured') {
           updates.paymentStatus = 'captured';
           needsUpdate = true;
         }
       } else if (awaitingPayment) {
-        // Awaiting payment -> held/pending
         if (booking.status !== 'held') {
           updates.status = 'held';
           needsUpdate = true;
@@ -766,32 +1052,43 @@ async function syncSingleBooking(booking: any) {
         }
       }
 
-      // ✅ Case D: Issuance Check (documents)
+      // ── CASE D: Ticket Issuance Check (Documents) ──
+
       if (hasRemoteDocs) {
-        const formattedDocs = orderData.documents.map((doc: any) => ({
-          unique_identifier: doc.unique_identifier,
-          type: doc.type,
-          url: doc.url,
-        }));
+        const formattedDocs = mapDocsForDb(
+          orderData.documents,
+        );
 
         const hasLocalDocs =
-          Array.isArray(booking.documents) && booking.documents.length > 0;
+          Array.isArray(booking.documents) &&
+          booking.documents.length > 0;
 
-        if (booking.status !== 'issued' || !hasLocalDocs) {
+        if (
+          booking.status !== 'issued' ||
+          !hasLocalDocs
+        ) {
           updates.status = 'issued';
           updates.documents = formattedDocs;
-          updates.pnr = orderData.booking_reference || booking.pnr;
+          updates.pnr =
+            orderData.booking_reference || booking.pnr;
 
-          // Docs থাকলে payment logically captured
           if (booking.paymentStatus !== 'captured') {
             updates.paymentStatus = 'captured';
           }
+
+          notesToAdd.push(
+            createAdminNote(
+              `Auto-sync: Ticket issued. PNR: ${orderData.booking_reference}. Documents: ${formattedDocs.length}`,
+              ACTOR_SYNC,
+            ),
+          );
 
           needsUpdate = true;
         }
       }
 
-      // 🕒 Case E: Schedule / Date Change Check
+      // ── CASE E: Schedule / Date Change Detection ──
+
       if (
         orderData.slices &&
         orderData.slices.length > 0 &&
@@ -799,256 +1096,141 @@ async function syncSingleBooking(booking: any) {
       ) {
         const firstSlice = orderData.slices[0];
         const firstSegment = firstSlice.segments[0];
-
-        const lastSlice = orderData.slices[orderData.slices.length - 1];
+        const lastSlice =
+          orderData.slices[orderData.slices.length - 1];
         const lastSegment =
-          lastSlice.segments[lastSlice.segments.length - 1];
+          lastSlice.segments[
+            lastSlice.segments.length - 1
+          ];
 
-        // Duffel Times
-        const newDepartureTime = new Date(firstSegment.departing_at).getTime();
-        const newArrivalTime = new Date(lastSegment.arriving_at).getTime();
+        const newDepartureTime = new Date(
+          firstSegment.departing_at,
+        ).getTime();
+        const newArrivalTime = new Date(
+          lastSegment.arriving_at,
+        ).getTime();
 
-        // Local DB Times
-        const localDepartureTime = booking.flightDetails.departureDate
-          ? new Date(booking.flightDetails.departureDate).getTime()
-          : null;
-        const localArrivalTime = booking.flightDetails.arrivalDate
-          ? new Date(booking.flightDetails.arrivalDate).getTime()
-          : null;
+        const localDepartureTime =
+          booking.flightDetails.departureDate
+            ? new Date(
+                booking.flightDetails.departureDate,
+              ).getTime()
+            : null;
+        const localArrivalTime =
+          booking.flightDetails.arrivalDate
+            ? new Date(
+                booking.flightDetails.arrivalDate,
+              ).getTime()
+            : null;
 
-        // পার্থক্য চেক (ধরি ১ মিনিটের বেশি পার্থক্য হলে আপডেট করব)
+        // Threshold: 1 minute difference triggers update
         const depDiff =
           localDepartureTime !== null
-            ? Math.abs(newDepartureTime - localDepartureTime)
+            ? Math.abs(
+                newDepartureTime - localDepartureTime,
+              )
             : Infinity;
         const arrDiff =
           localArrivalTime !== null
-            ? Math.abs(newArrivalTime - localArrivalTime)
+            ? Math.abs(
+                newArrivalTime - localArrivalTime,
+              )
             : 0;
 
         if (depDiff > 60000 || arrDiff > 60000) {
-          console.log(`⚠️ Schedule Change Detected for PNR ${booking.pnr}`);
+          console.log(
+            `⚠️ Schedule change detected for PNR ${booking.pnr}`,
+          );
 
-          // Flight Details আপডেট
-          updates['flightDetails.departureDate'] = firstSegment.departing_at;
-          updates['flightDetails.arrivalDate'] = lastSegment.arriving_at;
+          // Update flight details
+          updates['flightDetails.departureDate'] =
+            firstSegment.departing_at;
+          updates['flightDetails.arrivalDate'] =
+            lastSegment.arriving_at;
 
           const carrierCode =
-            firstSegment.operating_carrier?.iata_code ||
-            firstSegment.marketing_carrier?.iata_code ||
+            firstSegment.operating_carrier
+              ?.iata_code ||
+            firstSegment.marketing_carrier
+              ?.iata_code ||
             '';
-          const flightNumber =
+          const flightNum =
             firstSegment.operating_carrier_flight_number ||
             firstSegment.marketing_carrier_flight_number ||
             '';
 
-          updates['flightDetails.flightNumber'] = `${carrierCode}${flightNumber}`;
-          updates['flightDetails.duration'] = firstSlice.duration;
+          updates[
+            'flightDetails.flightNumber'
+          ] = `${carrierCode}${flightNum}`;
+          updates['flightDetails.duration'] =
+            firstSlice.duration;
 
-          // Airline initiated change log
+          // Sync segments from the latest order data
+          updates['flightDetails.segments'] =
+            extractSegments(orderData.slices);
+
+          // Log change details
           updates.airlineInitiatedChanges = {
             ...(booking.airlineInitiatedChanges || {}),
             lastSyncAt: new Date(),
-            previousDepartureDate: booking.flightDetails.departureDate,
-            previousArrivalDate: booking.flightDetails.arrivalDate,
-            newDepartureDate: firstSegment.departing_at,
-            newArrivalDate: lastSegment.arriving_at,
+            previousDepartureDate:
+              booking.flightDetails.departureDate,
+            previousArrivalDate:
+              booking.flightDetails.arrivalDate,
+            newDepartureDate:
+              firstSegment.departing_at,
+            newArrivalDate:
+              lastSegment.arriving_at,
           };
+
+          notesToAdd.push(
+            createAdminNote(
+              `Schedule change detected. Old departure: ${booking.flightDetails.departureDate}. New: ${firstSegment.departing_at}`,
+              ACTOR_SYNC,
+            ),
+          );
 
           needsUpdate = true;
         }
       }
     }
 
-    // --- ৪. Database Write Operation ---
-    if (needsUpdate) {
-      console.log(`🔄 Syncing PNR ${booking.pnr || booking._id}: Updates applied.`);
+    // ─────────────────────────────────────────────────
+    // DATABASE WRITE (Single atomic update)
+    // Uses $set for field updates + $push for admin notes
+    // timestamps: true handles updatedAt automatically
+    // ─────────────────────────────────────────────────
 
-      const updatedBooking = await Booking.findByIdAndUpdate(
-        booking._id,
-        {
-          $set: updates,
-          $currentDate: { updatedAt: true },
-        },
-        { new: true },
-      ).lean();
+    if (needsUpdate) {
+      console.log(
+        `🔄 Syncing ${booking.pnr || booking._id}: Applying updates`,
+      );
+
+      const updateOps: any = { $set: updates };
+
+      if (notesToAdd.length > 0) {
+        updateOps.$push = {
+          adminNotes: { $each: notesToAdd },
+        };
+      }
+
+      const updatedBooking =
+        await Booking.findByIdAndUpdate(
+          booking._id,
+          updateOps,
+          { new: true },
+        ).lean();
 
       return updatedBooking;
     }
 
     return booking;
   } catch (error) {
-    console.error(`❌ Sync failed for ${booking.pnr || booking._id}:`, error);
+    console.error(
+      `❌ Sync failed for ${booking.pnr || booking._id}:`,
+      error,
+    );
     return booking;
   }
 }
 
-// --- 🚀 Main API Handler ---
-export async function GET(req: Request) {
-  const auth = await isAdmin();
-  if (!auth.success) return auth.response;
-
-  try {
-    const ip = req.headers.get('x-forwarded-for') || 'unknown-ip';
-    if (isRateLimited(ip)) {
-      return NextResponse.json(
-        { success: false, message: 'Too many requests' },
-        { status: 429 },
-      );
-    }
-
-    await dbConnect();
-
-    const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const skip = (page - 1) * limit;
-
-    const totalBookings = await Booking.countDocuments({});
-
-    const bookings = await Booking.find({})
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const syncedBookings = await Promise.all(
-      bookings.map(async (booking) => {
-        const finalStates = ['cancelled', 'failed', 'expired'];
-
-        if (!finalStates.includes(booking.status)) {
-          // held, processing, issued -> সব চেক হবে
-          return await syncSingleBooking(booking);
-        }
-
-        return booking;
-      }),
-    );
-
-    const now = new Date();
-
-    const formattedData = syncedBookings.map((booking: any) => {
-      // এখানে bug ছিল: deadline না থাকলে true করছিলে → সব held কে expired দেখাচ্ছিল
-      const isPaymentExpired = booking.paymentDeadline
-        ? new Date(booking.paymentDeadline) < now
-        : false;
-
-      const flight = booking.flightDetails || {};
-      const pricing = booking.pricing || {};
-      const contact = booking.contact || {};
-      const paymentInfo = booking.paymentInfo || {};
-
-      // 📎 Ticket Shortcut
-      const ticketLink =
-        booking.status === 'issued' && booking.documents?.length > 0
-          ? booking.documents[0]?.url || null
-          : null;
-
-      // 🔐 Card Masking Logic (Improved Safety)
-      let maskedCard = 'N/A';
-      let cardHolder = 'N/A';
-
-      if (paymentInfo && paymentInfo.cardNumber) {
-        try {
-          const realNum = decrypt(paymentInfo.cardNumber);
-          if (realNum && realNum.length >= 4) {
-            maskedCard =realNum
-          } else {
-            maskedCard = '**** (Invalid)';
-          }
-        } catch (e) {
-          console.error('Decryption Error:', e);
-          maskedCard = '**** (Error)';
-        }
-      }
-
-      if (paymentInfo && paymentInfo.cardName) {
-        cardHolder = paymentInfo.cardName;
-      }
-
-      const effectiveStatus =
-        booking.status === 'held' && isPaymentExpired
-          ? 'expired'
-          : booking.status;
-
-      return {
-        // --- Identifiers ---
-        id: booking._id.toString(),
-        bookingRef: booking.bookingReference || 'N/A',
-        pnr: booking.pnr || '---',
-
-        // --- Status Logic ---
-        status: effectiveStatus,
-
-        // --- ✈️ Flight Details ---
-        flight: {
-          airline: flight.airline || 'Unknown',
-          flightNumber: flight.flightNumber || '',
-          route: flight.route || 'Unknown Route',
-          date: flight.departureDate || null,
-          duration: flight.duration || '',
-          tripType: flight.flightType || 'one_way',
-          logoUrl: flight.logoUrl || null,
-        },
-
-        // --- Passenger Info ---
-        passengerName: booking.passengers?.[0]
-          ? `${booking.passengers[0].firstName} ${booking.passengers[0].lastName}`
-          : 'Guest',
-        passengerCount: booking.passengers?.length || 0,
-
-        // --- 📞 Contact Info ---
-        contact: {
-          email: contact.email || 'N/A',
-          phone: contact.phone || 'N/A',
-        },
-
-        // --- 💳 Payment Source Info ---
-        paymentSource: {
-          holderName: cardHolder,
-          cardLast4: maskedCard,
-        },
-
-        // --- Money ---
-        amount: {
-          total: pricing.total_amount || 0,
-          markup: pricing.markup || 0,
-          currency: pricing.currency || 'USD',
-          base_amount: pricing.base_amount || 0,
-        },
-
-        // --- Timings ---
-        timings: {
-          deadline: booking.paymentDeadline,
-          createdAt: booking.createdAt,
-          timeLeft: booking.paymentDeadline
-            ? new Date(booking.paymentDeadline).getTime() - now.getTime()
-            : 0,
-        },
-
-        // --- Actions ---
-        actionData: {
-          ticketUrl: ticketLink,
-        },
-        updatedAt: booking.updatedAt,
-      };
-    });
-
-    return NextResponse.json({
-      success: true,
-      meta: {
-        total: totalBookings,
-        page: page,
-        limit: limit,
-        totalPages: Math.ceil(totalBookings / limit),
-      },
-      data: formattedData,
-    });
-  } catch (error: any) {
-    console.error('GET Bookings Error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal Server Error' },
-      { status: 500 },
-    );
-  }
-}
