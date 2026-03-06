@@ -1,13 +1,7 @@
+// app/(dashboard)/layout.tsx
+
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import { AppSidebar } from './components/AppSidebar';
 import '@/app/(main)/globals.css';
 import { Toaster } from 'sonner';
@@ -35,57 +29,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     <SidebarInset>
                         {/* ═══════════════════════════════════
-                            STICKY HEADER
+                            STICKY HEADER — only trigger
                         ═══════════════════════════════════ */}
-                        <header className="sticky top-0 z-50 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 px-4 md:px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-                            <div className="flex items-center gap-3 w-full">
-                                {/* Sidebar Toggle */}
-                                <SidebarTrigger className="-ml-1 cursor-pointer h-8 w-8 rounded-lg border border-slate-200/60 bg-white text-slate-500 shadow-2xl shadow-gray-100 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300 transition-all duration-200 active:scale-95" />
-
-                                <Separator orientation="vertical" className="h-4 bg-slate-200/80" />
-
-                                {/* Breadcrumbs */}
-                                <Breadcrumb>
-                                    <BreadcrumbList>
-                                        <BreadcrumbItem className="hidden md:block">
-                                            <BreadcrumbLink
-                                                href="/admin"
-                                                className="text-[13px] font-medium text-slate-500 hover:text-slate-900 transition-colors"
-                                            >
-                                                Dashboard
-                                            </BreadcrumbLink>
-                                        </BreadcrumbItem>
-                                        <BreadcrumbSeparator className="hidden md:block text-slate-300" />
-                                        <BreadcrumbItem>
-                                            <BreadcrumbPage className="text-[13px] font-semibold text-slate-900">
-                                                Overview
-                                            </BreadcrumbPage>
-                                        </BreadcrumbItem>
-                                    </BreadcrumbList>
-                                </Breadcrumb>
-
-                                {/* Right side — subtle live indicator */}
-                                <div className="ml-auto hidden sm:flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 ring-1 ring-emerald-200/50">
-                                        <span className="relative flex h-1.5 w-1.5">
-                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                        </span>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                                            Live
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-slate-200/60 bg-white/80 backdrop-blur-md px-4">
+                            <SidebarTrigger className="cursor-pointer -ml-1" />
                         </header>
 
                         {/* ═══════════════════════════════════
-                            MAIN CONTENT AREA
+                            MAIN CONTENT — no overlap
                         ═══════════════════════════════════ */}
-                        <div className="flex flex-1 flex-col min-h-[calc(100vh-3.5rem)] bg-[#f8f9fb]">
-                            {/* Subtle top-of-content gradient line */}
-                            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-slate-200/60 to-transparent" />
-
+                        <main className="flex flex-1 flex-col min-h-[calc(100vh-3.5rem)] overflow-x-hidden z-[9999]">
                             {/* Page Content */}
                             <div className="flex-1">{children}</div>
 
@@ -107,11 +60,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </div>
                                 </div>
                             </footer>
-                        </div>
+                        </main>
                     </SidebarInset>
                 </SidebarProvider>
 
-                {/* Toast */}
                 <Toaster
                     position="top-center"
                     closeButton

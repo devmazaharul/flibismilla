@@ -11,7 +11,9 @@ import {
     TicketPercent,
     User2,
     Dock,
-    Book
+    Book,
+    User,
+    UsersRound
 } from 'lucide-react';
 
 export const navMain = [
@@ -35,8 +37,8 @@ export const navMain = [
     {
         title: 'Settings',
         items: [
-            { title: 'General', url: '/admin/settings', icon: Settings },
-            { title: 'Internal Users', url: '/admin/internal-users', icon: User2 },
+            { title: 'Profile', url: '/admin/profile', icon: User },
+            { title: 'Staff Manage', url: '/admin/staff', icon: UsersRound  },
             { title: 'Support', url: '/admin/support', icon: LifeBuoy },
             { title: 'Documentation', url: '/admin/doc', icon: Book },
         ],

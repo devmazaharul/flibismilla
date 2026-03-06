@@ -791,7 +791,7 @@ export default function ActiveSessionsPage() {
       // Use the staff logout-all endpoint but keep current
       if (staffInfo?._id) {
         const logoutRes = await axios.delete(
-          `/api/auth/staff/${staffInfo._id}/logout-all`,
+          `/api/admin/staff/${staffInfo._id}/logout-all`,
           { withCredentials: true }
         );
 

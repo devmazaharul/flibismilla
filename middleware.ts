@@ -32,13 +32,13 @@ const PROTECTED_API_ROUTES: RouteConfig[] = [
   // update, sessions, logout-all = সবাই নিজের টা পারবে
   // single view = সবাই
   // ⚠️ Longer paths MUST come first (sorted by length)
-  { path: '/api/auth/staff/logout-all', roles: ['admin', 'editor', 'viewer'] },
-  { path: '/api/auth/staff/sessions', roles: ['admin', 'editor', 'viewer'] },
-  { path: '/api/auth/staff/unblock', roles: ['admin'] },
-  { path: '/api/auth/staff/delete', roles: ['admin'] },
-  { path: '/api/auth/staff/block', roles: ['admin'] },
-  { path: '/api/auth/staff/update', roles: ['admin', 'editor', 'viewer'] },
-  { path: '/api/auth/staff', roles: ['admin', 'editor', 'viewer'] },
+  { path: '/api/admin/staff/logout-all', roles: ['admin', 'editor', 'viewer'] },
+  { path: '/api/admin/staff/sessions', roles: ['admin', 'editor', 'viewer'] },
+  { path: '/api/admin/staff/unblock', roles: ['admin'] },
+  { path: '/api/admin/staff/delete', roles: ['admin'] },
+  { path: '/api/admin/staff/block', roles: ['admin'] },
+  { path: '/api/admin/staff/update', roles: ['admin', 'editor', 'viewer'] },
+  { path: '/api/admin/staff', roles: ['admin', 'editor', 'viewer'] },
 
   // ── Profile (all authenticated) ──
   { path: '/api/auth/profile/update', roles: ['admin', 'editor', 'viewer'] },

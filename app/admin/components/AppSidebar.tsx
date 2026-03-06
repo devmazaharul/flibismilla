@@ -13,7 +13,6 @@ import {
   User,
   Settings,
   Shield,
-  KeyRound,
   Monitor,
   Activity,
 } from 'lucide-react';
@@ -59,8 +58,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { navMain } from '../helper/utlis';
 
 // ==========================================
-// Types
+// Types — ✅ Model অনুযায়ী Fixed
 // ==========================================
+
+interface IPermissions {
+  dashboard: 'full' | 'view' | 'none';
+  booking: 'full' | 'edit' | 'view' | 'none';
+  transactions: 'full' | 'edit' | 'view' | 'none';
+  customers: 'full' | 'view' | 'none';
+  destinations: 'full' | 'view' | 'none';
+  packages: 'full' | 'view' | 'none';
+  offers: 'full' | 'view' | 'none';
+  support: 'full' | 'view' | 'none';
+  staff: 'full' | 'view' | 'none';
+  settings: 'full' | 'view' | 'none';
+  reports: 'full' | 'view' | 'none';
+}
 
 interface IUserProfile {
   _id: string;
@@ -72,15 +85,7 @@ interface IUserProfile {
   role: 'admin' | 'editor' | 'viewer';
   status: 'active' | 'blocked' | 'suspended';
   isVerified: boolean;
-  permissions: {
-    dashboard: string;
-    products: string;
-    orders: string;
-    customers: string;
-    staff: string;
-    settings: string;
-    reports: string;
-  };
+  permissions: IPermissions;
   isTwoFactorEnabled: boolean;
   isOnline: boolean;
   lastLogin: string;
@@ -103,6 +108,27 @@ interface IProfileStats {
   totalActiveSessions: number;
   totalLoginHistory: number;
 }
+
+// ==========================================
+// ✅ Route → Permission Key Map (Model অনুযায়ী)
+// ==========================================
+
+const ROUTE_PERMISSION_MAP: Record<string, keyof IPermissions> = {
+  '/admin': 'dashboard',
+  '/admin/bookings': 'booking',
+  '/admin/transactions': 'transactions',
+  '/admin/customers': 'customers',
+  '/admin/destinations': 'destinations',
+  '/admin/packages': 'packages',
+  '/admin/offers': 'offers',
+  '/admin/support': 'support',
+  '/admin/staff': 'staff',
+  '/admin/settings': 'settings',
+  '/admin/reports': 'reports',
+  '/admin/activity-log': 'dashboard',
+  '/admin/profile': 'dashboard',
+  '/admin/sessions': 'dashboard',
+};
 
 // ==========================================
 // Helpers
@@ -162,6 +188,22 @@ const getRoleBadge = (
         dot: 'bg-gray-500',
       };
   }
+};
+
+// ✅ Permission check helper — level hierarchy: none < view < edit < full
+const hasPermission = (
+  user: IUserProfile | null,
+  module: keyof IPermissions,
+  requiredLevel: 'view' | 'edit' | 'full' = 'view'
+): boolean => {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+
+  const permission = user.permissions?.[module];
+  if (!permission || permission === 'none') return false;
+
+  const levels = ['none', 'view', 'edit', 'full'];
+  return levels.indexOf(permission) >= levels.indexOf(requiredLevel);
 };
 
 // ==========================================
@@ -250,9 +292,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error(
-          error.response?.data?.message || 'Logout failed'
-        );
+        toast.error(error.response?.data?.message || 'Logout failed');
       } else {
         toast.error('Logout failed');
       }
@@ -279,9 +319,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error(
-          error.response?.data?.message || 'Logout failed'
-        );
+        toast.error(error.response?.data?.message || 'Logout failed');
       } else {
         toast.error('Logout failed');
       }
@@ -295,7 +333,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const gradient = getAvatarGradient(user?.name || 'A');
   const roleBadge = getRoleBadge(user?.role || 'viewer');
 
-  // ── Filter nav items based on permissions ──
+  // ── ✅ Filter nav items based on Model permissions ──
   const filteredNavMain = React.useMemo(() => {
     if (!user) return navMain;
 
@@ -307,29 +345,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          // Map URL to permission key
-          const permissionMap: Record<string, string> = {
-            '/admin': 'dashboard',
-            '/admin/bookings': 'orders',
-            '/admin/packages': 'products',
-            '/admin/destinations': 'products',
-            '/admin/offers': 'products',
-            '/admin/customers': 'customers',
-            '/admin/staff': 'staff',
-            '/admin/settings': 'settings',
-            '/admin/reports': 'reports',
-            '/admin/activity-log': 'dashboard',
-          };
+          const permKey = ROUTE_PERMISSION_MAP[item.url];
 
-          const permKey =
-            permissionMap[item.url] || 'dashboard';
-          const permValue =
-            user.permissions?.[
-              permKey as keyof typeof user.permissions
-            ];
+          // URL mapping না থাকলে dashboard permission check
+          if (!permKey) {
+            return hasPermission(user, 'dashboard', 'view');
+          }
 
-          // 'none' = no access
-          return permValue !== 'none';
+          return hasPermission(user, permKey, 'view');
         }),
       }))
       .filter((group) => group.items.length > 0);
@@ -571,6 +594,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
                     {/* ── Menu Items ── */}
                     <DropdownMenuGroup>
+                      {/* ✅ Profile — সবাই দেখতে পারবে */}
                       <DropdownMenuItem
                         onClick={() => router.push('/admin/profile')}
                         className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-gray-700 transition-colors focus:bg-gray-50 focus:text-gray-900"
@@ -584,27 +608,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                         </div>
                       </DropdownMenuItem>
 
+                      {/* ✅ Sessions — সবাই নিজের sessions দেখতে পারবে */}
                       <DropdownMenuItem
-                        onClick={() =>
-                          router.push('/admin/change-password')
-                        }
-                        className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-gray-700 transition-colors focus:bg-gray-50 focus:text-gray-900"
-                      >
-                        <KeyRound className="mr-2.5 h-4 w-4 text-gray-400" />
-                        <div className="flex flex-col">
-                          <span className="text-[13px]">
-                            Change Password
-                          </span>
-                          <span className="text-[10px] text-gray-400 font-normal">
-                            Update your password
-                          </span>
-                        </div>
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem
-                        onClick={() =>
-                          router.push('/admin/sessions')
-                        }
+                        onClick={() => router.push('/admin/sessions')}
                         className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-gray-700 transition-colors focus:bg-gray-50 focus:text-gray-900"
                       >
                         <Monitor className="mr-2.5 h-4 w-4 text-gray-400" />
@@ -626,18 +632,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                         </div>
                       </DropdownMenuItem>
 
-                      {user?.role === 'admin' && (
+                      {/* ✅ Activity Log — permission based */}
+                      {hasPermission(user, 'dashboard', 'view') && (
                         <DropdownMenuItem
-                          onClick={() =>
-                            router.push('/admin/activity-log')
-                          }
+                          onClick={() => router.push('/admin/activity-log')}
                           className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-gray-700 transition-colors focus:bg-gray-50 focus:text-gray-900"
                         >
                           <Activity className="mr-2.5 h-4 w-4 text-gray-400" />
                           <div className="flex flex-col">
-                            <span className="text-[13px]">
-                              Activity Log
-                            </span>
+                            <span className="text-[13px]">Activity Log</span>
                             <span className="text-[10px] text-gray-400 font-normal">
                               View all activities
                             </span>
@@ -645,11 +648,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                         </DropdownMenuItem>
                       )}
 
-                      {user?.role === 'admin' && (
+                      {/* ✅ Settings — permission based */}
+                      {hasPermission(user, 'settings', 'view') && (
                         <DropdownMenuItem
-                          onClick={() =>
-                            router.push('/admin/settings')
-                          }
+                          onClick={() => router.push('/admin/settings')}
                           className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-gray-700 transition-colors focus:bg-gray-50 focus:text-gray-900"
                         >
                           <Settings className="mr-2.5 h-4 w-4 text-gray-400" />
@@ -704,6 +706,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                       profileStats.totalActiveSessions > 1 && (
                         <DropdownMenuItem
                           onClick={handleLogoutAll}
+                          disabled={isLoggingOut}
                           className="cursor-pointer rounded-lg px-3 py-2.5 font-medium text-rose-500 transition-colors focus:bg-rose-50 focus:text-rose-700"
                         >
                           <LogOut className="mr-2.5 h-4 w-4" />

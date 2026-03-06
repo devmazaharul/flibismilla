@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import Admin from '@/models/Admin.model';
 
-function extractDeviceInfo(request: NextRequest) {
+export function extractDeviceInfo(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') || 'Unknown';
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||

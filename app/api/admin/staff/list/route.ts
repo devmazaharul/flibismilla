@@ -4,7 +4,7 @@ import { getCurrentAdmin, isAdmin } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { IStaffListResponse } from '@/types/admin';
 import dbConnect from '@/connection/db';
-import Admin, { AdminDocument } from '@/models/Admin.model';
+import Admin from '@/models/Admin.model';
 
 
 export async function GET(request: NextRequest) {

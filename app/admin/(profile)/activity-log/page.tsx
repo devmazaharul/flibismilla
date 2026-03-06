@@ -406,7 +406,7 @@ function ActivityItem({
 // MAIN PAGE
 // ═══════════════════════════════════════
 
-export default function ActivityLogPage() {
+function ActivityLogPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1028,4 +1028,10 @@ export default function ActivityLogPage() {
       </div>
     </div>
   );
+}
+
+export default function ActivityLog(){
+  return <React.Suspense fallback={<p>Loading...</p>}>
+<ActivityLogPage/>
+  </React.Suspense>
 }

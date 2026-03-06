@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verify } from 'otplib';
 import dbConnect from '@/connection/db';
 import Admin from '@/models/Admin.model';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
 import { JWT_SECRET, COOKIE_NAME, TOKEN_EXPIRATION, SESSION_EXPIRATION, MAX_DEVICE } from '@/app/api/controller/constant';
-import { getDeviceInfo } from '../../login/route';
+import { extractDeviceInfo } from '../../login/route';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     await dbConnect();
     const { userId, code } = await req.json();
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Invalid or expired code." }, { status: 400 });
     }
 
-      const deviceInfo = await getDeviceInfo(req);
+      const deviceInfo = await extractDeviceInfo(req);
     
       await Admin.findByIdAndUpdate(admin._id, { 
             $set: { 

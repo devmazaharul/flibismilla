@@ -39,24 +39,73 @@ export async function GET(request: NextRequest) {
 
     // 3️⃣ Blocked check
     if (profile.status === 'blocked') {
-      return errorResponse(
-        `Your account is blocked. Reason: ${profile.blockReason || 'Contact administrator'}`,
-        403
+      // ❗ Cookie ও clear করো blocked user এর
+      const response = NextResponse.json(
+        {
+          success: false,
+          message: `Your account is blocked. Reason: ${profile.blockReason || 'Contact administrator'}`,
+        },
+        { status: 403 }
       );
+      response.cookies.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 0, // immediately expire
+        path: '/',
+      });
+      return response;
     }
 
-    // 4️⃣ Current session info
+    // ============================================
+    // 4️⃣ ✅✅✅ SESSION VALIDATION - এটাই MISSING ছিল!
+    // ============================================
     const currentSessionId = decoded.sessionId || null;
-    const currentSession = profile.activeSessions?.find(
-      (s) => s.sessionId === currentSessionId
-    ) || null;
 
-    // 5️⃣ Recent activity (নিজের last 10 activities)
+    if (!currentSessionId) {
+      // Token এ sessionId নেই = পুরানো/invalid token
+      const response = NextResponse.json(
+        { success: false, message: 'Invalid session - Please login again' },
+        { status: 401 }
+      );
+      response.cookies.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 0,
+        path: '/',
+      });
+      return response;
+    }
+
+    // ✅ DB তে এই session আছে কিনা check করো
+    const currentSession = profile.activeSessions?.find(
+      (s: any) => s.sessionId === currentSessionId
+    );
+
+    if (!currentSession) {
+      // ❌ Session DB তে নেই = Logout হয়ে গেছে (single/all device)
+      // Cookie clear করো
+      const response = NextResponse.json(
+        {
+          success: false,
+          message: 'Session expired or logged out from another device',
+        },
+        { status: 401 }
+      );
+      response.cookies.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 0,
+        path: '/',
+      });
+      return response;
+    }
+
+    // 5️⃣ Recent activity
     const recentActivity = await ActivityLog.find({
-      $or: [
-        { admin: decoded.id },
-        { target: decoded.id }
-      ],
+      $or: [{ admin: decoded.id }, { target: decoded.id }],
     })
       .populate('admin', 'name email adminId')
       .sort({ createdAt: -1 })

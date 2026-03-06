@@ -74,12 +74,12 @@ export async function PUT(req: Request) {
         admin.password = newHashPass;
 
         // 6. Clear the reset fields
-        admin.resetPasswordToken = undefined;
-        admin.resetPasswordExpire = undefined;
+        admin.resetPasswordToken = null;
+        admin.resetPasswordExpire = null;
 
         // Reset failed login attempts
         admin.failedLoginAttempts = 0;
-        admin.lockUntil = undefined;
+        admin.lockUntil = null;
 
         await admin.save();
 

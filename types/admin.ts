@@ -23,11 +23,17 @@ export interface IActiveSession {
   lastActive: Date;
 }
 
+// types/admin.ts — permissions অংশটা update করো
+
 export interface IPermissions {
   dashboard: 'full' | 'view' | 'none';
-  products: 'full' | 'edit' | 'view' | 'none';
-  orders: 'full' | 'edit' | 'view' | 'none';
+  booking: 'full' | 'edit' | 'view' | 'none';
+  transactions: 'full' | 'edit' | 'view' | 'none';
   customers: 'full' | 'view' | 'none';
+  destinations: 'full' | 'view' | 'none';
+  packages: 'full' | 'view' | 'none';
+  offers: 'full' | 'view' | 'none';
+  support: 'full' | 'view' | 'none';
   staff: 'full' | 'view' | 'none';
   settings: 'full' | 'view' | 'none';
   reports: 'full' | 'view' | 'none';

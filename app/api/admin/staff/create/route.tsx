@@ -14,27 +14,38 @@ import bcrypt from 'bcryptjs';
 import dbConnect from '@/connection/db';
 import Admin from '@/models/Admin.model';
 
-// Default permissions per role
+
+// app/api/auth/staff/create/route.ts — শুধু DEFAULT_PERMISSIONS update
+
 const DEFAULT_PERMISSIONS: Record<string, IPermissions> = {
   editor: {
     dashboard: 'view',
-    products: 'edit',
-    orders: 'edit',
+    booking: 'edit',
+    transactions: 'edit',
     customers: 'view',
+    destinations: 'view',
+    packages: 'view',
+    offers: 'view',
+    support: 'view',
     staff: 'none',
     settings: 'none',
     reports: 'view',
   },
   viewer: {
     dashboard: 'view',
-    products: 'view',
-    orders: 'view',
+    booking: 'view',
+    transactions: 'view',
     customers: 'view',
+    destinations: 'view',
+    packages: 'view',
+    offers: 'view',
+    support: 'view',
     staff: 'none',
     settings: 'none',
     reports: 'view',
   },
 };
+
 
 export async function POST(request: NextRequest) {
   try {

@@ -4,11 +4,11 @@ import { NextRequest } from 'next/server';
 import ActivityLog from '@/models/ActivityLog';
 import { getCurrentAdmin, isAdmin } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
-import { IUpdateStaffBody, IPermissions } from '@/types/admin';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import Admin from '@/models/Admin.model';
 import dbConnect from '@/connection/db';
+import { IUpdateStaffBody, IPermissions } from '@/types/admin';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -130,13 +130,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Permissions update
     if (permissions !== undefined) {
       const validPermissionKeys: (keyof IPermissions)[] = [
-        'dashboard',
-        'products',
-        'orders',
-        'customers',
-        'staff',
-        'settings',
-        'reports',
+     "booking",
+     "staff",
+     "customers",
+     "dashboard",
+     "packages",
+     "support",
+     "transactions",
+     "offers",
+     "reports",
+    "destinations",
+    "settings"
       ];
 
       const currentPermissions = staff.permissions || {};

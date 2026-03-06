@@ -67,17 +67,37 @@ const AdminSchema = new Schema<AdminDocument>(
         enum: ['full', 'view', 'none'],
         default: 'view',
       },
-      products: {
+      booking: {
         type: String,
         enum: ['full', 'edit', 'view', 'none'],
         default: 'view',
       },
-      orders: {
+      transactions: {
         type: String,
         enum: ['full', 'edit', 'view', 'none'],
         default: 'view',
       },
       customers: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      destinations: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      packages: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      offers: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      support: {
         type: String,
         enum: ['full', 'view', 'none'],
         default: 'view',
