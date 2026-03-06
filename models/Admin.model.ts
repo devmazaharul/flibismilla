@@ -1,69 +1,209 @@
-import mongoose, { Schema, model, models } from 'mongoose';
+// models/Admin.ts
 
-const AdminSchema = new Schema({
-  name: { 
-    type: String, 
-    required: true,
-    trim: true 
-  },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    lowercase: true,
-    trim: true
-  },
-  password: { 
-    type: String, 
-    required: true 
-  },
-  role: { 
-    type: String, 
-    enum: ['admin', "viewer",'editor'], 
-    default: 'admin' 
-  },
-  
-  // 🛡️ Security & Rate Limiting Fields
-  failedLoginAttempts: { 
-    type: Number, 
-    default: 0 
-  },
-  lockUntil: { 
-    type: Date 
-  },
-  
-  // 🔄 Password Reset Functionality
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
+import { Schema, model, models, Model, Document } from 'mongoose';
+import { IAdmin } from '@/types/admin';
 
-  lastLogin: { type: Date, required: true, default: Date.now },
+export type AdminDocument = IAdmin & Document;
 
-  // ✅ Device Login History (Stores last 5 successful logins)
-  loginHistory: [
-    {
-      device: { type: String },    // e.g., "iPhone 14 (iOS 17)" or "Windows PC"
-      browser: { type: String },   // e.g., "Chrome 120.0"
-      ip: { type: String },        // e.g., "192.168.1.1"
-      location: { type: String },  // e.g., "Dhaka, Bangladesh"
-      time: { type: Date, default: Date.now },
-      status: { type: String, enum:["current","completed"],default: 'current' }
-    }
-  ],
- twoFactorSecret: { 
-  type: String, 
-  default: null 
-},
-isTwoFactorEnabled: { 
-  type: Boolean, 
-  default: false
-},
-adminId:String,
-isVerified:{
-  type:Boolean,
-  default:true
-}
+const AdminSchema = new Schema<AdminDocument>(
+  {
+    // ===== 👤 Basic Info =====
+    name: {
+      type: String,
+      required: [true, 'Name is required'],
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      select: false,
+    },
+    phone: {
+      type: String,
+      default: null,
+    },
+    avatar: {
+      type: String,
+      default: null,
+    },
+    adminId: {
+      type: String,
+      unique: true,
+    },
 
-}, { timestamps: true });
+    // ===== 🎭 Role & Status =====
+    role: {
+      type: String,
+      enum: {
+        values: ['admin', 'viewer', 'editor'],
+        message: '{VALUE} is not a valid role',
+      },
+      default: 'editor',
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ['active', 'blocked', 'suspended'],
+        message: '{VALUE} is not a valid status',
+      },
+      default: 'active',
+    },
+    isVerified: {
+      type: Boolean,
+      default: true,
+    },
 
-const Admin = models.Admin || model('Admin', AdminSchema);
-export default Admin; //<Maza@112/> 
+    // ===== 🔐 Permissions =====
+    permissions: {
+      dashboard: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      products: {
+        type: String,
+        enum: ['full', 'edit', 'view', 'none'],
+        default: 'view',
+      },
+      orders: {
+        type: String,
+        enum: ['full', 'edit', 'view', 'none'],
+        default: 'view',
+      },
+      customers: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+      staff: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'none',
+      },
+      settings: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'none',
+      },
+      reports: {
+        type: String,
+        enum: ['full', 'view', 'none'],
+        default: 'view',
+      },
+    },
+
+    // ===== 👨‍💼 Staff Tracking =====
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null,
+    },
+
+    // ===== 🛡️ Security =====
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
+
+    // ===== 🔄 Password Reset =====
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpire: {
+      type: Date,
+      default: null,
+    },
+
+    // ===== 🕐 Login & Activity =====
+    lastLogin: {
+      type: Date,
+      default: Date.now,
+    },
+    lastActive: {
+      type: Date,
+      default: Date.now,
+    },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ===== 📱 Login History =====
+    loginHistory: [
+      {
+        device: { type: String },
+        browser: { type: String },
+        ip: { type: String },
+        location: { type: String },
+        time: { type: Date, default: Date.now },
+        status: {
+          type: String,
+          enum: ['current', 'completed'],
+          default: 'current',
+        },
+      },
+    ],
+
+    // ===== 🔑 Active Sessions =====
+    activeSessions: [
+      {
+        sessionId: { type: String, required: true },
+        device: { type: String },
+        browser: { type: String },
+        ip: { type: String },
+        location: { type: String },
+        loginTime: { type: Date, default: Date.now },
+        lastActive: { type: Date, default: Date.now },
+      },
+    ],
+
+    // ===== 🔒 Two Factor Auth =====
+    twoFactorSecret: {
+      type: String,
+      default: null,
+    },
+    isTwoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ===== 🚫 Block Info =====
+    blockedAt: {
+      type: Date,
+      default: null,
+    },
+    blockedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null,
+    },
+    blockReason: {
+      type: String,
+      default: null,
+    },
+  },
+  { timestamps: true }
+);
+
+// Indexes
+AdminSchema.index({ role: 1, status: 1 });
+AdminSchema.index({ email: 1 });
+AdminSchema.index({ adminId: 1 });
+AdminSchema.index({ createdBy: 1 });
+
+const Admin: Model<AdminDocument> =
+  models.Admin || model<AdminDocument>('Admin', AdminSchema);
+
+export default Admin;

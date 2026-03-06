@@ -68,7 +68,7 @@ const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/profile')
       .then((res) => res.json())
       .then((data) => {
         setUser(data.user);

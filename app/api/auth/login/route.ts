@@ -1,191 +1,243 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { SignJWT } from 'jose'; 
-import { z } from 'zod';
-import { cookies } from 'next/headers';
+// app/api/auth/login/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/connection/db';
+import ActivityLog from '@/models/ActivityLog';
+import { createToken } from '@/lib/auth';
+import { COOKIE_NAME } from '@/app/api/controller/constant';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import Admin from '@/models/Admin.model';
-import { 
-  COOKIE_NAME, 
-  JWT_ALGORITHM, 
-  JWT_SECRET, 
-  LOCKOUT_DURATION, 
-  MAX_DEVICE, 
-  MAX_LOGIN_ATTEMPTS, 
-  SESSION_EXPIRATION, 
-  TOKEN_EXPIRATION 
-} from '@/app/api/controller/constant';
-import { UAParser } from 'ua-parser-js';
 
-// Input Validation Schema
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+function extractDeviceInfo(request: NextRequest) {
+  const userAgent = request.headers.get('user-agent') || 'Unknown';
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'Unknown';
 
-// --- Helper Function: Get Device Info ---
-export async function getDeviceInfo(req: Request) {
-  const userAgent = req.headers.get('user-agent') || '';
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-  
-  const parser = new UAParser(userAgent);
-  const result = parser.getResult();
-
-  const deviceName = result.device.model 
-    ? `${result.device.vendor || ''} ${result.device.model}` 
-    : 'Desktop PC';
-  
-  const browser = `${result.browser.name || 'Unknown'} ${result.browser.version || ''}`;
-  const os = `${result.os.name || 'Unknown'} ${result.os.version || ''}`;
-
-  let location = 'Unknown Location';
-  // Skip external API call for localhost to save time
-  if (ip !== '127.0.0.1' && ip !== '::1') {
-    try {
-      const geoRes = await fetch(`http://ip-api.com/json/${ip}`, { signal: AbortSignal.timeout(1500) });
-      const geoData = await geoRes.json();
-      if (geoData.status === 'success') {
-        location = `${geoData.city}, ${geoData.country}`;
-      }
-    } catch (e) {
-      // Fail silently
-    }
+  let browser = 'Unknown';
+  if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) {
+    const match = userAgent.match(/Chrome\/([\d.]+)/);
+    browser = `Chrome ${match?.[1] || ''}`.trim();
+  } else if (userAgent.includes('Firefox')) {
+    const match = userAgent.match(/Firefox\/([\d.]+)/);
+    browser = `Firefox ${match?.[1] || ''}`.trim();
+  } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
+    const match = userAgent.match(/Version\/([\d.]+)/);
+    browser = `Safari ${match?.[1] || ''}`.trim();
+  } else if (userAgent.includes('Edg')) {
+    const match = userAgent.match(/Edg\/([\d.]+)/);
+    browser = `Edge ${match?.[1] || ''}`.trim();
   }
 
-  return {
-    device: `${deviceName} (${os})`,
-    browser: browser,
-    ip: ip,
-    location: location,
-    time: new Date(),
-    status: 'current'
-  };
+  let device = 'Unknown Device';
+  if (userAgent.includes('iPhone')) device = 'iPhone';
+  else if (userAgent.includes('iPad')) device = 'iPad';
+  else if (userAgent.includes('Android')) {
+    device = userAgent.includes('Mobile') ? 'Android Phone' : 'Android Tablet';
+  } else if (userAgent.includes('Macintosh')) device = 'Mac';
+  else if (userAgent.includes('Windows')) device = 'Windows PC';
+  else if (userAgent.includes('Linux')) device = 'Linux PC';
+
+  return { browser, device, ip, userAgent };
 }
 
-
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    
-    const body = await req.json();
-    const validation = loginSchema.safeParse(body);
 
-    if (!validation.success) {
+    const body = await request.json();
+    const { email, password } = body;
+
+    // 1️⃣ Validation
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, message: "Invalid input data", details: validation.error.flatten() }, 
+        { success: false, message: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    const { email, password } = validation.data;
+    // 2️⃣ Find admin
+    const admin = await Admin.findOne({
+      email: email.toLowerCase().trim(),
+    }).select('+password');
 
-    const admin = await Admin.findOne({ email });
     if (!admin) {
-      return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 });
-    }
-
-    // 🛡️ --- NEW: Check if Account is Verified/Blocked ---
-    if (admin.isVerified === false) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: "Your account is disabled. Please contact the system administrator." 
-        }, 
-        { status: 403 } // Forbidden
+        { success: false, message: 'Invalid email or password' },
+        { status: 401 }
       );
     }
 
-    // 1. Check Account Lock Status (Failed attempts lock)
-    if (admin.lockUntil && new Date(admin.lockUntil).getTime() > Date.now()) {
-      const remainingTime = Math.ceil((new Date(admin.lockUntil).getTime() - Date.now()) / 1000 / 60);
+    // 3️⃣ Status check
+    if (admin.status === 'blocked') {
       return NextResponse.json(
-        { success: false, message: `Account is temporarily locked. Try again in ${remainingTime} minutes.` },
-        { status: 429 }
+        {
+          success: false,
+          message: `Account blocked: ${admin.blockReason || 'Contact administrator'}`,
+        },
+        { status: 403 }
       );
     }
 
-    // 2. Verify Password
+    if (admin.status === 'suspended') {
+      return NextResponse.json(
+        { success: false, message: 'Account suspended. Contact administrator' },
+        { status: 403 }
+      );
+    }
+
+    // 4️⃣ Lock check
+    if (admin.lockUntil && admin.lockUntil > new Date()) {
+      const remainingMin = Math.ceil(
+        (admin.lockUntil.getTime() - Date.now()) / 60000
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Account locked. Try again in ${remainingMin} minutes`,
+        },
+        { status: 423 }
+      );
+    }
+
+    // 5️⃣ Password verify
     const isMatch = await bcrypt.compare(password, admin.password);
 
-    // ❌ Failed Login Handling
     if (!isMatch) {
-      const attempts = (admin.failedLoginAttempts || 0) + 1;
-      let updateData: any = { $set: { failedLoginAttempts: attempts } };
-      
-      if (attempts >= MAX_LOGIN_ATTEMPTS) {
-        updateData.$set.lockUntil = new Date(Date.now() + LOCKOUT_DURATION);
-        updateData.$set.failedLoginAttempts = 0;
+      const failedAttempts = admin.failedLoginAttempts + 1;
+      const updateData: Record<string, unknown> = {
+        failedLoginAttempts: failedAttempts,
+      };
+
+      if (failedAttempts >= 5) {
+        updateData.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+        updateData.failedLoginAttempts = 0;
       }
 
-      await Admin.findByIdAndUpdate(admin._id, updateData);
-      return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 });
-    }
+      await Admin.findByIdAndUpdate(admin._id, { $set: updateData });
 
-    // ✅ Password Matched! 
-    
-    // 3. Check 2FA status
-    if (admin.isTwoFactorEnabled) {
-      return NextResponse.json({ 
-        success: true, 
-        require2FA: true,
-        userId: admin._id,
-        message: "Please enter the 6-digit code from your authenticator app."
+      // Activity log
+      await ActivityLog.create({
+        admin: admin._id,
+        action: 'failed_login',
+        target: admin._id,
+        details: `Failed login attempt (${failedAttempts}/5)`,
+        ip:
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '',
+        device: request.headers.get('user-agent') || '',
       });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Invalid password. ${5 - failedAttempts} attempts remaining`,
+        },
+        { status: 401 }
+      );
     }
 
-    // --- Proceed with Full Login if 2FA is OFF ---
+    // 6️⃣ Generate session
+    const sessionId: string = uuidv4();
+    const { browser, device, ip } = extractDeviceInfo(request);
+    const location = 'Unknown';
 
-    const deviceInfo = await getDeviceInfo(req);
-
-    // 4. Update DB (Reset limits & Update History)
-    // 💡 এখানে আগের সব স্ট্যাটাস 'completed' করে নতুনটাকে 'current' করা হচ্ছে
-    await Admin.findByIdAndUpdate(admin._id, { 
-        $set: { 
-            failedLoginAttempts: 0, 
-            lockUntil: null,
-            lastLogin: new Date(),
-            "loginHistory.$[].status": "completed" // Reset old sessions
-        }
+    // 7️⃣ Create JWT
+    const token = await createToken({
+      id: admin._id.toString(),
+      email: admin.email,
+      role: admin.role,
+      sessionId,
     });
 
+    // 8️⃣ Update admin: session + login info
     await Admin.findByIdAndUpdate(admin._id, {
-        $push: {
-            loginHistory: {
-                $each: [deviceInfo],
-                $position: 0,
-                $slice: MAX_DEVICE           
-            }
-        }
+      $set: {
+        isOnline: true,
+        lastLogin: new Date(),
+        lastActive: new Date(),
+        failedLoginAttempts: 0,
+        lockUntil: null,
+      },
+      $push: {
+        activeSessions: {
+          sessionId,
+          device,
+          browser,
+          ip,
+          location,
+          loginTime: new Date(),
+          lastActive: new Date(),
+        },
+        loginHistory: {
+          $each: [
+            {
+              device,
+              browser,
+              ip,
+              location,
+              time: new Date(),
+              status: 'current',
+            },
+          ],
+          $slice: -50,
+        },
+      },
     });
 
-    // 5. Generate Token
-    const secret = new TextEncoder().encode(JWT_SECRET);
-    const token = await new SignJWT({ 
-        id: admin._id.toString(), 
-        email: admin.email, 
-        role: admin.role 
-    })
-      .setProtectedHeader({ alg: JWT_ALGORITHM || 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(TOKEN_EXPIRATION)
-      .sign(secret);
-
-    // 6. Set Cookie
-    const cookieStore = await cookies();
-    cookieStore.set(COOKIE_NAME, token, {
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', 
-      sameSite: 'strict', 
-      maxAge: SESSION_EXPIRATION, 
-      path: '/', 
+    // 9️⃣ Activity log
+    await ActivityLog.create({
+      admin: admin._id,
+      action: 'login',
+      target: admin._id,
+      details: `Login from ${device} - ${browser} - ${ip}`,
+      ip,
+      device: request.headers.get('user-agent') || '',
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Login successful" 
+    // 🔟 Build response WITH cookie
+    const adminData = {
+      _id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      adminId: admin.adminId,
+      avatar: admin.avatar,
+      status: admin.status,
+      permissions: admin.permissions,
+    };
+
+    // ✅ Response banao
+    const response = NextResponse.json(
+      {
+        success: true,
+        message: 'Login successful',
+        data: {
+          admin: adminData,
+          sessionId,
+          // ✅ Frontend ke bolo kothay redirect korbe
+          redirectUrl: '/admin',
+        },
+      },
+      { status: 200 }
+    );
+
+    // ✅ Cookie set koro RESPONSE er upor
+    response.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',       // ← 'lax' use koro, 'strict' na
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
     });
 
-  } catch (error) {
-    return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
+    return response;
+  } catch (error: unknown) {
+    console.error('Login Error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

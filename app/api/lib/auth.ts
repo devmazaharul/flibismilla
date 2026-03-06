@@ -2,8 +2,9 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import dbConnect from '@/connection/db';
-import Admin from '@/models/Admin.model';
+import Admin, { AdminDocument } from '@/models/Admin.model';
 import { COOKIE_NAME, JWT_SECRET } from '@/app/api/controller/constant';
+import { verifyToken } from '@/lib/auth';
 
 type AuthResult = 
   | { success: false; response: NextResponse; user: null }
@@ -79,4 +80,99 @@ export async function isAdmin(): Promise<AdminAuthResult> {
   }
 
   return { success: true, user: auth.user };
+}
+
+
+// lib/auth.ts এ নতুন function add করো
+
+// ✅ Verify session is still active (Force logout detection)
+export async function getCurrentAdminWithSession(): Promise<{
+  admin: AdminDocument | null;
+  sessionId: string | null;
+  error: string | null;
+}> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+
+    if (!token) {
+      return {
+        admin: null,
+        sessionId: null,
+        error: 'No token found',
+      };
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded || !decoded.id) {
+      return {
+        admin: null,
+        sessionId: null,
+        error: 'Invalid token',
+      };
+    }
+
+    await dbConnect();
+
+    const admin = await Admin.findById(decoded.id).select(
+      '+password'
+    );
+
+    if (!admin) {
+      return {
+        admin: null,
+        sessionId: null,
+        error: 'Admin not found',
+      };
+    }
+
+    // ❌ Blocked check
+    if (admin.status === 'blocked') {
+      return {
+        admin: null,
+        sessionId: null,
+        error: 'Account blocked',
+      };
+    }
+
+    // ❌ Session validity check (Force Logout detection)
+    const sessionId = decoded.sessionId || null;
+
+    if (sessionId) {
+      const sessionExists = admin.activeSessions?.some(
+        (s) => s.sessionId === sessionId
+      );
+
+      if (!sessionExists) {
+        // Session removed = Force logged out
+        return {
+          admin: null,
+          sessionId,
+          error: 'Session expired or force logged out',
+        };
+      }
+
+      // ✅ Update lastActive for this session
+      await Admin.updateOne(
+        {
+          _id: admin._id,
+          'activeSessions.sessionId': sessionId,
+        },
+        {
+          $set: {
+            'activeSessions.$.lastActive': new Date(),
+            lastActive: new Date(),
+          },
+        }
+      );
+    }
+
+    return { admin, sessionId, error: null };
+  } catch {
+    return {
+      admin: null,
+      sessionId: null,
+      error: 'Auth error',
+    };
+  }
 }
