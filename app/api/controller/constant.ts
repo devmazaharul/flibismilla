@@ -5,7 +5,7 @@ export const TOKEN_EXPIRATION = '1d'; // Token expiration time
 export const JWT_ALGORITHM = 'HS256'; // JWT signing algorithm
 
 export const COOKIE_NAME = 'auth_token'; // Name of the authentication cookie
-export const SESSION_EXPIRATION = 1 * 24 * 60 * 60; // Session expiration time in seconds (1 days)
+export const SESSION_EXPIRATION = 30 * 24 * 60 * 60; // Session expiration time in seconds (30 days)
 
 export const SALT_ROUNDS = 10; // Number of salt rounds for password hashing
 export const MAX_LOGIN_ATTEMPTS = 5; // Maximum login attempts before lockout
