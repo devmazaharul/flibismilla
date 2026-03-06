@@ -402,10 +402,6 @@ function ActivityItem({
   );
 }
 
-// ═══════════════════════════════════════
-// MAIN PAGE
-// ═══════════════════════════════════════
-
 function ActivityLogPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
