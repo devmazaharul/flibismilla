@@ -1031,7 +1031,7 @@ function ActivityLogPage() {
 }
 
 export default function ActivityLog(){
-  return <React.Suspense fallback={<p>Loading...</p>}>
+  return <React.Suspense fallback={<p>Loading....</p>}>
 <ActivityLogPage/>
   </React.Suspense>
 }
