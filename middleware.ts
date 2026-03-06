@@ -24,8 +24,8 @@ const PROTECTED_PAGE_ROUTES: RouteConfig[] = [
 // ✅ Protected API routes (সব API routes এখানে)
 const PROTECTED_API_ROUTES: RouteConfig[] = [
   // ── Staff CRUD (admin only) ──
-  { path: '/api/auth/staff/create', roles: ['admin'] },
-  { path: '/api/auth/staff/list', roles: ['admin'] },
+  { path: '/api/admin/staff/create', roles: ['admin'] },
+  { path: '/api/admin/staff/list', roles: ['admin'] },
 
   // ── Staff [id] operations ──
   // delete, block, unblock = admin only

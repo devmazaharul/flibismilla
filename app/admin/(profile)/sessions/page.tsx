@@ -695,7 +695,7 @@ export default function ActiveSessionsPage() {
 
           // Get full session details
           const profileRes = await axios.get(
-            `/api/auth/staff/${profile._id}/sessions`,
+            `/api/admin/staff/${profile._id}/sessions`,
             { withCredentials: true }
           );
 
