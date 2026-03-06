@@ -74,7 +74,7 @@ const AdminSchema = new Schema<AdminDocument>(
       },
       transactions: {
         type: String,
-        enum: ['full', 'edit', 'view', 'none'],
+        enum: ['full',  'view', 'none'],
         default: 'view',
       },
       customers: {
@@ -84,39 +84,29 @@ const AdminSchema = new Schema<AdminDocument>(
       },
       destinations: {
         type: String,
-        enum: ['full', 'view', 'none'],
+         enum: ['full', 'edit', 'view', 'none'],
         default: 'view',
       },
       packages: {
         type: String,
-        enum: ['full', 'view', 'none'],
+         enum: ['full', 'edit', 'view', 'none'],
         default: 'view',
       },
       offers: {
         type: String,
-        enum: ['full', 'view', 'none'],
+        enum: ['full', 'edit', 'view', 'none'],
         default: 'view',
       },
       support: {
         type: String,
-        enum: ['full', 'view', 'none'],
-        default: 'view',
-      },
-      staff: {
-        type: String,
-        enum: ['full', 'view', 'none'],
-        default: 'none',
+        enum: ['full',  'none'],
+        default: 'full',
       },
       settings: {
         type: String,
         enum: ['full', 'view', 'none'],
         default: 'none',
-      },
-      reports: {
-        type: String,
-        enum: ['full', 'view', 'none'],
-        default: 'view',
-      },
+      }
     },
 
     // ===== 👨‍💼 Staff Tracking =====

@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         {/* ═══════════════════════════════════
                             STICKY HEADER — only trigger
                         ═══════════════════════════════════ */}
-                        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-slate-200/60 bg-white/80 backdrop-blur-md px-4">
+                        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b border-slate-200/60 bg-white/80 backdrop-blur-md px-4">
                             <SidebarTrigger className="cursor-pointer -ml-1" />
                         </header>
 

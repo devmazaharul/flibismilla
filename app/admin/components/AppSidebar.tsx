@@ -66,13 +66,15 @@ interface IPermissions {
   booking: 'full' | 'edit' | 'view' | 'none';
   transactions: 'full' | 'edit' | 'view' | 'none';
   customers: 'full' | 'view' | 'none';
-  destinations: 'full' | 'view' | 'none';
-  packages: 'full' | 'view' | 'none';
-  offers: 'full' | 'view' | 'none';
+  destinations: 'full' | 'view' | 'none' | 'edit';
+  packages: 'full' | 'view' | 'none' | 'edit';
+  offers: 'full' | 'view' | 'none' | 'edit';
   support: 'full' | 'view' | 'none';
   staff: 'full' | 'view' | 'none';
-  settings: 'full' | 'view' | 'none';
-  reports: 'full' | 'view' | 'none';
+  settings: 'full' | 'view' | 'none' | 'edit';
+  activitylog: 'full' | 'view' | 'none';
+  sessions: 'full' | 'view' | 'none';
+  profile: 'full' | 'view' | 'none'|'edit';
 }
 
 interface IUserProfile {
@@ -124,10 +126,9 @@ const ROUTE_PERMISSION_MAP: Record<string, keyof IPermissions> = {
   '/admin/support': 'support',
   '/admin/staff': 'staff',
   '/admin/settings': 'settings',
-  '/admin/reports': 'reports',
-  '/admin/activity-log': 'dashboard',
-  '/admin/profile': 'dashboard',
-  '/admin/sessions': 'dashboard',
+  '/admin/activity-log': 'activitylog',
+  '/admin/profile': 'profile',
+  '/admin/sessions': 'sessions',
 };
 
 // ==========================================

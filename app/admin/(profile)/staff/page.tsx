@@ -4,66 +4,28 @@
 
 import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import {
-  Search,
-  Plus,
-  UserPlus,
-  Users,
-  ShieldCheck,
-  ShieldBan,
-  Wifi,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Eye,
-  EyeOff,
-  Pencil,
-  Trash2,
-  Ban,
-  Unlock,
-  Monitor,
-  MoreVertical,
-  X,
-  Loader2,
-  RotateCcw,
-  LogOut,
-  Shield,
-  Clock,
-  Globe,
-  MapPin,
-  Fingerprint,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Zap,
-  Activity,
-  Info,
-  Check,
-  ChevronDown,
-  Lock,
-  Mail,
-  Phone,
-  User,
-  KeyRound,
-  SlidersHorizontal,
+  Search, Plus, UserPlus, Users, ShieldCheck, ShieldBan, Wifi,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Eye, EyeOff, Pencil, Trash2, Ban, Unlock, Monitor, MoreVertical,
+  X, Loader2, RotateCcw, LogOut, Shield, Clock, Globe, MapPin,
+  CheckCircle2, XCircle, AlertTriangle, Zap, Activity,
+  Check, ChevronDown, Lock, User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ==========================================
-// TYPES
+// TYPES  (aligned with Admin model)
 // ==========================================
 export interface IPermissions {
   dashboard: 'full' | 'view' | 'none';
   booking: 'full' | 'edit' | 'view' | 'none';
-  transactions: 'full' | 'edit' | 'view' | 'none';
+  transactions: 'full' | 'view' | 'none';
   customers: 'full' | 'view' | 'none';
-  destinations: 'full' | 'view' | 'none';
-  packages: 'full' | 'view' | 'none';
-  offers: 'full' | 'view' | 'none';
-  support: 'full' | 'view' | 'none';
-  staff: 'full' | 'view' | 'none';
+  destinations: 'full' | 'edit' | 'view' | 'none';
+  packages: 'full' | 'edit' | 'view' | 'none';
+  offers: 'full' | 'edit' | 'view' | 'none';
+  support: 'full' | 'none';
   settings: 'full' | 'view' | 'none';
-  reports: 'full' | 'view' | 'none';
 }
 
 interface ICreatedBy { _id: string; name: string; email: string; adminId: string; }
@@ -104,20 +66,24 @@ interface IPagination {
 interface IStats { total: number; active: number; blocked: number; online: number; }
 
 // ==========================================
-// CONSTANTS
+// CONSTANTS  (matched to Admin model enums)
 // ==========================================
-const PERMISSION_MODULES = [
-  { key: 'dashboard', label: 'Dashboard', icon: '📊', desc: 'Analytics & metrics' },
-  { key: 'booking', label: 'Booking', icon: '📅', desc: 'Manage reservations' },
-  { key: 'transactions', label: 'Transactions', icon: '💳', desc: 'Payment & billing' },
-  { key: 'customers', label: 'Customers', icon: '👥', desc: 'Customer data' },
-  { key: 'packages', label: 'Packages', icon: '📦', desc: 'Tour packages' },
-  { key: 'destinations', label: 'Destinations', icon: '🌍', desc: 'Locations' },
-  { key: 'offers', label: 'Offers', icon: '🏷️', desc: 'Deals & promos' },
-  { key: 'staff', label: 'Staff', icon: '👤', desc: 'Team management' },
-  { key: 'settings', label: 'Settings', icon: '⚙️', desc: 'Configuration' },
-  { key: 'support', label: 'Support', icon: '🎧', desc: 'Help & tickets' },
-  { key: 'reports', label: 'Reports', icon: '📈', desc: 'Data exports' },
+const PERMISSION_MODULES: {
+  key: keyof IPermissions;
+  label: string;
+  icon: string;
+  desc: string;
+  levels: string[];
+}[] = [
+  { key: 'dashboard',    label: 'Dashboard',     icon: '📊', desc: 'Analytics & metrics',  levels: ['none', 'view', 'full'] },
+  { key: 'booking',      label: 'Booking',       icon: '📅', desc: 'Manage reservations',  levels: ['none', 'view', 'edit', 'full'] },
+  { key: 'transactions', label: 'Transactions',  icon: '💳', desc: 'Payment & billing',    levels: ['none', 'view', 'full'] },
+  { key: 'customers',    label: 'Customers',     icon: '👥', desc: 'Customer data',        levels: ['none', 'view', 'full'] },
+  { key: 'destinations', label: 'Destinations',  icon: '🌍', desc: 'Locations',            levels: ['none', 'view', 'edit', 'full'] },
+  { key: 'packages',     label: 'Packages',      icon: '📦', desc: 'Tour packages',        levels: ['none', 'view', 'edit', 'full'] },
+  { key: 'offers',       label: 'Offers',        icon: '🏷️', desc: 'Deals & promos',       levels: ['none', 'view', 'edit', 'full'] },
+  { key: 'support',      label: 'Support',       icon: '🎧', desc: 'Help & tickets',       levels: ['none', 'full'] },
+  { key: 'settings',     label: 'Settings',      icon: '⚙️', desc: 'Configuration',        levels: ['none', 'view', 'full'] },
 ];
 
 const PERMISSION_LEVELS = [
@@ -129,14 +95,26 @@ const PERMISSION_LEVELS = [
 
 const DEFAULT_PERMISSIONS: Record<string, IPermissions> = {
   editor: {
-    dashboard: 'view', booking: 'edit', transactions: 'edit', customers: 'view',
-    destinations: 'view', packages: 'view', offers: 'view', support: 'view',
-    staff: 'none', settings: 'none', reports: 'view',
+    dashboard: 'view',
+    booking: 'edit',
+    transactions: 'view',
+    customers: 'view',
+    destinations: 'view',
+    packages: 'view',
+    offers: 'view',
+    support: 'full',
+    settings: 'none',
   },
   viewer: {
-    dashboard: 'view', booking: 'view', transactions: 'view', customers: 'view',
-    destinations: 'view', packages: 'view', offers: 'view', support: 'view',
-    staff: 'none', settings: 'none', reports: 'view',
+    dashboard: 'view',
+    booking: 'view',
+    transactions: 'view',
+    customers: 'view',
+    destinations: 'view',
+    packages: 'view',
+    offers: 'view',
+    support: 'full',
+    settings: 'none',
   },
 };
 
@@ -352,50 +330,91 @@ function ModalHeader({ title, subtitle, onClose, icon, iconBg }: {
 }
 
 // ==========================================
-// PERMISSION EDITOR
+// PERMISSION EDITOR  (with disabled support)
 // ==========================================
-function PermissionEditor({ permissions, onChange }: {
+function PermissionEditor({ permissions, onChange, disabled = false }: {
   permissions: IPermissions;
   onChange: (key: string, value: string) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100">
-      {PERMISSION_MODULES.map((mod) => (
-        <div key={mod.key} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/50 transition-colors">
-          <div className="flex items-center gap-2.5">
-            <span className="text-base">{mod.icon}</span>
-            <div>
-              <p className="text-[13px] font-semibold text-slate-700">{mod.label}</p>
-              <p className="text-[10px] text-slate-400">{mod.desc}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {PERMISSION_LEVELS.map((level) => {
-              const isActive = (permissions[mod.key as keyof IPermissions] || 'none') === level.value;
-              return (
-                <button key={level.value} type="button"
-                  onClick={() => onChange(mod.key, level.value)}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all border cursor-pointer
-                    ${isActive ? level.color : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}>
-                  {level.label}
-                </button>
-              );
-            })}
-          </div>
+    <div className="border border-slate-200/80 rounded-xl overflow-hidden">
+      {/* Locked banner when disabled */}
+      {disabled && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100">
+          <Lock size={11} className="text-slate-400" />
+          <p className="text-[10px] text-slate-500 font-medium">
+            Default permissions for this role — change role to update
+          </p>
         </div>
-      ))}
+      )}
+
+      <div className="divide-y divide-slate-100">
+        {PERMISSION_MODULES.map((mod) => {
+          // Only show levels valid for this module
+          const moduleLevels = PERMISSION_LEVELS.filter((l) => mod.levels.includes(l.value));
+          const currentValue = permissions[mod.key] || 'none';
+
+          return (
+            <div
+              key={mod.key}
+              className={`flex items-center justify-between px-4 py-3 transition-colors
+                ${disabled ? '' : 'hover:bg-slate-50/50'}`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base">{mod.icon}</span>
+                <div>
+                  <p className={`text-[13px] font-semibold ${disabled ? 'text-slate-500' : 'text-slate-700'}`}>
+                    {mod.label}
+                  </p>
+                  <p className="text-[10px] text-slate-400">{mod.desc}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {moduleLevels.map((level) => {
+                  const isActive = currentValue === level.value;
+
+                  return (
+                    <button
+                      key={level.value}
+                      type="button"
+                      onClick={() => {
+                        if (!disabled) onChange(mod.key, level.value);
+                      }}
+                      disabled={disabled}
+                      className={`
+                        px-2 py-0.5 rounded-md text-[10px] font-bold transition-all border
+                        ${disabled ? 'cursor-default' : 'cursor-pointer'}
+                        ${isActive
+                          ? level.color
+                          : disabled
+                            ? 'bg-slate-50 text-slate-300 border-slate-100'
+                            : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                        }
+                      `}
+                    >
+                      {level.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 // ==========================================
-// PERMISSION VIEWER
+// PERMISSION VIEWER  (detail modal)
 // ==========================================
 function PermissionViewer({ permissions }: { permissions: IPermissions }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {PERMISSION_MODULES.map((mod) => {
-        const level = permissions?.[mod.key as keyof IPermissions] || 'none';
+        const level = permissions?.[mod.key] || 'none';
         return (
           <div key={mod.key} className="flex items-center justify-between bg-slate-50 px-3 py-2.5 rounded-lg border border-slate-100">
             <span className="text-[11px] text-slate-600 flex items-center gap-1.5 font-medium">
@@ -746,7 +765,6 @@ export default function StaffManagementPage() {
               {stats.total} team members — manage roles, permissions and sessions.
             </p>
           </div>
-
           <button onClick={() => { resetAddForm(); setShowAddModal(true); }}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all cursor-pointer">
             <UserPlus size={16} />
@@ -764,7 +782,6 @@ export default function StaffManagementPage() {
 
         {/* ═══════════ FILTERS ═══════════ */}
         <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input type="text" placeholder="Search name, email, ID, phone…" value={search}
@@ -777,8 +794,6 @@ export default function StaffManagementPage() {
               </button>
             )}
           </div>
-
-          {/* Selects */}
           <div className="flex flex-wrap gap-2">
             <div className="relative">
               <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
@@ -790,7 +805,6 @@ export default function StaffManagementPage() {
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-
             <div className="relative">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                 className="appearance-none h-10 pl-3 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 font-medium outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 cursor-pointer min-w-[120px]">
@@ -800,7 +814,6 @@ export default function StaffManagementPage() {
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-
             <div className="relative">
               <select value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => { const [s, o] = e.target.value.split('-'); setSortBy(s); setSortOrder(o); }}
@@ -813,14 +826,12 @@ export default function StaffManagementPage() {
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-
             {hasFilters && (
               <button onClick={clearFilters}
                 className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all cursor-pointer">
                 <RotateCcw size={12} /> Clear
               </button>
             )}
-
             <button onClick={fetchStaff} disabled={loading}
               className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 disabled:opacity-50 transition-all cursor-pointer">
               <RotateCcw size={14} className={loading ? 'animate-spin' : ''} />
@@ -832,7 +843,6 @@ export default function StaffManagementPage() {
         <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white">
           {loading && !initialLoad && staffList.length > 0 && <TableOverlay />}
 
-          {/* Table Meta */}
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
             <div className="flex items-center gap-2">
               <Shield size={16} className="text-slate-400" />
@@ -863,7 +873,6 @@ export default function StaffManagementPage() {
                   const color = getAvatarColor(s.name || 'A');
                   return (
                     <tr key={s._id} className="group transition-colors hover:bg-blue-50/30">
-                      {/* Member */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="relative flex-shrink-0">
@@ -880,21 +889,15 @@ export default function StaffManagementPage() {
                           </div>
                         </div>
                       </td>
-
-                      {/* ID */}
                       <td className="px-5 py-4 hidden md:table-cell">
                         <span className="font-mono text-[11px] bg-slate-100 px-2 py-1 rounded-md text-slate-500">{s.adminId}</span>
                       </td>
-
-                      {/* Role */}
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase
                           ${s.role === 'admin' ? 'bg-amber-50 text-amber-700' : s.role === 'editor' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
                           {s.role}
                         </span>
                       </td>
-
-                      {/* Status */}
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold
                           ${s.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
@@ -902,14 +905,10 @@ export default function StaffManagementPage() {
                           {s.status}
                         </span>
                       </td>
-
-                      {/* Last Active */}
                       <td className="px-5 py-4 hidden lg:table-cell">
                         <p className="text-[12px] text-slate-600 font-medium">{getTimeAgo(s.lastActive)}</p>
                         <p className="text-[10px] text-slate-400">Login: {getTimeAgo(s.lastLogin)}</p>
                       </td>
-
-                      {/* Sessions */}
                       <td className="px-5 py-4 hidden xl:table-cell">
                         <button onClick={() => openSessionsModal(s)}
                           className="inline-flex items-center gap-1.5 text-[11px] bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-2.5 py-1.5 rounded-lg transition-all font-medium text-slate-600 hover:text-blue-700 cursor-pointer">
@@ -917,8 +916,6 @@ export default function StaffManagementPage() {
                           {s.activeSessions?.length || 0} active
                         </button>
                       </td>
-
-                      {/* Actions */}
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => openDetailModal(s)} title="View"
@@ -929,8 +926,6 @@ export default function StaffManagementPage() {
                             className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all cursor-pointer">
                             <Pencil size={16} />
                           </button>
-
-                          {/* Dropdown */}
                           <div className="relative" ref={activeMenu === s._id ? menuRef : undefined}>
                             <button onClick={() => setActiveMenu(activeMenu === s._id ? null : s._id)}
                               className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all cursor-pointer">
@@ -971,7 +966,6 @@ export default function StaffManagementPage() {
                   );
                 })}
 
-                {/* Empty */}
                 {!loading && staffList.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-5 py-20 text-center">
@@ -1001,7 +995,6 @@ export default function StaffManagementPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {pagination.totalItems > 0 && (
             <PaginationBar pagination={pagination} onPageChange={handlePageChange} loading={loading} />
           )}
@@ -1051,15 +1044,38 @@ export default function StaffManagementPage() {
                 </button>
               </div>
             </div>
+
+            {/* Role — changes auto-lock permissions below */}
             <div>
               <label className="block text-[12px] font-semibold text-slate-600 mb-2">Role *</label>
-              <RoleSelector value={addForm.role} onChange={(r) => setAddForm(f => ({ ...f, role: r, permissions: { ...DEFAULT_PERMISSIONS[r] } }))} />
+              <RoleSelector
+                value={addForm.role}
+                onChange={(r) =>
+                  setAddForm((f) => ({
+                    ...f,
+                    role: r,
+                    permissions: { ...DEFAULT_PERMISSIONS[r] },
+                  }))
+                }
+              />
             </div>
+
+            {/* Permissions — DISABLED / LOCKED to role defaults */}
             <div>
-              <label className="block text-[12px] font-semibold text-slate-600 mb-2">Permissions</label>
-              <PermissionEditor permissions={addForm.permissions}
-                onChange={(k, v) => setAddForm(f => ({ ...f, permissions: { ...f.permissions, [k]: v } }))} />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-[12px] font-semibold text-slate-600">Permissions</label>
+                <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                  <Lock size={10} />
+                  Defaults for {addForm.role}
+                </span>
+              </div>
+              <PermissionEditor
+                permissions={addForm.permissions}
+                onChange={() => {}}
+                disabled
+              />
             </div>
+
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowAddModal(false)}
                 className="flex-1 h-10 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
@@ -1073,7 +1089,7 @@ export default function StaffManagementPage() {
           </form>
         </Modal>
 
-        {/* ═══ EDIT MODAL ═══ */}
+        {/* ═══ EDIT MODAL ═══  (permissions editable) */}
         <Modal open={showEditModal && !!selectedStaff} onClose={() => setShowEditModal(false)}>
           <ModalHeader title="Edit Staff" subtitle={`${selectedStaff?.name} · ${selectedStaff?.adminId}`}
             onClose={() => setShowEditModal(false)}
@@ -1124,8 +1140,10 @@ export default function StaffManagementPage() {
             </div>
             <div>
               <label className="block text-[12px] font-semibold text-slate-600 mb-2">Permissions</label>
-              <PermissionEditor permissions={editForm.permissions}
-                onChange={(k, v) => setEditForm(f => ({ ...f, permissions: { ...f.permissions, [k]: v } }))} />
+              <PermissionEditor
+                permissions={editForm.permissions}
+                onChange={(k, v) => setEditForm(f => ({ ...f, permissions: { ...f.permissions, [k]: v } }))}
+              />
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowEditModal(false)}
@@ -1225,7 +1243,6 @@ export default function StaffManagementPage() {
               if (!d) return null;
               return (
                 <>
-                  {/* Profile Header */}
                   <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                     <div className="relative">
                       <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getAvatarColor(d.name)} flex items-center justify-center text-white text-xl font-bold shadow-lg`}>
@@ -1260,7 +1277,6 @@ export default function StaffManagementPage() {
                     </div>
                   </div>
 
-                  {/* Info Grid */}
                   <div className="grid grid-cols-3 gap-3 mb-6">
                     {[
                       { l: 'Phone', v: d.phone || 'N/A' }, { l: 'Verified', v: d.isVerified ? 'Yes' : 'No' },
@@ -1274,7 +1290,6 @@ export default function StaffManagementPage() {
                     ))}
                   </div>
 
-                  {/* Created By */}
                   {d.createdBy && (
                     <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6">
                       <p className="text-[10px] text-blue-500 uppercase font-semibold">Created By</p>
@@ -1282,7 +1297,6 @@ export default function StaffManagementPage() {
                     </div>
                   )}
 
-                  {/* Block Info */}
                   {d.status === 'blocked' && (
                     <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-6">
                       <p className="text-xs font-bold text-rose-700 mb-1">Account Blocked</p>
@@ -1292,7 +1306,6 @@ export default function StaffManagementPage() {
                     </div>
                   )}
 
-                  {/* Permissions */}
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                       <Shield size={14} className="text-slate-400" /> Permissions
@@ -1300,7 +1313,6 @@ export default function StaffManagementPage() {
                     <PermissionViewer permissions={d.permissions} />
                   </div>
 
-                  {/* Activity */}
                   {staffActivity.length > 0 && (
                     <div>
                       <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
@@ -1365,7 +1377,6 @@ export default function StaffManagementPage() {
               </div>
             ) : (
               <>
-                {/* Stats Row */}
                 <div className="grid grid-cols-4 gap-3 mb-6">
                   {[
                     { l: 'Active', v: sessionStats.totalActiveSessions },
@@ -1380,7 +1391,6 @@ export default function StaffManagementPage() {
                   ))}
                 </div>
 
-                {/* Active Sessions */}
                 <div className="mb-6">
                   <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <span className="relative flex h-2.5 w-2.5">
@@ -1426,7 +1436,6 @@ export default function StaffManagementPage() {
                   )}
                 </div>
 
-                {/* Login History */}
                 {staffLoginHistory.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
