@@ -740,11 +740,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <AlertDialog
         open={showLogoutDialog}
         onOpenChange={setShowLogoutDialog}
+        
       >
-        <AlertDialogOverlay className="bg-black/40 backdrop-blur-sm" />
-        <AlertDialogContent className="max-w-[360px] rounded-2xl border-0 p-0 shadow-2xl shadow-black/20 overflow-hidden gap-0 animate-in fade-in-0 zoom-in-95 duration-200">
+     <AlertDialogOverlay className="z-[999] bg-black/40 backdrop-blur-sm" />
+<AlertDialogContent className="z-[999] max-w-[360px] rounded-2xl border-0 p-0 shadow-2xl shadow-black/20 overflow-hidden gap-0 animate-in fade-in-0 zoom-in-95 duration-200">
           {/* Top Section */}
-          <div className="relative bg-gradient-to-b from-gray-50 to-white px-6 pt-7 pb-5">
+          <div className="relative bg-gradient-to-b from-gray-50 to-white px-6 pt-7 pb-5 z-50">
             <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-60" />
             <div className="absolute top-4 right-8 w-8 h-8 bg-rose-100 rounded-full opacity-40" />
 

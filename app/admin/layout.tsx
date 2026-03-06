@@ -38,7 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         {/* ═══════════════════════════════════
                             MAIN CONTENT — no overlap
                         ═══════════════════════════════════ */}
-                        <main className="flex flex-1 flex-col min-h-[calc(100vh-3.5rem)] overflow-x-hidden z-[9999]">
+                        <main className="flex flex-1 flex-col min-h-[calc(100vh-3.5rem)] overflow-x-hidden z-20">
                             {/* Page Content */}
                             <div className="flex-1">{children}</div>
 
