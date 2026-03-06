@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import dbConnect from "@/connection/db";
-import Offer from "@/models/Offer.model";
-import { isAdmin } from "../../lib/auth";
+import { isAuthenticated } from "../../lib/auth";
 import { isRateLimited, syncSingleBooking } from "../../duffel/booking/route";
 import Booking from "@/models/Booking.model";
 import { decrypt } from "../../duffel/booking/utils";
@@ -19,7 +18,7 @@ import { decrypt } from "../../duffel/booking/utils";
 // ================================================================
 
 export async function GET(req: Request) {
-  const auth = await isAdmin();
+  const auth = await isAuthenticated();
   if (!auth.success) return auth.response;
 
   try {

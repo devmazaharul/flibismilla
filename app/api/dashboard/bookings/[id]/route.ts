@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { decrypt } from '../../../duffel/booking/utils';
-import { isAdmin } from '@/app/api/lib/auth';
+import { isAuthenticated } from '@/app/api/lib/auth';
 
 const duffelToken = process.env.DUFFEL_ACCESS_TOKEN;
 const duffel = new Duffel({ token: duffelToken || '' });
@@ -287,7 +287,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await isAdmin();
+  const auth = await isAuthenticated();
   if (!auth.success) return auth.response;
 
   try {

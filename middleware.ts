@@ -57,7 +57,7 @@ const PROTECTED_API_ROUTES: RouteConfig[] = [
   { path: '/api/admin/activity-log', roles: ['admin', 'editor', 'viewer'] },
 
   // ── Dashboard stats (admin only) ──
-  { path: '/api/dashboard/stats', roles: ['admin'] },
+  { path: '/api/dashboard/stats', roles: ['admin',"editor"] },
 ];
 
 // ✅ Public API routes (auth লাগবে না)
