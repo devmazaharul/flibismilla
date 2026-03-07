@@ -557,56 +557,125 @@ export function getAccessibleModules(
 
 
 
-// utils/ip-network.ts
+// utils/ip-location.ts
 
-interface NetworkDetails {
-  location: string;
-  provider: string;
-  connectionType: 'Mobile Data' | 'Broadband/WiFi' | 'Unknown';
-  fullDetails: string;
+interface IPLocationResponse {
+  city?: string;
+  regionName?: string; // Division/State
+  country?: string;
+  status: 'success' | 'fail';
+  message?: string;
 }
 
-export async function getNetworkDetails(ip: string): Promise<NetworkDetails> {
-  // Localhost check
+/**
+ * IP address থেকে সুন্দর ফরম্যাটে লোকেশন স্ট্রিং রিটার্ন করে।
+ * ফরম্যাট: City, Division, Country
+ */
+export async function getIPLocation(ip: string): Promise<string> {
+  // Localhost বা IPv6 loopback এর জন্য চেক
   if (ip === '127.0.0.1' || ip === '::1' || !ip) {
-    return {
-      location: 'Localhost',
-      provider: 'Local Network',
-      connectionType: 'Unknown',
-      fullDetails: 'Local Development Environment'
-    };
+    return 'Local Development Area';
   }
 
   try {
-    // fields=66846719 মানে আমরা status, message, country, regionName, city, isp, org, as, mobile, proxy সব নিচ্ছি
-    const res = await fetch(`http://ip-api.com/json/${ip}?fields=66846719`);
-    const data = await res.json();
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,regionName,city`);
+    const data: IPLocationResponse = await response.json();
 
-    if (data.status === 'fail') throw new Error(data.message);
+    if (data.status === 'fail') {
+      return 'Unknown Location';
+    }
 
-    // ১. লোকেশন ফরম্যাট
-    const location = [data.city, data.regionName, data.country].filter(Boolean).join(', ');
+    // সুন্দর ফরম্যাটে স্ট্রিং তৈরি
+    const locationParts = [
+      data.city,
+      data.regionName,
+      data.country
+    ].filter(Boolean); // যদি কোনো ফিল্ড না থাকে তবে সেটা বাদ দিয়ে দিবে
 
-    // ২. প্রোভাইডার ইনফো (ISP + Organization)
-    const provider = data.org || data.isp || 'Unknown Provider';
-
-    // ৩. কানেকশন টাইপ ডিটেকশন (Mobile vs WiFi)
-    // ip-api এর 'mobile' ফ্ল্যাগ ট্রু হলে সেটা মোবাইল ডাটা, নয়তো ব্রডব্যান্ড/ওয়াইফাই
-    const connectionType = data.mobile ? 'Mobile Data' : 'Broadband/WiFi';
-
-    return {
-      location,
-      provider,
-      connectionType,
-      fullDetails: `${provider} (${connectionType}) - ${location}`
-    };
+    return locationParts.join(', ');
   } catch (error) {
-    console.error('IP details fetch failed:', error);
+    console.error('Error fetching IP location:', error);
+    return 'Unknown Location';
+  }
+}
+
+
+// lib/logCleanup.ts
+import ActivityLog from '@/models/ActivityLog';
+
+/**
+ * Options:
+ * - maxKeep: per-admin upper bound (default 300). When total exceeds this, cleanup runs.
+ * - keepRecent: how many latest logs to always retain (default 10). Must be <= maxKeep.
+ * - dryRun: only counts/returns what would happen, performs no deletion.
+ */
+interface CleanupOptions {
+  maxKeep?: number; // default: 300 — login/failed_login-friendly safe limit
+  keepRecent?: number; // default: 10 — keep the most recent logs intact
+  dryRun?: boolean; // true হলে শুধু count/plan দেখাবে, ডিলিট করবে না
+}
+
+/**
+ * Per-admin activity log cleanup:
+ * - If total > maxKeep, it deletes the "middle" oldest logs (i.e., oldest first),
+ *   while ensuring *at least* `keepRecent` most recent logs are preserved.
+ * - If keepRecent > maxKeep, maxKeep is used as keepRecent implicitly (safe fallback).
+ * - Returns a clear result object for logging/monitoring.
+ */
+export async function cleanupActivityLogForAdmin(adminId: string, options: CleanupOptions = {}) {
+  const maxKeep = options.maxKeep ?? 300;
+  let keepRecent = options.keepRecent ?? 10;
+  const dryRun = options.dryRun ?? false;
+
+  // Defensive: ensure keepRecent never exceeds maxKeep to avoid inconsistent behavior
+  if (keepRecent > maxKeep) keepRecent = maxKeep;
+
+  // 1) Count total logs for this admin
+  const total = await ActivityLog.countDocuments({ admin: adminId });
+  if (total <= maxKeep) {
+    // No cleanup needed; still report current state (useful for monitoring)
+    return { deleted: 0, kept: total, maxKeep, keepRecent, remaining: total };
+  }
+
+  // 2) Calculate how many to delete such that at least keepRecent remain
+  // Meaning: delete only (total - maxKeep) entries from the oldest side, but
+  // ensure the last `keepRecent` items are untouched (by limiting deletion to `excess` items
+  // but relying on ascending sort + limit, and by keeping recent logs intact).
+  const excess = total - maxKeep;
+  // If after enforcing maxKeep we still have fewer than keepRecent, that's not our case,
+  // because total > maxKeep and keepRecent <= maxKeep; excess will be sufficient to protect keepRecent
+  // in the way we query (oldest first, limit excess).
+
+  // 3) Fetch the oldest logs (up to excess) so we can delete them deterministically
+  // We sort ascending (oldest first) and limit to how many can be safely removed.
+  const oldLogs = await ActivityLog.find({ admin: adminId })
+    .sort({ createdAt: 1 }) // oldest first
+    .limit(excess) // only the removable portion
+    .select('_id createdAt');
+
+  const idsToDelete = oldLogs.map(doc => doc._id);
+
+  // 4) Execute deletion unless dry-run
+  if (!dryRun && idsToDelete.length) {
+    const res = await ActivityLog.deleteMany({ _id: { $in: idsToDelete } });
+    const deletedCount = res.deletedCount ?? idsToDelete.length;
     return {
-      location: 'Unknown',
-      provider: 'Unknown',
-      connectionType: 'Unknown',
-      fullDetails: 'Unable to retrieve network details'
+      deleted: deletedCount,
+      kept: total - deletedCount, // effectively maxKeep (or remaining based on operation)
+      maxKeep,
+      keepRecent,
+      remaining: total - deletedCount,
     };
   }
+
+  // Dry-run / nothing to delete
+  return {
+    deleted: 0,
+    dryRun: true,
+    wouldDelete: idsToDelete.length,
+    kept: total, // unchanged in dry-run
+    maxKeep,
+    keepRecent,
+    remaining: total,
+  };
 }
