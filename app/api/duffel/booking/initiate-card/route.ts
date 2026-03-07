@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
-import { isAdmin } from '@/app/api/lib/auth';
+import { hasPermission } from '@/app/api/lib/auth';
 import { decrypt } from '../utils';
 
 export const dynamic = 'force-dynamic';
@@ -80,7 +80,7 @@ function isRateLimited(ip: string): boolean {
 
 export async function POST(req: Request) {
   // ── Admin Authentication ──
-  const auth = await isAdmin();
+  const auth = await hasPermission("booking","edit")
   if (!auth.success) return auth.response;
 
   let bookingIdForError: string | null = null;

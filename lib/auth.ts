@@ -83,27 +83,7 @@ export function isAdmin(admin: AdminDocument): boolean {
   return admin.role === 'admin';
 }
 
-// ✅ Check specific permission
-export function hasPermission(
-  admin: AdminDocument,
-  module: keyof AdminDocument['permissions'],
-  requiredLevel: 'full' | 'edit' | 'view'
-): boolean {
-  // Admin role has all permissions
-  if (admin.role === 'admin') return true;
 
-  const permissionLevel = admin.permissions?.[module];
-  if (!permissionLevel || permissionLevel === 'none') return false;
-
-  const levels: Record<string, number> = {
-    none: 0,
-    view: 1,
-    edit: 2,
-    full: 3,
-  };
-
-  return (levels[permissionLevel] || 0) >= (levels[requiredLevel] || 0);
-}
 
 // ✅ Generate unique Admin ID
 export function generateAdminId(): string {

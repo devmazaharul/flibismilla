@@ -1,10 +1,11 @@
 // app/api/admin/staff/list/route.ts
 import { NextRequest } from 'next/server';
-import { getCurrentAdmin, isAdmin } from '@/lib/auth';
+
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { IStaffListResponse } from '@/types/admin';
 import dbConnect from '@/connection/db';
 import Admin from '@/models/Admin.model';
+import { getCurrentAdmin, isAdmin } from '@/lib/auth';
 
 
 export async function GET(request: NextRequest) {

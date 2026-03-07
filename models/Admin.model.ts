@@ -64,23 +64,23 @@ const AdminSchema = new Schema<AdminDocument>(
     permissions: {
       dashboard: {
         type: String,
-        enum: ['full', 'view', 'none'],
-        default: 'view',
+        enum: ['full',  'none'],
+        default: 'full',
       },
       booking: {
         type: String,
-        enum: ['full', 'edit', 'view', 'none'],
+        enum: ['full',  'view', 'none','edit'],
         default: 'view',
       },
       transactions: {
         type: String,
-        enum: ['full',  'view', 'none'],
-        default: 'view',
+        enum: ['full',  'none'],
+        default: 'full',
       },
       customers: {
         type: String,
-        enum: ['full', 'view', 'none'],
-        default: 'view',
+        enum: ['full',  'none'],
+        default: 'full',
       },
       destinations: {
         type: String,
@@ -104,7 +104,7 @@ const AdminSchema = new Schema<AdminDocument>(
       },
       settings: {
         type: String,
-        enum: ['full', 'view', 'none'],
+        enum: ['full',  'none'],
         default: 'none',
       }
     },
@@ -209,8 +209,6 @@ const AdminSchema = new Schema<AdminDocument>(
 
 // Indexes
 AdminSchema.index({ role: 1, status: 1 });
-AdminSchema.index({ email: 1 });
-AdminSchema.index({ adminId: 1 });
 AdminSchema.index({ createdBy: 1 });
 
 const Admin: Model<AdminDocument> =

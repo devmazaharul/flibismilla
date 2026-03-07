@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
-import { isAdmin } from '@/app/api/lib/auth';
+import { hasPermission } from '@/app/api/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +94,7 @@ const VALID_METHODS: ClientPayWith[] = ['balance', 'stripe'];
 // ================================================================
 
 export async function POST(req: Request) {
-  const auth = await isAdmin();
+  const auth = await hasPermission("booking","edit")
   if (!auth.success) return auth.response;
 
   let bookingIdForError: string | null = null;

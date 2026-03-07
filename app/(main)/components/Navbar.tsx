@@ -46,19 +46,27 @@ import {
 } from '@/components/ui/sheet';
 import { IoMdArrowDropdown } from 'react-icons/io';
 
+// Navbar.tsx - শুধু পরিবর্তিত অংশগুলো দেখানো হলো
+
 const Navbar = () => {
   const pathName = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { colors, layout, button: btnTheme } = appTheme;
 
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  // ✅ FIX 1: user type updated to match profile API response
+  const [user, setUser] = useState<{
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatar?: string;
+  } | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  // ✅ Sheet open state for controlling mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -67,14 +75,36 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // ✅ FIX 2: Profile fetch — সঠিক response path ব্যবহার
   useEffect(() => {
-    fetch('/api/auth/profile')
-      .then((res) => res.json())
-      .then((data) => {
-        setUser(data.user);
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/auth/profile');
+        const data = await res.json();
+
+        // ✅ API success হলে data.data.profile থেকে user সেট করো
+        if (data.success && data.data?.profile) {
+          setUser(data.data.profile);
+        } else {
+          // ❌ 401/403/404 — user নেই বা blocked/session expired
+          setUser(null);
+
+          // Optional: blocked বা session expired হলে login page এ পাঠাও
+          if (res.status === 403 || res.status === 401) {
+            // Token already cleared by API (cookie maxAge: 0)
+            // শুধু UI state reset করলেই চলবে
+            console.warn('Auth issue:', data.message);
+          }
+        }
+      } catch (error) {
+        console.error('Profile fetch failed:', error);
+        setUser(null);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+
+    fetchProfile();
   }, []);
 
   const handleLogout = async () => {
@@ -83,7 +113,7 @@ const Navbar = () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
       setShowLogoutModal(false);
-      setMobileMenuOpen(false); // ✅ Close mobile menu on logout
+      setMobileMenuOpen(false);
       router.push('/access');
       router.refresh();
     } catch (error) {
@@ -93,7 +123,6 @@ const Navbar = () => {
     }
   };
 
-  // ✅ Function to close mobile menu
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
   };
@@ -301,7 +330,7 @@ const Navbar = () => {
                 )}
               </div>
 
-              {/* ✅ Mobile Menu - Controlled Sheet */}
+              {/* Mobile Menu */}
               <div className="lg:hidden">
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
@@ -348,7 +377,6 @@ const Navbar = () => {
                               </div>
 
                               <div className="grid grid-cols-3 gap-2">
-                                {/* ✅ Close menu when clicking Dashboard */}
                                 <Link
                                   href="/admin"
                                   className="col-span-2"
@@ -373,7 +401,6 @@ const Navbar = () => {
                               </div>
                             </div>
                           ) : (
-                            // ✅ Close menu when clicking Sign In
                             <Link
                               href="/access"
                               className="block"
@@ -416,7 +443,7 @@ const Navbar = () => {
                         <span className="flex-1 h-px bg-gray-100" />
                       </div>
 
-                      {/* ✅ Nav Items - pass closeMobileMenu */}
+                      {/* Nav Items */}
                       <div className="space-y-0.5">
                         {headerData.navLinks.map((link, idx) => (
                           <MobileMenuItem
@@ -502,8 +529,8 @@ const Navbar = () => {
               </h3>
 
               <p className="text-sm text-gray-500 leading-relaxed mb-6 max-w-[280px] mx-auto">
-                You'll need to sign in again to access the admin dashboard and
-                manage bookings.
+                You&apos;ll need to sign in again to access the admin dashboard
+                and manage bookings.
               </p>
 
               <div className="space-y-2.5">
@@ -551,6 +578,8 @@ const Navbar = () => {
     </>
   );
 };
+
+// MobileMenuItem component remains the same
 
 // ═══════════ Mobile Menu Item (Updated) ═══════════
 const MobileMenuItem = ({

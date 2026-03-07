@@ -17,15 +17,15 @@ import { toast } from 'sonner';
 // TYPES  (aligned with Admin model)
 // ==========================================
 export interface IPermissions {
-  dashboard: 'full' | 'view' | 'none';
+  dashboard: 'full' | 'none';
   booking: 'full' | 'edit' | 'view' | 'none';
-  transactions: 'full' | 'view' | 'none';
-  customers: 'full' | 'view' | 'none';
+  transactions: 'full'  | 'none';
+  customers: 'full' | 'none';
   destinations: 'full' | 'edit' | 'view' | 'none';
   packages: 'full' | 'edit' | 'view' | 'none';
   offers: 'full' | 'edit' | 'view' | 'none';
   support: 'full' | 'none';
-  settings: 'full' | 'view' | 'none';
+  settings: 'full' |  'none';
 }
 
 interface ICreatedBy { _id: string; name: string; email: string; adminId: string; }
@@ -75,15 +75,15 @@ const PERMISSION_MODULES: {
   desc: string;
   levels: string[];
 }[] = [
-  { key: 'dashboard',    label: 'Dashboard',     icon: '📊', desc: 'Analytics & metrics',  levels: ['none', 'view', 'full'] },
+  { key: 'dashboard',    label: 'Dashboard',     icon: '📊', desc: 'Analytics & metrics',  levels: ['none',  'full'] },
   { key: 'booking',      label: 'Booking',       icon: '📅', desc: 'Manage reservations',  levels: ['none', 'view', 'edit', 'full'] },
-  { key: 'transactions', label: 'Transactions',  icon: '💳', desc: 'Payment & billing',    levels: ['none', 'view', 'full'] },
-  { key: 'customers',    label: 'Customers',     icon: '👥', desc: 'Customer data',        levels: ['none', 'view', 'full'] },
+  { key: 'transactions', label: 'Transactions',  icon: '💳', desc: 'Payment & billing',    levels: ['none', 'full'] },
+  { key: 'customers',    label: 'Customers',     icon: '👥', desc: 'Customer data',        levels: ['none',  'full'] },
   { key: 'destinations', label: 'Destinations',  icon: '🌍', desc: 'Locations',            levels: ['none', 'view', 'edit', 'full'] },
   { key: 'packages',     label: 'Packages',      icon: '📦', desc: 'Tour packages',        levels: ['none', 'view', 'edit', 'full'] },
   { key: 'offers',       label: 'Offers',        icon: '🏷️', desc: 'Deals & promos',       levels: ['none', 'view', 'edit', 'full'] },
   { key: 'support',      label: 'Support',       icon: '🎧', desc: 'Help & tickets',       levels: ['none', 'full'] },
-  { key: 'settings',     label: 'Settings',      icon: '⚙️', desc: 'Configuration',        levels: ['none', 'view', 'full'] },
+  { key: 'settings',     label: 'Settings',      icon: '⚙️', desc: 'Configuration',        levels: ['none',  'full'] },
 ];
 
 const PERMISSION_LEVELS = [
@@ -95,21 +95,21 @@ const PERMISSION_LEVELS = [
 
 const DEFAULT_PERMISSIONS: Record<string, IPermissions> = {
   editor: {
-    dashboard: 'view',
+    dashboard: 'full',
     booking: 'edit',
-    transactions: 'view',
-    customers: 'view',
-    destinations: 'view',
-    packages: 'view',
-    offers: 'view',
+    transactions: 'full',
+    customers: 'full',
+    destinations: 'edit',
+    packages: 'edit',
+    offers: 'edit',
     support: 'full',
     settings: 'none',
   },
   viewer: {
-    dashboard: 'view',
+    dashboard: 'full',
     booking: 'view',
-    transactions: 'view',
-    customers: 'view',
+    transactions: 'full',
+    customers: 'full',
     destinations: 'view',
     packages: 'view',
     offers: 'view',

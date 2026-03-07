@@ -9,43 +9,40 @@ import {
   generateAdminId,
 } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
-import { ICreateStaffBody, IPermissions } from '@/types/admin';
+
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/connection/db';
 import Admin from '@/models/Admin.model';
+import { IPermissions } from '@/app/admin/(profile)/staff/page';
+import { ICreateStaffBody } from '@/types/admin';
 
 
 // app/api/auth/staff/create/route.ts — শুধু DEFAULT_PERMISSIONS update
 
 const DEFAULT_PERMISSIONS: Record<string, IPermissions> = {
   editor: {
-    dashboard: 'view',
+    dashboard: 'full',
     booking: 'edit',
-    transactions: 'edit',
-    customers: 'view',
-    destinations: 'view',
-    packages: 'view',
-    offers: 'view',
-    support: 'view',
-    staff: 'none',
+    transactions: 'full',
+    customers: 'full',
+    destinations: 'edit',
+    packages: 'edit',
+    offers: 'edit',
+    support: 'full',
     settings: 'none',
-    reports: 'view',
   },
   viewer: {
-    dashboard: 'view',
+    dashboard: 'full',
     booking: 'view',
-    transactions: 'view',
-    customers: 'view',
+    transactions: 'full',
+    customers: 'full',
     destinations: 'view',
     packages: 'view',
     offers: 'view',
-    support: 'view',
-    staff: 'none',
+    support: 'full',
     settings: 'none',
-    reports: 'view',
   },
 };
-
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,7 +115,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // 8️⃣ Determine permissions
-    const staffPermissions: IPermissions = permissions
+    const staffPermissions = permissions
       ? { ...DEFAULT_PERMISSIONS[staffRole], ...permissions }
       : DEFAULT_PERMISSIONS[staffRole];
 

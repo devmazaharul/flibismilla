@@ -9,7 +9,7 @@ import Destination from '@/models/Destination.model';
 import Offer from '@/models/Offer.model';
 import Package from '@/models/Package.model';
 import ActivityLog from '@/models/ActivityLog';
-import {  isAuthenticated } from '@/app/api/lib/auth';
+import {  hasPermission, isAuthenticated } from '@/app/api/lib/auth';
 import Admin from '@/models/Admin.model';
 
 // ================================================================
@@ -89,7 +89,7 @@ function isRateLimited(ip: string): boolean {
 
 export async function GET(req: Request) {
   // ── Auth Check ──
-  const auth = await isAuthenticated();
+  const auth = await hasPermission("dashboard","view");
   if (!auth.success) return auth.response;
 
   // ── Rate Limit ──
