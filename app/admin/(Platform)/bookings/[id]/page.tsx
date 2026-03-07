@@ -2140,6 +2140,7 @@ export default function BookingDetailsPage() {
                         className="mt-3 space-y-2"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        
                         <StripeWrapper
                           amount={Number(data.finance.clientTotal)}
                           bookingId={data.id as any}

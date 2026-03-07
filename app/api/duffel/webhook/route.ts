@@ -5,8 +5,13 @@ import crypto from 'crypto';
 import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
-import { sendTicketIssuedEmail } from '@/app/emails/email';
+import {
+    sendTicketIssuedEmail,
+    sendBookingProcessingEmail,
+    sendNewBookingAdminNotification,
+} from '@/app/emails/email';
 import { getShortDateTime } from '../booking/utils';
+import { format, parseISO } from 'date-fns';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,8 +23,7 @@ const duffel = new Duffel({
 const WEBHOOK_ACTOR = 'duffel-webhook';
 
 // ================================================================
-// HELPER: Create admin note matching new schema structure
-// Schema: adminNotes: [{ note: String, addedBy: String, createdAt: Date }]
+// HELPER: Create admin note matching schema
 // ================================================================
 function createAdminNote(message: string) {
     return {
@@ -30,24 +34,20 @@ function createAdminNote(message: string) {
 }
 
 // ================================================================
-// HELPER: Map Duffel documents to DB schema format
-// Duffel returns 'type', but our schema uses 'docType' to avoid
-// collision with Mongoose's reserved 'type' keyword.
+// HELPER: Map Duffel documents → DB schema (docType)
 // ================================================================
 function mapDocsForDb(duffelDocs: any[]) {
     return duffelDocs
         .filter((doc: any) => doc.url)
         .map((doc: any) => ({
             unique_identifier: doc.unique_identifier || '',
-            docType: doc.type || 'electronic_ticket', // ✅ schema field = docType
+            docType: doc.type || 'electronic_ticket',
             url: doc.url || '',
         }));
 }
 
 // ================================================================
-// HELPER: Map Duffel documents for email template
-// Email templates expect 'type' (not 'docType'), so we keep the
-// original Duffel field name for email rendering purposes only.
+// HELPER: Map Duffel documents → Email template (type)
 // ================================================================
 function mapDocsForEmail(duffelDocs: any[]) {
     return duffelDocs
@@ -60,10 +60,7 @@ function mapDocsForEmail(duffelDocs: any[]) {
 }
 
 // ================================================================
-// HELPER: Delay utility (used for ticket generation wait)
-// ⚠️ WARNING: setTimeout in serverless is unreliable.
-// Consider migrating to a queue-based approach (BullMQ, SQS)
-// for production-critical ticket polling.
+// HELPER: Delay utility
 // ================================================================
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -71,10 +68,12 @@ function delay(ms: number): Promise<void> {
 
 // ================================================================
 // 🔒 Verify Duffel Webhook Signature (HMAC SHA-256)
-// Protects against forged webhook events.
-// Uses timing-safe comparison to prevent timing attacks.
 // ================================================================
-function verifySignature(rawBody: string, signature: string, secret: string): boolean {
+function verifySignature(
+    rawBody: string,
+    signature: string,
+    secret: string,
+): boolean {
     const timestampMatch = signature.match(/t=([^,]+)/);
     const hashMatch = signature.match(/v2=([^,]+)/);
 
@@ -84,48 +83,60 @@ function verifySignature(rawBody: string, signature: string, secret: string): bo
     if (!timestamp || !receivedHash) return false;
 
     const signedPayload = `${timestamp}.${rawBody}`;
-    const expectedHash = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+    const expectedHash = crypto
+        .createHmac('sha256', secret)
+        .update(signedPayload)
+        .digest('hex');
 
     const receivedBuffer = Buffer.from(receivedHash);
     const expectedBuffer = Buffer.from(expectedHash);
 
-    if (receivedBuffer.length !== expectedBuffer.length) return false;
+    if (receivedBuffer.length !== expectedBuffer.length)
+        return false;
 
     return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
 }
 
 // ================================================================
 // 🔍 Fetch Full Order from Duffel API
-// The webhook payload is minimal (just IDs). We always need to
-// fetch the full order to get slices, documents, PNR, etc.
 // ================================================================
 async function fetchOrder(orderId: string): Promise<any | null> {
     try {
         const res = await duffel.orders.get(orderId);
         return res.data;
     } catch (err: any) {
-        console.error(`❌ Duffel fetch failed [${orderId}]:`, err.message);
+        console.error(
+            `❌ Duffel fetch failed [${orderId}]:`,
+            err.message,
+        );
         return null;
     }
 }
 
 // ================================================================
-// 🛠️ Build Email Data
-// Combines booking DB data (contact, passengers) with Duffel API
-// data (slices, documents, PNR) for the email template.
+// 🛠️ Build Email Data (for ticket issued email)
 // ================================================================
 function buildEmailData(
     bookingDoc: any,
     order: any,
-    emailDocs: { url: string; unique_identifier: string; type: string }[],
+    emailDocs: {
+        url: string;
+        unique_identifier: string;
+        type: string;
+    }[],
 ) {
     const slices = order.slices || [];
     const firstSlice = slices[0];
     const firstSegment = firstSlice?.segments?.[0];
 
-    const originName = firstSlice?.origin?.city_name || firstSlice?.origin?.iata_code || 'Origin';
+    const originName =
+        firstSlice?.origin?.city_name ||
+        firstSlice?.origin?.iata_code ||
+        'Origin';
     const destinationName =
-        firstSlice?.destination?.city_name || firstSlice?.destination?.iata_code || 'Destination';
+        firstSlice?.destination?.city_name ||
+        firstSlice?.destination?.iata_code ||
+        'Destination';
 
     return {
         pnr: order.booking_reference,
@@ -135,66 +146,139 @@ function buildEmailData(
         },
         passengers: bookingDoc.passengers || [],
         flightDetails: {
-            airline: firstSegment?.operating_carrier?.name || order.owner?.name || 'Airline',
+            airline:
+                firstSegment?.operating_carrier?.name ||
+                order.owner?.name ||
+                'Airline',
             route: `${originName} - ${destinationName}`,
             departureDate:
-                firstSegment?.departing_at || order.created_at || new Date().toISOString(),
+                firstSegment?.departing_at ||
+                order.created_at ||
+                new Date().toISOString(),
         },
         documents: emailDocs,
     };
 }
 
 // ================================================================
-// 📧 Ticket Issuance + Email Handler
+// 📧 Send Confirmation Emails (Processing + Admin Notification)
 //
-// This function is called from multiple event handlers:
-// - air.payment.succeeded (primary)
-// - air.order.changed (fallback if docs weren't ready)
-// - order.created (rare: instant ticketing airlines)
+// Called from order.created handler. Uses booking DB data for
+// contact/passenger info and Duffel order for PNR.
 //
-// Idempotency: Checks emailSent flag before proceeding.
+// Non-blocking: failure is logged but does not affect order status.
 // ================================================================
-async function handleTicketIssuance(bookingId: string, duffelOrderId: string): Promise<boolean> {
-    // 1. Fresh DB read to get latest state
+async function sendConfirmationEmails(
+    booking: any,
+    order: any,
+): Promise<void> {
+    try {
+        const primaryPassenger = booking.passengers?.[0];
+        const primaryPassengerName = primaryPassenger
+            ? `${primaryPassenger.title || ''} ${primaryPassenger.firstName || ''} ${primaryPassenger.lastName || ''}`.trim()
+            : 'Traveler';
+
+        // Safe date parsing
+        let depDate: Date;
+        const rawDep = booking.flightDetails?.departureDate;
+        if (typeof rawDep === 'string') {
+            depDate = parseISO(rawDep);
+        } else {
+            depDate = new Date(rawDep || Date.now());
+        }
+
+        // Fallback if date is invalid
+        if (isNaN(depDate.getTime())) {
+            depDate = new Date();
+        }
+
+        const emailDate = format(depDate, 'dd MMM, yyyy');
+        const route = booking.flightDetails?.route || 'N/A';
+
+        // ── Customer confirmation email ──
+        if (booking.contact?.email) {
+            await sendBookingProcessingEmail({
+                to: booking.contact.email,
+                customerName: primaryPassengerName,
+                bookingReference: order.booking_reference,
+                route,
+                flightDate: emailDate,
+            });
+            console.log(
+                `📧 Customer confirmation sent | PNR: ${order.booking_reference} | To: ${booking.contact.email}`,
+            );
+        } else {
+            console.warn(
+                `⚠️ No contact email found for booking ${booking._id}, skipping customer email`,
+            );
+        }
+
+        // ── Admin notification email ──
+        await sendNewBookingAdminNotification({
+            pnr: order.booking_reference,
+            customerName:
+                booking.contact?.name ||
+                primaryPassengerName ||
+                'Traveler',
+            customerPhone:
+                booking.contact?.phone ||
+                primaryPassenger?.phone ||
+                'N/A',
+            route,
+            airline: booking.flightDetails?.airline || 'N/A',
+            flightDate: emailDate,
+            totalAmount: booking.pricing?.total_amount || 0,
+            bookingId: booking._id.toString(),
+        });
+        console.log(
+            `📧 Admin notification sent | PNR: ${order.booking_reference}`,
+        );
+    } catch (emailError: any) {
+        // Email failure is non-fatal — log and continue
+        console.error(
+            `❌ Failed to send confirmation emails for booking ${booking._id}:`,
+            emailError.message || emailError,
+        );
+    }
+}
+
+// ================================================================
+// 📧 Ticket Issuance + Email Handler
+// ================================================================
+async function handleTicketIssuance(
+    bookingId: string,
+    duffelOrderId: string,
+): Promise<boolean> {
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-        console.log(`ℹ️ Booking not found (possibly deleted): ${bookingId}`);
+        console.log(
+            `ℹ️ Booking not found (possibly deleted): ${bookingId}`,
+        );
         return false;
     }
 
-    // 2. Idempotency check — don't send duplicate emails
     if (booking.emailSent) {
-        console.log(`ℹ️ Email already sent, skipping: ${bookingId}`);
+        console.log(
+            `ℹ️ Email already sent, skipping: ${bookingId}`,
+        );
         return true;
     }
 
-    // 3. Fetch full order from Duffel API
     const order = await fetchOrder(duffelOrderId);
     if (!order) {
-        console.error(`❌ Cannot fetch order for ticketing: ${duffelOrderId}`);
+        console.error(
+            `❌ Cannot fetch order for ticketing: ${duffelOrderId}`,
+        );
         return false;
     }
 
-    // 4. Check if documents (e-tickets) are available
-    const rawDocs = (order.documents || []).filter((doc: any) => doc.url);
+    const rawDocs = (order.documents || []).filter(
+        (doc: any) => doc.url,
+    );
 
-    // if (rawDocs.length === 0) {
-    //     // Documents not ready yet — sync PNR only
-    //     console.log(`ℹ️ No documents available yet: ${duffelOrderId}`);
-    //     await Booking.findByIdAndUpdate(bookingId, {
-    //         $set: {
-    //             pnr: order.booking_reference || booking.pnr,
-    //         },
-    //     });
-    //     return false;
-    // }
-
-    // 5. Map documents for DB storage and email separately
     const dbDocs = mapDocsForDb(rawDocs);
     const emailDocs = mapDocsForEmail(rawDocs);
 
-    // 6. Update DB FIRST (mark as issued + emailSent=true)
-    //    If email fails later, we'll revert emailSent
     await Booking.findByIdAndUpdate(bookingId, {
         $set: {
             status: 'issued',
@@ -209,18 +293,23 @@ async function handleTicketIssuance(bookingId: string, duffelOrderId: string): P
         },
     });
 
-    // 7. Send confirmation email
     try {
-        const emailData = buildEmailData(booking, order, emailDocs);
+        const emailData = buildEmailData(
+            booking,
+            order,
+            emailDocs,
+        );
         await sendTicketIssuedEmail(emailData);
         console.log(
-            `✅ Email sent | PNR: ${order.booking_reference} | To: ${booking.contact?.email}`,
+            `✅ Ticket email sent | PNR: ${order.booking_reference} | To: ${booking.contact?.email}`,
         );
         return true;
     } catch (emailErr: any) {
-        console.error('❌ Email send failed:', emailErr.message);
+        console.error(
+            '❌ Ticket email send failed:',
+            emailErr.message,
+        );
 
-        // Revert emailSent flag so retry mechanisms can pick it up
         await Booking.findByIdAndUpdate(bookingId, {
             $set: { emailSent: false },
             $push: {
@@ -235,46 +324,53 @@ async function handleTicketIssuance(bookingId: string, duffelOrderId: string): P
 
 // ================================================================
 // 🔄 MAIN WEBHOOK HANDLER
-//
-// Duffel sends webhook events for order lifecycle changes.
-// Each event contains: { type: "event.type", data: { object: {...} } }
-//
-// We respond 200 quickly to prevent Duffel retries, then process.
-// If we return 4xx/5xx, Duffel will retry with exponential backoff.
 // ================================================================
 export async function POST(req: Request) {
     try {
         const rawBody = await req.text();
         const signature =
-            req.headers.get('x-duffel-signature') || req.headers.get('X-Duffel-Signature');
+            req.headers.get('x-duffel-signature') ||
+            req.headers.get('X-Duffel-Signature');
 
-        // ── Signature Verification ──
         if (!signature) {
-            return NextResponse.json({ message: 'Missing signature header' }, { status: 401 });
+            return NextResponse.json(
+                { message: 'Missing signature header' },
+                { status: 401 },
+            );
         }
 
         const secret = process.env.DUFFEL_WEBHOOK_SECRET;
         if (!secret) {
-            console.error('❌ DUFFEL_WEBHOOK_SECRET not configured');
-            return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
+            console.error(
+                '❌ DUFFEL_WEBHOOK_SECRET not configured',
+            );
+            return NextResponse.json(
+                { message: 'Server configuration error' },
+                { status: 500 },
+            );
         }
 
         if (!verifySignature(rawBody, signature, secret)) {
-            console.error('❌ Webhook signature verification failed');
-            return NextResponse.json({ message: 'Invalid signature' }, { status: 403 });
+            console.error(
+                '❌ Webhook signature verification failed',
+            );
+            return NextResponse.json(
+                { message: 'Invalid signature' },
+                { status: 403 },
+            );
         }
 
-        // ── Parse Event ──
         let event: any;
         try {
             event = JSON.parse(rawBody);
         } catch {
-            return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
+            return NextResponse.json(
+                { message: 'Invalid JSON body' },
+                { status: 400 },
+            );
         }
 
         const { type, data: rawData } = event;
-
-        // Duffel wraps data in: { data: { object: { ... } } }
         const data = rawData?.object ?? rawData ?? {};
 
         console.log(
@@ -287,33 +383,44 @@ export async function POST(req: Request) {
             // ════════════════════════════════════════════════════
             // ✅ ORDER CREATED
             //
-            // Payload: data.object = { id: "ord_xxx", offer_id: "off_xxx" }
-            // Note: Payload is minimal — no slices, documents, or PNR.
-            // We must fetch the full order from Duffel API.
+            // This is where confirmation emails are sent.
+            // The booking API creates the order and saves it to DB,
+            // then Duffel fires this webhook to confirm creation.
+            // We send customer + admin notification emails here.
             // ════════════════════════════════════════════════════
             case 'order.created': {
                 const orderId = data.id;
                 if (!orderId) {
-                    console.warn('⚠️ order.created: Missing order ID in payload');
+                    console.warn(
+                        '⚠️ order.created: Missing order ID in payload',
+                    );
                     break;
                 }
 
-                const booking = await Booking.findOne({ duffelOrderId: orderId });
+                const booking = await Booking.findOne({
+                    duffelOrderId: orderId,
+                });
                 if (!booking) {
-                    console.warn(`⚠️ order.created: No booking found for order ${orderId}`);
+                    console.warn(
+                        `⚠️ order.created: No booking found for order ${orderId}`,
+                    );
                     break;
                 }
 
                 // Idempotency: skip if already issued
                 if (booking.status === 'issued') {
-                    console.log(`ℹ️ order.created: Already issued, skipping ${orderId}`);
+                    console.log(
+                        `ℹ️ order.created: Already issued, skipping ${orderId}`,
+                    );
                     break;
                 }
 
                 // Fetch full order details from Duffel
                 const order = await fetchOrder(orderId);
                 if (!order) {
-                    console.error(`❌ order.created: Cannot fetch order ${orderId}`);
+                    console.error(
+                        `❌ order.created: Cannot fetch order ${orderId}`,
+                    );
                     await Booking.findByIdAndUpdate(booking._id, {
                         $set: { status: 'held' },
                         $push: {
@@ -325,20 +432,34 @@ export async function POST(req: Request) {
                     break;
                 }
 
-                const hasTickets = order.documents && order.documents.length > 0;
+                const hasTickets =
+                    order.documents && order.documents.length > 0;
 
                 if (hasTickets) {
                     // Rare: Some airlines issue tickets instantly
-                    console.log(`🎫 Instant ticket issuance detected | Order: ${orderId}`);
-                    await handleTicketIssuance(booking._id.toString(), orderId);
+                    console.log(
+                        `🎫 Instant ticket issuance detected | Order: ${orderId}`,
+                    );
+                    await handleTicketIssuance(
+                        booking._id.toString(),
+                        orderId,
+                    );
+
+                    // Still send admin notification for instant tickets
+                    await sendConfirmationEmails(booking, order);
                 } else {
                     // Normal flow: Hold order awaiting payment
                     await Booking.findByIdAndUpdate(booking._id, {
                         $set: {
                             status: 'held',
-                            pnr: order.booking_reference || booking.pnr,
-                            ...(order.payment_status?.payment_required_by && {
-                                paymentDeadline: new Date(order.payment_status.payment_required_by),
+                            pnr:
+                                order.booking_reference ||
+                                booking.pnr,
+                            ...(order.payment_status
+                                ?.payment_required_by && {
+                                paymentDeadline: new Date(
+                                    order.payment_status.payment_required_by,
+                                ),
                             }),
                         },
                         $push: {
@@ -349,26 +470,35 @@ export async function POST(req: Request) {
                     });
 
                     console.log(
-                        `🕐 Order held | PNR: ${order.booking_reference} | Deadline:${getShortDateTime(order.payment_status?.payment_required_by)}`,
+                        `🕐 Order held | PNR: ${order.booking_reference} | Deadline: ${getShortDateTime(order.payment_status?.payment_required_by)}`,
                     );
+
+                    // ══════════════════════════════════════════
+                    // 📧 SEND CONFIRMATION EMAILS
+                    // Customer processing email + Admin notification
+                    // Non-blocking: email failure won't affect booking
+                    // ══════════════════════════════════════════
+                    await sendConfirmationEmails(booking, order);
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // ❌ ORDER CREATION FAILED
-            //
-            // Payload: data.object = { id: "ord_xxx" }
-            // The airline rejected the booking request.
             // ════════════════════════════════════════════════════
             case 'order.creation_failed': {
                 const orderId = data.id || data.order_id;
                 if (!orderId) {
-                    console.warn('⚠️ order.creation_failed: Missing order ID');
+                    console.warn(
+                        '⚠️ order.creation_failed: Missing order ID',
+                    );
                     break;
                 }
 
-                const failureReason = data?.failure_reason || data?.message || 'Unknown reason';
+                const failureReason =
+                    data?.failure_reason ||
+                    data?.message ||
+                    'Unknown reason';
 
                 const result = await Booking.findOneAndUpdate(
                     { duffelOrderId: orderId },
@@ -383,45 +513,47 @@ export async function POST(req: Request) {
                 );
 
                 if (result) {
-                    console.log(`❌ Order creation failed | ${orderId} | ${failureReason}`);
+                    console.log(
+                        `❌ Order creation failed | ${orderId} | ${failureReason}`,
+                    );
                 } else {
-                    console.warn(`⚠️ order.creation_failed: No booking for ${orderId}`);
+                    console.warn(
+                        `⚠️ order.creation_failed: No booking for ${orderId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // 💰 PAYMENT SUCCEEDED
-            //
-            // Primary trigger for ticket issuance.
-            // Fires when admin issues payment via Duffel dashboard
-            // or when the payment API call completes successfully.
-            //
-            // Payload: data.object = { payment_id: "pay_xxx" }
-            // Strategy: Find booking by payment_id → fetch order
-            //           by duffelOrderId → issue ticket + send email
             // ════════════════════════════════════════════════════
             case 'air.payment.succeeded': {
                 const paymentId = data.payment_id || data.id;
                 if (!paymentId) {
-                    console.warn('⚠️ air.payment.succeeded: Missing payment_id');
+                    console.warn(
+                        '⚠️ air.payment.succeeded: Missing payment_id',
+                    );
                     break;
                 }
 
-                console.log(`💰 Payment succeeded | Payment: ${paymentId}`);
+                console.log(
+                    `💰 Payment succeeded | Payment: ${paymentId}`,
+                );
 
-                // Find booking by payment_id
-                let booking = await Booking.findOne({ payment_id: paymentId });
+                let booking = await Booking.findOne({
+                    payment_id: paymentId,
+                });
 
-                // Race condition mitigation: Issue API may not have saved
-                // payment_id to DB yet. Wait and retry once.
                 if (!booking) {
-                    console.log(`⏳ Booking not found by payment_id, retrying in 3s...`);
+                    console.log(
+                        `⏳ Booking not found by payment_id, retrying in 3s...`,
+                    );
                     await delay(3000);
-                    booking = await Booking.findOne({ payment_id: paymentId });
+                    booking = await Booking.findOne({
+                        payment_id: paymentId,
+                    });
                 }
 
-                // Fallback: Try idempotency_key if provided
                 if (!booking && event.idempotency_key) {
                     booking = await Booking.findOne({
                         payment_id: event.idempotency_key,
@@ -435,15 +567,21 @@ export async function POST(req: Request) {
                     break;
                 }
 
-                // Idempotency: skip if already issued and email sent
-                if (booking.status === 'issued' && booking.emailSent) {
-                    console.log(`ℹ️ Already issued and emailed, skipping | Payment: ${paymentId}`);
+                if (
+                    booking.status === 'issued' &&
+                    booking.emailSent
+                ) {
+                    console.log(
+                        `ℹ️ Already issued and emailed, skipping | Payment: ${paymentId}`,
+                    );
                     break;
                 }
 
                 const duffelOrderId = booking.duffelOrderId;
                 if (!duffelOrderId) {
-                    console.error(`❌ Booking ${booking._id} has no duffelOrderId`);
+                    console.error(
+                        `❌ Booking ${booking._id} has no duffelOrderId`,
+                    );
                     await Booking.findByIdAndUpdate(booking._id, {
                         $push: {
                             adminNotes: createAdminNote(
@@ -454,13 +592,11 @@ export async function POST(req: Request) {
                     break;
                 }
 
-                // Update payment status
                 await Booking.findByIdAndUpdate(booking._id, {
                     $set: {
                         paymentStatus: 'captured',
                         payment_id: paymentId,
                     },
-
                     $push: {
                         adminNotes: createAdminNote(
                             ` Payment Captured | Method: ${booking.clientPayWith}
@@ -473,36 +609,45 @@ export async function POST(req: Request) {
                     },
                 });
 
-                console.log(`💰 Payment captured | Order: ${duffelOrderId}`);
+                console.log(
+                    `💰 Payment captured | Order: ${duffelOrderId}`,
+                );
 
-                // Wait for airline to generate ticket documents
-                // ⚠️ In production, consider using a job queue instead of delay
-                console.log(`⏳ Waiting 3s for ticket generation...`);
+                console.log(
+                    `⏳ Waiting 3s for ticket generation...`,
+                );
                 await delay(3000);
 
-                // Attempt 1: Try to fetch and send ticket
-                const sent1 = await handleTicketIssuance(booking._id.toString(), duffelOrderId);
+                const sent1 = await handleTicketIssuance(
+                    booking._id.toString(),
+                    duffelOrderId,
+                );
 
                 if (!sent1) {
-                    // Documents not ready — wait and retry
-                    console.log(`⏳ Documents not ready, retrying in 5s...`);
+                    console.log(
+                        `⏳ Documents not ready, retrying in 5s...`,
+                    );
                     await delay(5000);
 
-                    // Attempt 2
-                    const sent2 = await handleTicketIssuance(booking._id.toString(), duffelOrderId);
+                    const sent2 = await handleTicketIssuance(
+                        booking._id.toString(),
+                        duffelOrderId,
+                    );
 
                     if (!sent2) {
-                        // Still no documents — rely on air.order.changed event
                         console.log(
                             `⚠️ Documents still not ready after 8s. Will handle via air.order.changed event.`,
                         );
-                        await Booking.findByIdAndUpdate(booking._id, {
-                            $push: {
-                                adminNotes: createAdminNote(
-                                    `Payment captured (${paymentId}). Waiting for airline to generate ticket documents. Will process on air.order.changed event.`,
-                                ),
+                        await Booking.findByIdAndUpdate(
+                            booking._id,
+                            {
+                                $push: {
+                                    adminNotes: createAdminNote(
+                                        `Payment captured (${paymentId}). Waiting for airline to generate ticket documents. Will process on air.order.changed event.`,
+                                    ),
+                                },
                             },
-                        });
+                        );
                     }
                 }
                 break;
@@ -510,24 +655,29 @@ export async function POST(req: Request) {
 
             // ════════════════════════════════════════════════════
             // ❌ PAYMENT FAILED
-            //
-            // Payload: data.object = { payment_id: "pay_xxx" }
             // ════════════════════════════════════════════════════
             case 'air.payment.failed': {
                 const paymentId = data.payment_id || data.id;
                 if (!paymentId) {
-                    console.warn('⚠️ air.payment.failed: Missing payment_id');
+                    console.warn(
+                        '⚠️ air.payment.failed: Missing payment_id',
+                    );
                     break;
                 }
 
-                let booking = await Booking.findOne({ payment_id: paymentId });
+                let booking = await Booking.findOne({
+                    payment_id: paymentId,
+                });
                 if (!booking) {
                     await delay(2000);
-                    booking = await Booking.findOne({ payment_id: paymentId });
+                    booking = await Booking.findOne({
+                        payment_id: paymentId,
+                    });
                 }
 
                 if (booking) {
-                    const failureReason = data?.failure_reason || 'Unknown reason';
+                    const failureReason =
+                        data?.failure_reason || 'Unknown reason';
 
                     await Booking.findByIdAndUpdate(booking._id, {
                         $set: { paymentStatus: 'failed' },
@@ -541,28 +691,33 @@ export async function POST(req: Request) {
                         `❌ Payment failed | Payment: ${paymentId} | Reason: ${failureReason}`,
                     );
                 } else {
-                    console.warn(`⚠️ No booking found for failed payment: ${paymentId}`);
+                    console.warn(
+                        `⚠️ No booking found for failed payment: ${paymentId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // ⏳ PAYMENT PENDING
-            //
-            // Payload: data.object = { payment_id: "pay_xxx" }
-            // Payment is being processed by the airline/acquirer.
             // ════════════════════════════════════════════════════
             case 'air.payment.pending': {
                 const paymentId = data.payment_id || data.id;
                 if (!paymentId) {
-                    console.warn('⚠️ air.payment.pending: Missing payment_id');
+                    console.warn(
+                        '⚠️ air.payment.pending: Missing payment_id',
+                    );
                     break;
                 }
 
-                let booking = await Booking.findOne({ payment_id: paymentId });
+                let booking = await Booking.findOne({
+                    payment_id: paymentId,
+                });
                 if (!booking) {
                     await delay(2000);
-                    booking = await Booking.findOne({ payment_id: paymentId });
+                    booking = await Booking.findOne({
+                        payment_id: paymentId,
+                    });
                 }
 
                 if (booking) {
@@ -577,30 +732,37 @@ export async function POST(req: Request) {
                             ),
                         },
                     });
-                    console.log(`⏳ Payment pending | Payment: ${paymentId}`);
+                    console.log(
+                        `⏳ Payment pending | Payment: ${paymentId}`,
+                    );
                 } else {
-                    console.warn(`⚠️ No booking found for pending payment: ${paymentId}`);
+                    console.warn(
+                        `⚠️ No booking found for pending payment: ${paymentId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // 🚫 PAYMENT CANCELLED
-            //
-            // Payload: data.object = { payment_id: "pay_xxx" }
-            // Payment was cancelled before completion.
             // ════════════════════════════════════════════════════
             case 'air.payment.cancelled': {
                 const paymentId = data.payment_id || data.id;
                 if (!paymentId) {
-                    console.warn('⚠️ air.payment.cancelled: Missing payment_id');
+                    console.warn(
+                        '⚠️ air.payment.cancelled: Missing payment_id',
+                    );
                     break;
                 }
 
-                let booking = await Booking.findOne({ payment_id: paymentId });
+                let booking = await Booking.findOne({
+                    payment_id: paymentId,
+                });
                 if (!booking) {
                     await delay(2000);
-                    booking = await Booking.findOne({ payment_id: paymentId });
+                    booking = await Booking.findOne({
+                        payment_id: paymentId,
+                    });
                 }
 
                 if (booking) {
@@ -612,72 +774,87 @@ export async function POST(req: Request) {
                             ),
                         },
                     });
-                    console.log(`🚫 Payment cancelled | Payment: ${paymentId}`);
+                    console.log(
+                        `🚫 Payment cancelled | Payment: ${paymentId}`,
+                    );
                 } else {
-                    console.warn(`⚠️ No booking found for cancelled payment: ${paymentId}`);
+                    console.warn(
+                        `⚠️ No booking found for cancelled payment: ${paymentId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // 🔄 ORDER CHANGED
-            //
-            // Fallback handler: If ticket documents weren't available
-            // during air.payment.succeeded, this event fires when the
-            // airline updates the order (e.g., attaches documents).
-            //
-            // Also handles post-issuance document updates.
             // ════════════════════════════════════════════════════
             case 'air.order.changed': {
                 const orderId = data.order_id || data.id;
                 if (!orderId) {
-                    console.warn('⚠️ air.order.changed: Missing order ID');
+                    console.warn(
+                        '⚠️ air.order.changed: Missing order ID',
+                    );
                     break;
                 }
 
-                const booking = await Booking.findOne({ duffelOrderId: orderId });
+                const booking = await Booking.findOne({
+                    duffelOrderId: orderId,
+                });
                 if (!booking) {
-                    console.warn(`⚠️ air.order.changed: No booking for order ${orderId}`);
+                    console.warn(
+                        `⚠️ air.order.changed: No booking for order ${orderId}`,
+                    );
                     break;
                 }
 
                 if (!booking.emailSent) {
-                    // Primary case: Ticket not yet sent, attempt issuance
-                    console.log(`🎯 air.order.changed → Attempting ticket issuance...`);
-                    await handleTicketIssuance(booking._id.toString(), orderId);
+                    console.log(
+                        `🎯 air.order.changed → Attempting ticket issuance...`,
+                    );
+                    await handleTicketIssuance(
+                        booking._id.toString(),
+                        orderId,
+                    );
                 } else {
-                    // Post-issuance: Refresh documents (e.g., updated itinerary)
                     const order = await fetchOrder(orderId);
                     if (order?.documents?.length > 0) {
-                        const dbDocs = mapDocsForDb(order.documents);
+                        const dbDocs = mapDocsForDb(
+                            order.documents,
+                        );
 
-                        await Booking.findByIdAndUpdate(booking._id, {
-                            $set: {
-                                documents: dbDocs,
-                                pnr: order.booking_reference || booking.pnr,
+                        await Booking.findByIdAndUpdate(
+                            booking._id,
+                            {
+                                $set: {
+                                    documents: dbDocs,
+                                    pnr:
+                                        order.booking_reference ||
+                                        booking.pnr,
+                                },
+                                $push: {
+                                    adminNotes: createAdminNote(
+                                        `Order changed post-issuance. Documents refreshed. PNR: ${order.booking_reference || booking.pnr}`,
+                                    ),
+                                },
                             },
-                            $push: {
-                                adminNotes: createAdminNote(
-                                    `Order changed post-issuance. Documents refreshed. PNR: ${order.booking_reference || booking.pnr}`,
-                                ),
-                            },
-                        });
+                        );
                     }
-                    console.log(`ℹ️ Order changed (post-issuance) | PNR: ${booking.pnr}`);
+                    console.log(
+                        `ℹ️ Order changed (post-issuance) | PNR: ${booking.pnr}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // 📋 CANCELLATION REQUESTED
-            //
-            // Payload: data.object = { id: "ore_xxx", order_id: "ord_xxx" }
-            // Cancellation has been submitted, pending airline confirmation.
             // ════════════════════════════════════════════════════
             case 'order_cancellation.created': {
                 const orderId = data.order_id;
                 if (!orderId) {
-                    console.warn('⚠️ order_cancellation.created: Missing order_id');
+                    console.warn(
+                        '⚠️ order_cancellation.created: Missing order_id',
+                    );
                     break;
                 }
 
@@ -693,27 +870,29 @@ export async function POST(req: Request) {
                 );
 
                 if (result) {
-                    console.log(`📋 Cancellation requested | Order: ${orderId}`);
+                    console.log(
+                        `📋 Cancellation requested | Order: ${orderId}`,
+                    );
                 } else {
-                    console.warn(`⚠️ order_cancellation.created: No booking for ${orderId}`);
+                    console.warn(
+                        `⚠️ order_cancellation.created: No booking for ${orderId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // ✅ CANCELLATION CONFIRMED
-            //
-            // Payload: data.object = { id: "ore_xxx", order_id: "ord_xxx" }
-            // Airline has confirmed the cancellation. Refund may apply.
             // ════════════════════════════════════════════════════
             case 'order_cancellation.confirmed': {
                 const orderId = data.order_id;
                 if (!orderId) {
-                    console.warn('⚠️ order_cancellation.confirmed: Missing order_id');
+                    console.warn(
+                        '⚠️ order_cancellation.confirmed: Missing order_id',
+                    );
                     break;
                 }
 
-                // Fetch full order for refund details
                 const order = await fetchOrder(orderId);
 
                 const refundInfo = order
@@ -736,35 +915,35 @@ export async function POST(req: Request) {
                 );
 
                 if (result) {
-                    console.log(`❌ Cancellation confirmed | Order: ${orderId}`);
+                    console.log(
+                        `❌ Cancellation confirmed | Order: ${orderId}`,
+                    );
                 } else {
-                    console.warn(`⚠️ order_cancellation.confirmed: No booking for ${orderId}`);
+                    console.warn(
+                        `⚠️ order_cancellation.confirmed: No booking for ${orderId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
             // ⚠️ AIRLINE-INITIATED CHANGE DETECTED
-            //
-            // The airline has modified the booking (schedule change,
-            // equipment swap, route change, etc.). Store the raw change
-            // data and alert admin for review.
             // ════════════════════════════════════════════════════
             case 'order.airline_initiated_change_detected': {
                 const orderId = data.id || data.order_id;
                 if (!orderId) {
-                    console.warn('⚠️ airline_initiated_change: Missing order ID');
+                    console.warn(
+                        '⚠️ airline_initiated_change: Missing order ID',
+                    );
                     break;
                 }
 
-                // Fetch full order for complete change details
                 const order = await fetchOrder(orderId);
 
                 const result = await Booking.findOneAndUpdate(
                     { duffelOrderId: orderId },
                     {
                         $set: {
-                            // Store raw change data for admin review
                             airlineInitiatedChanges: order || data,
                         },
                         $push: {
@@ -776,18 +955,19 @@ export async function POST(req: Request) {
                 );
 
                 if (result) {
-                    console.log(`⚠️ Airline schedule change | Order: ${orderId}`);
+                    console.log(
+                        `⚠️ Airline schedule change | Order: ${orderId}`,
+                    );
                 } else {
-                    console.warn(`⚠️ airline_change: No booking for ${orderId}`);
+                    console.warn(
+                        `⚠️ airline_change: No booking for ${orderId}`,
+                    );
                 }
                 break;
             }
 
             // ════════════════════════════════════════════════════
-            // 🏓 PING (Health Check)
-            //
-            // Duffel sends this to verify webhook endpoint is alive.
-            // Payload: data = {} (empty)
+            // 🏓 PING
             // ════════════════════════════════════════════════════
             case 'ping.triggered': {
                 console.log('🏓 Webhook ping OK');
@@ -796,8 +976,6 @@ export async function POST(req: Request) {
 
             // ════════════════════════════════════════════════════
             // 🔕 IGNORED EVENTS
-            // These events are not relevant to our booking flow.
-            // Logged for monitoring but no action taken.
             // ════════════════════════════════════════════════════
             case 'air.airline_credit.created':
             case 'air.airline_credit.spent':
@@ -815,13 +993,17 @@ export async function POST(req: Request) {
             }
         }
 
-        // Always return 200 to acknowledge receipt.
-        // Returning non-2xx causes Duffel to retry the webhook.
         return NextResponse.json({ success: true });
     } catch (error: any) {
-        console.error('🔥 Webhook fatal error:', error.message, error.stack);
+        console.error(
+            '🔥 Webhook fatal error:',
+            error.message,
+            error.stack,
+        );
 
-        // Return 500 so Duffel retries this event
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json(
+            { message: 'Internal Server Error' },
+            { status: 500 },
+        );
     }
 }

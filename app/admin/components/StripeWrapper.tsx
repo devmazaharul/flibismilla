@@ -73,16 +73,14 @@ function formatAmount(amount: number, currency: string): string {
 // ════════════════════════════════════════════
 // CHECKOUT FORM
 //
-// Flow (with webhook architecture):
-// 1. Create PaymentIntent via API
-// 2. Confirm card payment via Stripe.js
-// 3. Show "processing" state
-// 4. Webhook handles ticket issuance (server-side)
-// 5. Frontend polls or waits for confirmation
-//
-// The /api/duffel/booking/issue call is kept as a
-// BACKUP trigger, but the webhook is the primary
-// mechanism for reliability.
+// iOS Fix Notes:
+// ─────────────────────────────────────────
+// 1. CardElement font ≥ 16px (prevents iOS auto-zoom)
+// 2. No backdrop-blur on parent (breaks iframe on Safari)
+// 3. Explicit min-height on card container (iframe needs space)
+// 4. touch-action: manipulation on card wrapper
+// 5. -webkit-overflow-scrolling: touch for scroll containers
+// 6. No transform/will-change on ancestors (breaks iframe z-index)
 // ════════════════════════════════════════════
 
 const CheckoutForm: React.FC<CheckoutFormProps> = ({
@@ -126,9 +124,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     setSuccessMsg(null);
 
     try {
-      // ════════════════════════════════════════
-      // STEP 1: Create PaymentIntent
-      // ════════════════════════════════════════
+      // ── STEP 1: Create PaymentIntent ──
 
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
@@ -150,9 +146,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         throw new Error("No payment session received from server");
       }
 
-      // ════════════════════════════════════════
-      // STEP 2: Confirm Card Payment
-      // ════════════════════════════════════════
+      // ── STEP 2: Confirm Card Payment ──
 
       const cardElement = elements.getElement(CardElement);
 
@@ -164,7 +158,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: cardElement,
-            // ── Billing details for fraud prevention ──
             billing_details: {
               name: cardInfo?.holderName || undefined,
               address: cardInfo?.zipCode
@@ -175,7 +168,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         });
 
       if (stripeError) {
-        // User-friendly error messages
         const friendlyMessages: Record<string, string> = {
           card_declined: "Your card was declined. Please try another card.",
           expired_card: "This card has expired. Please use a different card.",
@@ -193,16 +185,11 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         throw new Error(message);
       }
 
-      // ════════════════════════════════════════
-      // STEP 3: Handle Payment Result
-      // ════════════════════════════════════════
+      // ── STEP 3: Handle Payment Result ──
 
       if (paymentIntent?.status === "succeeded") {
         setSuccessMsg("Payment successful! Issuing your ticket...");
 
-        // ── BACKUP: Client-side issue trigger ──
-        // Primary issuance happens via webhook.
-        // This is a backup in case webhook is delayed.
         try {
           const issueRes = await fetch("/api/duffel/booking/issue", {
             method: "POST",
@@ -219,8 +206,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             setSuccessMsg("Payment complete & ticket issued successfully!");
             toast.success("Ticket issued successfully!");
           } else {
-            // Issue call failed but payment succeeded
-            // Webhook will handle it — show reassuring message
             setSuccessMsg(
               "Payment successful! Your ticket is being processed and will be ready shortly."
             );
@@ -229,7 +214,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             );
           }
         } catch {
-          // Network error on issue call — webhook will handle
           setSuccessMsg(
             "Payment successful! Your ticket is being processed automatically."
           );
@@ -238,8 +222,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
 
         onSuccess?.();
       } else if (paymentIntent?.status === "requires_action") {
-        // 3D Secure is being handled by Stripe.js automatically
-        // This state shouldn't normally reach here
         setError(
           "Additional authentication required. Please complete the verification."
         );
@@ -259,10 +241,15 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   const displayAmount = formatAmount(amount, currency);
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md mx-auto">
-      {/* Gradient border card */}
+    <form
+      onSubmit={handleSubmit}
+      className="w-full max-w-md mx-auto px-3 sm:px-0"
+    >
+      {/* ── Gradient border card ──
+          ⚠️ iOS Fix: No backdrop-blur, no will-change, no transform
+          These CSS properties break Stripe iframe rendering on Safari iOS */}
       <div className="rounded-2xl bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 p-[1px] shadow-xl">
-        <div className="rounded-2xl bg-white/90 p-5 backdrop-blur-sm">
+        <div className="rounded-2xl bg-white p-4 sm:p-5">
           {/* Header */}
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-slate-900">
@@ -274,9 +261,9 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           </div>
 
           {/* Amount Summary */}
-          <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] text-slate-500">
+          <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50 px-3 sm:px-4 py-3 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] text-slate-500 shrink-0">
                 Amount to charge
               </span>
               <span className="text-base font-semibold text-slate-900 tabular-nums">
@@ -285,14 +272,16 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             </div>
             <div className="mt-1 text-[11px] text-slate-400">
               Booking:{" "}
-              <span className="font-semibold text-slate-600">{bookRef}</span>
+              <span className="font-semibold text-slate-600 break-all">
+                {bookRef}
+              </span>
             </div>
           </div>
 
           {/* Client Card Reference (optional) */}
           {cardInfo && (cardInfo.holderName || cardInfo.cardNumber) && (
             <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   Client card (reference only)
                 </p>
@@ -300,7 +289,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
                   <button
                     type="button"
                     onClick={handleCopy}
-                    className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 active:bg-slate-200"
                   >
                     {copied ? (
                       <>
@@ -317,11 +306,11 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
                 )}
               </div>
 
-              <p className="text-xs font-semibold uppercase text-slate-800">
+              <p className="text-xs font-semibold uppercase text-slate-800 truncate">
                 {cardInfo.holderName || "Cardholder Name"}
               </p>
 
-              <p className="mt-1 text-[11px] font-mono text-slate-600 leading-snug">
+              <p className="mt-1 text-[11px] font-mono text-slate-600 leading-snug break-all">
                 {cardInfo.cardNumber || "**** **** **** ****"}
                 {" · "}
                 Exp {cardInfo.expiryDate || "MM/YY"}
@@ -335,24 +324,65 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           )}
 
           {/* Card Input Label */}
-          <div className="mb-1 flex items-center justify-between">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
             <label className="text-[11px] font-medium uppercase tracking-wide text-slate-600">
               Enter card details
             </label>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-slate-400 hidden sm:inline">
               Visa • Mastercard • Amex
             </span>
           </div>
 
-          {/* Stripe Card Element */}
-          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900/80">
+          {/* ═══════════════════════════════════════════════════
+              STRIPE CARD ELEMENT CONTAINER
+              
+              iOS Critical Fixes:
+              ─────────────────────────────────────────────────
+              1. min-h-[48px] → Ensures iframe has enough height
+                 on iOS. Without this, the iframe can collapse
+                 to 0px and become untappable.
+              
+              2. style={{ touchAction: 'manipulation' }}
+                 → Tells iOS not to delay/intercept touch events.
+                 Without this, iOS may interpret taps as scroll
+                 gestures and not pass them to the iframe.
+              
+              3. Font size 16px in CardElement options
+                 → iOS Safari auto-zooms any input with font < 16px.
+                 This zoom shifts the viewport and can make the
+                 iframe unresponsive or invisible after zoom.
+              
+              4. No backdrop-blur on ANY ancestor
+                 → Safari iOS has a rendering bug where
+                 backdrop-filter on an ancestor causes iframes
+                 to become non-interactive. Removed from parent.
+              
+              5. No overflow-hidden on this container
+                 → Can clip the Stripe iframe dropdown (exp/cvc)
+                 on iOS when the keyboard pushes content up.
+              
+              6. position: relative + z-index
+                 → Ensures the iframe sits above any overlapping
+                 elements on iOS, especially in modals/sheets.
+              ═══════════════════════════════════════════════════ */}
+          <div
+            className="relative z-10 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:py-2.5 shadow-sm transition-colors focus-within:border-slate-900"
+            style={{
+              minHeight: "48px",
+              touchAction: "manipulation",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
             <CardElement
               options={{
                 iconStyle: "solid",
-                hidePostalCode: false,
+                hidePostalCode: true,
                 style: {
                   base: {
-                    fontSize: "14px",
+                    // ⚠️ iOS FIX: Must be 16px or larger
+                    // Safari auto-zooms inputs < 16px, breaking the iframe
+                    fontSize: "16px",
+                    lineHeight: "24px",
                     color: "#0f172a",
                     fontFamily:
                       '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
@@ -371,7 +401,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           {error && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 mt-0.5" />
-              <p className="text-[11px] font-medium text-red-700 leading-relaxed">
+              <p className="text-[11px] sm:text-xs font-medium text-red-700 leading-relaxed">
                 {error}
               </p>
             </div>
@@ -381,7 +411,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           {successMsg && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5">
               <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-500 mt-0.5" />
-              <p className="text-[11px] font-medium text-emerald-700 leading-relaxed">
+              <p className="text-[11px] sm:text-xs font-medium text-emerald-700 leading-relaxed">
                 {successMsg}
               </p>
             </div>
@@ -391,7 +421,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           <button
             type="submit"
             disabled={!stripe || loading || !!successMsg}
-            className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:from-black hover:to-black active:scale-[0.98] disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-400"
+            className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:from-black hover:to-black active:scale-[0.98] disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-400"
+            style={{ touchAction: "manipulation" }}
           >
             {loading ? (
               <>
