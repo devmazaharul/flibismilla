@@ -554,3 +554,59 @@ export function getAccessibleModules(
 
   return modules;
 }
+
+
+
+// utils/ip-network.ts
+
+interface NetworkDetails {
+  location: string;
+  provider: string;
+  connectionType: 'Mobile Data' | 'Broadband/WiFi' | 'Unknown';
+  fullDetails: string;
+}
+
+export async function getNetworkDetails(ip: string): Promise<NetworkDetails> {
+  // Localhost check
+  if (ip === '127.0.0.1' || ip === '::1' || !ip) {
+    return {
+      location: 'Localhost',
+      provider: 'Local Network',
+      connectionType: 'Unknown',
+      fullDetails: 'Local Development Environment'
+    };
+  }
+
+  try {
+    // fields=66846719 মানে আমরা status, message, country, regionName, city, isp, org, as, mobile, proxy সব নিচ্ছি
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=66846719`);
+    const data = await res.json();
+
+    if (data.status === 'fail') throw new Error(data.message);
+
+    // ১. লোকেশন ফরম্যাট
+    const location = [data.city, data.regionName, data.country].filter(Boolean).join(', ');
+
+    // ২. প্রোভাইডার ইনফো (ISP + Organization)
+    const provider = data.org || data.isp || 'Unknown Provider';
+
+    // ৩. কানেকশন টাইপ ডিটেকশন (Mobile vs WiFi)
+    // ip-api এর 'mobile' ফ্ল্যাগ ট্রু হলে সেটা মোবাইল ডাটা, নয়তো ব্রডব্যান্ড/ওয়াইফাই
+    const connectionType = data.mobile ? 'Mobile Data' : 'Broadband/WiFi';
+
+    return {
+      location,
+      provider,
+      connectionType,
+      fullDetails: `${provider} (${connectionType}) - ${location}`
+    };
+  } catch (error) {
+    console.error('IP details fetch failed:', error);
+    return {
+      location: 'Unknown',
+      provider: 'Unknown',
+      connectionType: 'Unknown',
+      fullDetails: 'Unable to retrieve network details'
+    };
+  }
+}

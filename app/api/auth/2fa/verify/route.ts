@@ -10,6 +10,7 @@ import ActivityLog from '@/models/ActivityLog';
 import { createToken } from '@/lib/auth';
 import { COOKIE_NAME } from '@/app/api/controller/constant';
 import { extractDeviceInfo } from '../../login/route';
+import { getNetworkDetails } from '@/app/api/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
     // ── 2FA সফল! লগইন দাও ──
     const sessionId = uuidv4();
     const { browser, device, ip } = extractDeviceInfo(req);
+    const location = (await getNetworkDetails(ip)).fullDetails || 'Unknown';
 
     const jwtToken = await createToken({
       id: admin._id.toString(),
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
           device,
           browser,
           ip,
-          location: 'Auto-detected',
+          location,
           loginTime: new Date(),
           lastActive: new Date(),
         },
@@ -112,7 +114,7 @@ export async function POST(req: NextRequest) {
             device,
             browser,
             ip,
-            location: 'Auto-detected',
+            location,
             time: new Date(),
             status: 'current',
           }],

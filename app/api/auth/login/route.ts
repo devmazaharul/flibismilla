@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import Admin from '@/models/Admin.model';
 import { SignJWT } from 'jose';
+import { getNetworkDetails } from '../../lib/auth';
 
 // ─── Device Info Extractor ────────────────────────────
 export function extractDeviceInfo(request: NextRequest) {
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     const sessionId: string = uuidv4();
     const { browser, device, ip } = extractDeviceInfo(request);
-    const location = 'Unknown';
+    const location = await getNetworkDetails(ip) || 'Unknown';
 
     const token = await createToken({
       id: admin._id.toString(),
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
           device,
           browser,
           ip,
-          location,
+          location:location.fullDetails,
           loginTime: new Date(),
           lastActive: new Date(),
         },
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
               device,
               browser,
               ip,
-              location,
+              location:location.fullDetails,
               time: new Date(),
               status: 'current',
             },
