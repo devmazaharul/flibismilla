@@ -57,7 +57,7 @@ const PROTECTED_API_ROUTES: RouteConfig[] = [
   { path: '/api/admin/activity-log', roles: ['admin', 'editor', 'viewer'] },
 
   // ── Dashboard stats (admin only) ──
-  { path: '/api/dashboard/stats', roles: ['admin',"editor","viewer"] },
+  { path: '/api/dashboard/stats', roles: ['admin', 'editor', 'viewer'] },
 ];
 
 // ✅ Public API routes (auth লাগবে না)
@@ -130,7 +130,7 @@ async function verifyToken(token: string): Promise<AuthResult> {
 
     if (payload.exp) {
       const now = Math.floor(Date.now() / 1000);
-      result.isExpiringSoon = (payload.exp - now) < TOKEN_EXPIRY_WARNING;
+      result.isExpiringSoon = payload.exp - now < TOKEN_EXPIRY_WARNING;
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -152,9 +152,7 @@ function findMatchingRoute(
   routes: RouteConfig[]
 ): RouteConfig | undefined {
   // ✅ Sort by path length DESC = more specific match first
-  const sorted = [...routes].sort(
-    (a, b) => b.path.length - a.path.length
-  );
+  const sorted = [...routes].sort((a, b) => b.path.length - a.path.length);
   return sorted.find((route) => pathname.startsWith(route.path));
 }
 
@@ -184,16 +182,18 @@ function setSecurityHeaders(response: NextResponse): void {
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   );
+  
+  // ⚠️ FIX: Consolidated and correct CSP rules
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.network",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
+      "img-src 'self' data: blob: https: http: https://pics.avs.io https://*.stripe.com",
       "font-src 'self' data:",
-      "connect-src 'self'",
-      "frame-ancestors 'none'",
+      "connect-src 'self' https://api.stripe.com https://m.stripe.network https://q.stripe.com",
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
       "base-uri 'self'",
       "form-action 'self'",
     ].join('; ')

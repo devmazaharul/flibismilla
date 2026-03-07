@@ -92,20 +92,7 @@ function checkAdminRateLimit(rawIp: string): {
     return { limited: false };
 }
 
-// ================================================================
-// HELPER: Mask card number for safe display
-//
-// Even admins should not see full card numbers in the UI.
-// Show only last 4 digits: **** **** **** 1234
-// Full number should only be accessible via a separate
-// secure endpoint with audit logging if ever needed.
-// ================================================================
 
-function maskCardNumber(decrypted: string): string {
-    if (!decrypted || decrypted.length < 4) return '**** (Invalid)';
-    const last4 = decrypted.slice(-4);
-    return `**** **** **** ${last4}`;
-}
 
 // ================================================================
 // STATES THAT DON'T NEED DUFFEL SYNC
@@ -240,21 +227,29 @@ export async function GET(req: Request) {
 
             // ── Card info (masked for security) ──
             let displayCard = 'N/A';
-            let cardHolder = 'N/A';
+            let cardHolder = paymentInfo.cardName || 'N/A';
 
             if (canSeePayment && paymentInfo?.cardNumber) {
                 try {
                     const realNum = decrypt(paymentInfo.cardNumber);
-                    displayCard = maskCardNumber(realNum);
+                    displayCard = realNum
                 } catch (e) {
                     console.error('Decryption Error:', e);
                     displayCard = '**** (Error)';
                 }
+            } else if (paymentInfo?.cardNumber) {
+                // If they don't have permission but card exists
+                displayCard = '**** (Hidden)';
             }
 
-            if (canSeePayment && paymentInfo?.cardName) {
-                cardHolder = paymentInfo.cardName;
-            }
+            // ── Create securePaymentInfo safely ──
+            const securePaymentInfo = paymentInfo && Object.keys(paymentInfo).length > 0 ? {
+                holderName: cardHolder,
+                cardNumber: displayCard,
+                expiryDate: paymentInfo.expiryDate || 'MM/YY',
+                billingAddress: paymentInfo.billingAddress || {},
+                zipCode: paymentInfo.billingAddress?.zipCode || null,
+            } : null;
 
             // ── Effective status (display-level expiry correction) ──
             const effectiveStatus =
@@ -289,10 +284,7 @@ export async function GET(req: Request) {
                     phone: contact.phone || 'N/A',
                 },
 
-                paymentSource: {
-                    holderName: cardHolder,
-                    cardLast4: displayCard,
-                },
+                paymentSource: securePaymentInfo,
 
                 amount: {
                     total: pricing.total_amount || 0,

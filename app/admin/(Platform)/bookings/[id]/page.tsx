@@ -1,3 +1,5 @@
+// app/admin/booking/[id]/page.tsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -49,7 +51,7 @@ import { Button } from "@/components/ui/button";
 import StripeWrapper from "@/app/admin/components/StripeWrapper";
 
 // ==========================================
-// 1. TYPES — Fixed to match API response
+// 1. TYPES
 // ==========================================
 
 interface BaggageDetail {
@@ -112,7 +114,6 @@ interface Segment {
   baggageInfo?: BaggageInfo;
 }
 
-// ─── FIX #1: adminNotes is an array of objects, not a string ───
 interface AdminNote {
   note: string;
   addedBy: string;
@@ -168,7 +169,6 @@ interface BookingData {
     dob: string;
     carryingInfant: string;
   }[];
-  // ─── FIX #2: yourMarkup is number from API (booking.pricing?.markup || 0) ───
   finance: {
     basePrice: string;
     tax: string;
@@ -177,7 +177,6 @@ interface BookingData {
     yourMarkup: number;
     duffelTotal: string;
   };
-  // ─── FIX #3: paymentSource matches API structure (removed cardLast4, added zipCode) ───
   paymentSource?: {
     holderName: string;
     cardNumber: string;
@@ -199,7 +198,6 @@ interface BookingData {
   }[];
   timings?: { deadline: string | null };
   paymentStatus: PaymentStatus;
-  // ─── FIX #4: adminNotes is AdminNote[], not string | null ───
   adminNotes: AdminNote[];
   tripBaggage?: TripBaggage;
   cancellation?: {
@@ -388,7 +386,6 @@ const CountdownTimer = ({ deadline }: { deadline: string }) => {
   );
 };
 
-// ─── Baggage Icon Helper ───
 const BaggageTypeIcon = ({
   type,
   className,
@@ -408,7 +405,6 @@ const BaggageTypeIcon = ({
   }
 };
 
-// ─── Baggage color config ───
 const BAGGAGE_STYLE: Record<
   string,
   { bg: string; text: string; ring: string }
@@ -436,7 +432,6 @@ const getDefaultBaggageStyle = () => ({
   ring: "ring-gray-200",
 });
 
-// ─── Segment Baggage Display Component ───
 const SegmentBaggageDisplay = ({
   baggageInfo,
   fallback,
@@ -444,7 +439,11 @@ const SegmentBaggageDisplay = ({
   baggageInfo?: BaggageInfo;
   fallback: string;
 }) => {
-  if (!baggageInfo || !baggageInfo.details || baggageInfo.details.length === 0) {
+  if (
+    !baggageInfo ||
+    !baggageInfo.details ||
+    baggageInfo.details.length === 0
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-sm bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-600 ring-1 ring-violet-200">
         <Luggage className="h-3 w-3" />
@@ -559,7 +558,6 @@ export default function BookingDetailsPage() {
   const [cvv, setCvv] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // ─── FIX #5: Correct fetch URL to match API route ───
   const fetchBooking = async () => {
     try {
       const res = await axios.get(`/api/dashboard/bookings/${id}`);
@@ -688,7 +686,6 @@ export default function BookingDetailsPage() {
     }
   };
 
-  // ─── Loading State ───
   if (loading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] gap-4">
@@ -711,7 +708,6 @@ export default function BookingDetailsPage() {
       </div>
     );
 
-  // ─── Error State ───
   if (!data)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] gap-4">
@@ -863,7 +859,6 @@ export default function BookingDetailsPage() {
             </span>
           </div>
 
-          {/* ─── Trip Baggage Summary ─── */}
           {data.tripBaggage && data.tripBaggage.includedCount > 0 && (
             <div className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200/70 bg-white px-3 py-2 shadow-2xl shadow-gray-100 text-[11px] text-gray-500">
               <Luggage className="h-3.5 w-3.5 text-violet-500" />
@@ -935,7 +930,6 @@ export default function BookingDetailsPage() {
                     className="p-6 transition-colors hover:bg-gray-50/30"
                   >
                     <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-                      {/* Airline Info */}
                       <div className="flex items-center gap-3 md:w-36 md:flex-col md:items-start shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -959,9 +953,7 @@ export default function BookingDetailsPage() {
                         </div>
                       </div>
 
-                      {/* Timeline */}
                       <div className="relative flex-1 grid grid-cols-3 items-center gap-4">
-                        {/* Origin */}
                         <div className="text-left">
                           <p className="text-xl font-bold text-gray-900 sm:text-2xl tabular-nums">
                             {format(parseISO(seg.departingAt), "hh:mm a")}
@@ -977,7 +969,6 @@ export default function BookingDetailsPage() {
                           </p>
                         </div>
 
-                        {/* Duration Arrow */}
                         <div className="flex flex-col items-center justify-center">
                           <span className="text-[10px] font-bold text-gray-400 mb-1.5 tabular-nums">
                             {seg.duration.replace("PT", "").toLowerCase()}
@@ -994,7 +985,6 @@ export default function BookingDetailsPage() {
                           </span>
                         </div>
 
-                        {/* Destination */}
                         <div className="text-right">
                           <p className="text-xl font-bold text-gray-900 sm:text-2xl tabular-nums">
                             {format(parseISO(seg.arrivingAt), "hh:mm a")}
@@ -1012,7 +1002,6 @@ export default function BookingDetailsPage() {
                       </div>
                     </div>
 
-                    {/* ──── Segment Footer with Smart Baggage ──── */}
                     <div className="mt-5 space-y-3 border-t border-dashed border-gray-100 pt-4">
                       <div className="flex flex-wrap gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-sm bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600 ring-1 ring-blue-200">
@@ -1252,7 +1241,6 @@ export default function BookingDetailsPage() {
 
             {/* ──── Fare Rules & Policies ──── */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* Cancellation */}
               <div
                 className={cn(
                   "overflow-hidden rounded-2xl border transition-all",
@@ -1334,7 +1322,6 @@ export default function BookingDetailsPage() {
                 </div>
               </div>
 
-              {/* Date Change */}
               <div
                 className={cn(
                   "overflow-hidden rounded-2xl border transition-all",
@@ -1530,9 +1517,9 @@ export default function BookingDetailsPage() {
                   </div>
                   <div className="flex justify-between text-[12px]">
                     <span className="text-gray-500">Taxes & Markup</span>
-                    {/* FIX #6: yourMarkup is number, convert to string for display */}
                     <span className="font-medium text-gray-700 tabular-nums">
-                      {data.finance.currency} {String(data.finance.yourMarkup)}
+                      {data.finance.currency}{" "}
+                      {String(data.finance.yourMarkup)}
                     </span>
                   </div>
                 </div>
@@ -1569,7 +1556,6 @@ export default function BookingDetailsPage() {
                   </div>
                 </div>
 
-                {/* Card Info */}
                 {data.paymentSource && !data.paymentSource.error && (
                   <div className="relative overflow-hidden rounded-xl bg-gray-900 text-gray-300 shadow-lg mt-2">
                     <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gray-800/50 blur-2xl" />
@@ -1630,7 +1616,6 @@ export default function BookingDetailsPage() {
                   </div>
                 )}
 
-                {/* Show error if payment decryption failed */}
                 {data.paymentSource?.error && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3 text-[11px] text-rose-600">
                     <div className="flex items-center gap-1.5">
@@ -1642,7 +1627,6 @@ export default function BookingDetailsPage() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
                 <div className="space-y-2.5 pt-2">
                   {data.status === "issued" ? (
                     <>
@@ -1719,7 +1703,7 @@ export default function BookingDetailsPage() {
                     <Button
                       onClick={() => {
                         setIssueModalOpen(true);
-                        setPaymentMethod("balance");
+                        setPaymentMethod("stripe");
                         setCvv("");
                       }}
                       className="h-11 w-full cursor-pointer rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 text-[13px] font-bold text-white shadow-2xl shadow-gray-100 transition-all hover:from-gray-900 hover:to-gray-950 hover:shadow-md active:scale-[0.98]"
@@ -1745,11 +1729,6 @@ export default function BookingDetailsPage() {
                   )}
                 </div>
 
-                {/* ═══════════════════════════════════════════════
-                    FIX #7: Admin Notes — render as array of objects
-                    API returns: [{ note, addedBy, createdAt }]
-                    Old code treated it as a single string.
-                    ═══════════════════════════════════════════════ */}
                 <div className="rounded-xl border border-gray-200/70 bg-gray-50/30 p-3 mt-2">
                   <div className="flex gap-2">
                     <Info className="h-3.5 w-3.5 shrink-0 text-gray-400 mt-0.5" />
@@ -1759,32 +1738,35 @@ export default function BookingDetailsPage() {
                       </span>
                       {data.adminNotes && data.adminNotes.length > 0 ? (
                         <div className="mt-2 space-y-2">
-                          {[...data.adminNotes].reverse().slice(0,15).map((note, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded-lg border border-gray-100 bg-white p-2.5 space-y-1"
-                            >
-                              <p className="text-[11px] text-gray-600 leading-relaxed">
-                                {note.note}
-                              </p>
-                              <div className="flex items-center gap-2 text-[9px] text-gray-400">
-                                <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono font-semibold text-gray-500">
-                                  {note.addedBy}
-                                </span>
-                                {note.createdAt && (
-                                  <>
-                                    <span>•</span>
-                                    <span>
-                                      {format(
-                                        parseISO(note.createdAt),
-                                        "dd MMM yyyy, hh:mm a"
-                                      )}
-                                    </span>
-                                  </>
-                                )}
+                          {[...data.adminNotes]
+                            .reverse()
+                            .slice(0, 15)
+                            .map((note, idx) => (
+                              <div
+                                key={idx}
+                                className="rounded-lg border border-gray-100 bg-white p-2.5 space-y-1"
+                              >
+                                <p className="text-[11px] text-gray-600 leading-relaxed">
+                                  {note.note}
+                                </p>
+                                <div className="flex items-center gap-2 text-[9px] text-gray-400">
+                                  <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono font-semibold text-gray-500">
+                                    {note.addedBy}
+                                  </span>
+                                  {note.createdAt && (
+                                    <>
+                                      <span>•</span>
+                                      <span>
+                                        {format(
+                                          parseISO(note.createdAt),
+                                          "dd MMM yyyy, hh:mm a"
+                                        )}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic ml-1">
@@ -1802,7 +1784,7 @@ export default function BookingDetailsPage() {
 
       {/* ═══════════════════ REFUND MODAL ═══════════════════ */}
       {refundModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-4">
           <div className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/40 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1948,8 +1930,7 @@ export default function BookingDetailsPage() {
                             <p className="mt-1 text-[10px] text-emerald-600">
                               Net:{" "}
                               <span className="font-bold">
-                                {refundCurrency}{" "}
-                                {netRefund.toFixed(2)}
+                                {refundCurrency} {netRefund.toFixed(2)}
                               </span>
                             </p>
                           )}
@@ -2047,11 +2028,37 @@ export default function BookingDetailsPage() {
         </div>
       )}
 
-      {/* ═══════════════════ ISSUE TICKET MODAL ═══════════════════ */}
+      {/* ═══════════════════════════════════════════════════════
+          ██ ISSUE TICKET MODAL — ALL STRIPE FIXES APPLIED ██
+          
+          FIX #1: ❌ backdrop-blur-sm সরানো হয়েছে
+                  Safari/iOS এ backdrop-filter থাকলে 
+                  Stripe iframe non-interactive হয়ে যায়
+          
+          FIX #2: ❌ overflow-hidden সরানো হয়েছে 
+                  Stripe card div থেকে — iframe clip হতো
+          
+          FIX #3: ✅ Stripe area তে event propagation বন্ধ
+                  Parent onClick iframe এর click চুরি করতো
+          
+          FIX #4: ✅ pointer-events: auto + isolation: isolate
+                  Modal এর ভিতরে iframe কে interactive রাখে
+          ═══════════════════════════════════════════════════════ */}
       {issueModalOpen && data && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4">
-          <div className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/40 px-6 py-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4"
+          // ✅ FIX #1: bg-black/40 রাখা হয়েছে, কিন্তু backdrop-blur-sm সরানো হয়েছে
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          <div
+            className="w-full max-w-md max-h-[90vh] rounded-2xl border border-gray-200/70 bg-white shadow-2xl flex flex-col"
+            // ✅ FIX #4: isolation creates new stacking context for iframe
+            style={{ isolation: "isolate" }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/40 px-6 py-4 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 shadow-lg">
                   <TicketCheck className="h-4 w-4 text-white" />
@@ -2076,7 +2083,12 @@ export default function BookingDetailsPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {/* Modal Body — scrollable */}
+            <div
+              className="flex-1 overflow-y-auto p-6 space-y-4"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              {/* Amount Summary */}
               <div className="flex items-center justify-between rounded-xl border border-gray-200/70 bg-gray-50/30 p-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
@@ -2103,15 +2115,25 @@ export default function BookingDetailsPage() {
                 </div>
               </div>
 
+              {/* Payment Methods */}
               <div className="space-y-3">
+                {/* ═══════════════════════════════════════
+                    STRIPE PAYMENT METHOD CARD
+                    ═══════════════════════════════════════ */}
                 <div
-                  onClick={() => setPaymentMethod("stripe")}
+                  // ✅ FIX #2: overflow-hidden সরানো হয়েছে → overflow-visible
                   className={cn(
-                    "relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all",
+                    "relative rounded-xl border-2 transition-all",
                     paymentMethod === "stripe"
                       ? "border-sky-500/70 bg-sky-50/30"
-                      : "border-gray-200/70 bg-white hover:border-gray-300"
+                      : "border-gray-200/70 bg-white hover:border-gray-300 cursor-pointer"
                   )}
+                  // ✅ শুধু stripe select না থাকলে click করলে select হবে
+                  onClick={() => {
+                    if (paymentMethod !== "stripe") {
+                      setPaymentMethod("stripe");
+                    }
+                  }}
                 >
                   <div className="h-[3px] bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
                   <div className="p-4">
@@ -2135,12 +2157,22 @@ export default function BookingDetailsPage() {
                       </div>
                     </div>
 
+                    {/* ✅ FIX #3: Stripe iframe area — সব event propagation বন্ধ */}
                     {paymentMethod === "stripe" && (
                       <div
                         className="mt-3 space-y-2"
+                        style={{
+                          position: "relative",
+                          zIndex: 99999,
+                          isolation: "isolate",
+                          pointerEvents: "auto",
+                        }}
                         onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
                       >
-                        
                         <StripeWrapper
                           amount={Number(data.finance.clientTotal)}
                           bookingId={data.id as any}
@@ -2166,6 +2198,7 @@ export default function BookingDetailsPage() {
                   </div>
                 </div>
 
+                {/* Balance Payment Method */}
                 <div
                   onClick={() => setPaymentMethod("balance")}
                   className={cn(
@@ -2208,6 +2241,7 @@ export default function BookingDetailsPage() {
                 </div>
               </div>
 
+              {/* Warning */}
               <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
                 <p className="text-[11px] leading-relaxed text-amber-900">
@@ -2218,7 +2252,8 @@ export default function BookingDetailsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 border-t border-gray-50 bg-gray-50/40 px-6 py-4">
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2.5 border-t border-gray-50 bg-gray-50/40 px-6 py-4 shrink-0">
               <Button
                 type="button"
                 variant="outline"

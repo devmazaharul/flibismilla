@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -13,17 +13,9 @@ import {
 import { toast } from "sonner";
 import { Loader2, CheckCircle, AlertCircle, Copy, Check } from "lucide-react";
 
-// ════════════════════════════════════════════
-// Stripe client (singleton)
-// ════════════════════════════════════════════
-
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
-
-// ════════════════════════════════════════════
-// TYPES
-// ════════════════════════════════════════════
 
 type CardInfo = {
   holderName?: string;
@@ -41,21 +33,9 @@ type CheckoutFormProps = {
   onSuccess?: () => void;
 };
 
-// ════════════════════════════════════════════
-// CURRENCY HELPERS
-// ════════════════════════════════════════════
-
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  BDT: "৳",
-  AED: "د.إ",
-  SAR: "﷼",
-  INR: "₹",
-  JPY: "¥",
-  CAD: "CA$",
-  AUD: "A$",
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", AED: "د.إ",
+  SAR: "﷼", INR: "₹", JPY: "¥", CAD: "CA$", AUD: "A$",
 };
 
 function getCurrencySymbol(code: string): string {
@@ -70,19 +50,6 @@ function formatAmount(amount: number, currency: string): string {
   })}`;
 }
 
-// ════════════════════════════════════════════
-// CHECKOUT FORM
-//
-// iOS Fix Notes:
-// ─────────────────────────────────────────
-// 1. CardElement font ≥ 16px (prevents iOS auto-zoom)
-// 2. No backdrop-blur on parent (breaks iframe on Safari)
-// 3. Explicit min-height on card container (iframe needs space)
-// 4. touch-action: manipulation on card wrapper
-// 5. -webkit-overflow-scrolling: touch for scroll containers
-// 6. No transform/will-change on ancestors (breaks iframe z-index)
-// ════════════════════════════════════════════
-
 const CheckoutForm: React.FC<CheckoutFormProps> = ({
   amount,
   currency = "USD",
@@ -93,11 +60,36 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const cardContainerRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // ── Fix: Force pointer-events on Stripe iframe inside modals ──
+  useEffect(() => {
+    if (!cardContainerRef.current) return;
+
+    const fixIframe = () => {
+      const iframe = cardContainerRef.current?.querySelector("iframe");
+      if (iframe) {
+        iframe.style.pointerEvents = "auto";
+        iframe.style.position = "relative";
+        iframe.style.zIndex = "99999";
+      }
+    };
+
+    const observer = new MutationObserver(fixIframe);
+    observer.observe(cardContainerRef.current, {
+      childList: true,
+      subtree: true,
+    });
+
+    fixIframe();
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleCopy = useCallback(async () => {
     if (!cardInfo?.cardNumber) return;
@@ -124,8 +116,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     setSuccessMsg(null);
 
     try {
-      // ── STEP 1: Create PaymentIntent ──
-
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,9 +125,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       const intentData = await intentRes.json().catch(() => ({}));
 
       if (!intentRes.ok || !intentData.success) {
-        throw new Error(
-          intentData.error || "Failed to create payment session"
-        );
+        throw new Error(intentData.error || "Failed to create payment session");
       }
 
       const { clientSecret } = intentData;
@@ -145,8 +133,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       if (!clientSecret) {
         throw new Error("No payment session received from server");
       }
-
-      // ── STEP 2: Confirm Card Payment ──
 
       const cardElement = elements.getElement(CardElement);
 
@@ -172,20 +158,16 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           card_declined: "Your card was declined. Please try another card.",
           expired_card: "This card has expired. Please use a different card.",
           incorrect_cvc: "The CVC/CVV code is incorrect.",
-          processing_error:
-            "A processing error occurred. Please try again.",
+          processing_error: "A processing error occurred. Please try again.",
           insufficient_funds: "Insufficient funds. Please try another card.",
         };
 
-        const message =
+        throw new Error(
           friendlyMessages[stripeError.code || ""] ||
-          stripeError.message ||
-          "Payment failed. Please try again.";
-
-        throw new Error(message);
+            stripeError.message ||
+            "Payment failed. Please try again."
+        );
       }
-
-      // ── STEP 3: Handle Payment Result ──
 
       if (paymentIntent?.status === "succeeded") {
         setSuccessMsg("Payment successful! Issuing your ticket...");
@@ -194,10 +176,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           const issueRes = await fetch("/api/duffel/booking/issue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              bookingId,
-              paymentMethod: "stripe",
-            }),
+            body: JSON.stringify({ bookingId, paymentMethod: "stripe" }),
           });
 
           const issueData = await issueRes.json().catch(() => null);
@@ -209,9 +188,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             setSuccessMsg(
               "Payment successful! Your ticket is being processed and will be ready shortly."
             );
-            toast.info(
-              "Payment received. Ticket will be issued automatically."
-            );
+            toast.info("Payment received. Ticket will be issued automatically.");
           }
         } catch {
           setSuccessMsg(
@@ -244,12 +221,13 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     <form
       onSubmit={handleSubmit}
       className="w-full max-w-md mx-auto px-3 sm:px-0"
+      onFocus={(e) => e.stopPropagation()}
     >
-      {/* ── Gradient border card ──
-          ⚠️ iOS Fix: No backdrop-blur, no will-change, no transform
-          These CSS properties break Stripe iframe rendering on Safari iOS */}
       <div className="rounded-2xl bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 p-[1px] shadow-xl">
-        <div className="rounded-2xl bg-white p-4 sm:p-5">
+        <div
+          className="rounded-2xl bg-white p-4 sm:p-5"
+          style={{ isolation: "isolate" }}
+        >
           {/* Header */}
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-slate-900">
@@ -278,7 +256,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             </div>
           </div>
 
-          {/* Client Card Reference (optional) */}
+          {/* Client Card Reference */}
           {cardInfo && (cardInfo.holderName || cardInfo.cardNumber) && (
             <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
               <div className="mb-1 flex items-center justify-between gap-2">
@@ -333,54 +311,48 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             </span>
           </div>
 
-          {/* ═══════════════════════════════════════════════════
-              STRIPE CARD ELEMENT CONTAINER
+          {/* ═══════════════════════════════════════════
+              STRIPE CARD ELEMENT — NO LOADING OVERLAY
               
-              iOS Critical Fixes:
-              ─────────────────────────────────────────────────
-              1. min-h-[48px] → Ensures iframe has enough height
-                 on iOS. Without this, the iframe can collapse
-                 to 0px and become untappable.
+              আগে যেটা ভুল ছিলো:
+              ─────────────────────────────────────────
+              ❌ absolute inset-0 bg-white overlay 
+                 CardElement iframe কে ঢেকে রাখছিলো
+              ❌ onReady কখনো fire হতো না কারণ 
+                 overlay iframe rendering block করতো
+              ❌ Deadlock: overlay সরতে onReady লাগে,
+                 onReady হতে overlay সরতে হবে
               
-              2. style={{ touchAction: 'manipulation' }}
-                 → Tells iOS not to delay/intercept touch events.
-                 Without this, iOS may interpret taps as scroll
-                 gestures and not pass them to the iframe.
-              
-              3. Font size 16px in CardElement options
-                 → iOS Safari auto-zooms any input with font < 16px.
-                 This zoom shifts the viewport and can make the
-                 iframe unresponsive or invisible after zoom.
-              
-              4. No backdrop-blur on ANY ancestor
-                 → Safari iOS has a rendering bug where
-                 backdrop-filter on an ancestor causes iframes
-                 to become non-interactive. Removed from parent.
-              
-              5. No overflow-hidden on this container
-                 → Can clip the Stripe iframe dropdown (exp/cvc)
-                 on iOS when the keyboard pushes content up.
-              
-              6. position: relative + z-index
-                 → Ensures the iframe sits above any overlapping
-                 elements on iOS, especially in modals/sheets.
-              ═══════════════════════════════════════════════════ */}
+              এখন যেটা fix:
+              ─────────────────────────────────────────
+              ✅ Loading overlay পুরোপুরি সরানো হয়েছে
+              ✅ CardElement নিজেই loading handle করে
+              ✅ Stripe SDK নিজেই skeleton দেখায়
+              ═══════════════════════════════════════════ */}
           <div
-            className="relative z-10 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:py-2.5 shadow-sm transition-colors focus-within:border-slate-900"
+            ref={cardContainerRef}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-3 sm:py-2.5 shadow-sm transition-colors focus-within:border-slate-900"
             style={{
+              position: "relative",
+              zIndex: 99999,
               minHeight: "48px",
               touchAction: "manipulation",
               WebkitOverflowScrolling: "touch",
+              isolation: "isolate",
+              pointerEvents: "auto",
             }}
+            tabIndex={-1}
+            onFocus={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <CardElement
               options={{
                 iconStyle: "solid",
-                hidePostalCode: true,
+                hidePostalCode: false,
                 style: {
                   base: {
-                    // ⚠️ iOS FIX: Must be 16px or larger
-                    // Safari auto-zooms inputs < 16px, breaking the iframe
                     fontSize: "16px",
                     lineHeight: "24px",
                     color: "#0f172a",
@@ -397,7 +369,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             />
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 mt-0.5" />
@@ -407,7 +379,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             </div>
           )}
 
-          {/* Success Message */}
+          {/* Success */}
           {successMsg && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5">
               <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-500 mt-0.5" />
@@ -439,7 +411,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
             )}
           </button>
 
-          {/* Security Note */}
           <p className="mt-3 text-center text-[10px] leading-snug text-slate-400">
             Secured by Stripe with industry-standard encryption.
             <br />
@@ -450,10 +421,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     </form>
   );
 };
-
-// ════════════════════════════════════════════
-// WRAPPER (Elements Provider)
-// ════════════════════════════════════════════
 
 type StripeWrapperProps = {
   amount: number;
