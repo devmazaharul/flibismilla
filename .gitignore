@@ -5,6 +5,7 @@ docker-compose.yaml
 /node_modules
 /.pnp
 .pnp.*
+scripts
 .yarn/*
 !.yarn/patches
 !.yarn/plugins

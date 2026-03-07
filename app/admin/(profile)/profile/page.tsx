@@ -159,7 +159,7 @@ const ROLE_CONFIG: Record<
     iconBg: 'bg-blue-100',
     icon: Crown,
     description: 'Full system access & control',
-    gradient: 'from-blue-500 to-indigo-600',
+    gradient: 'from-blue-500/50 to-indigo-600/50',
   },
   editor: {
     label: 'Editor',
@@ -356,10 +356,8 @@ function InfoRow({
           </p>
           <p
             className={clsx(
-              'text-[13px] sm:text-[14px] text-gray-800 truncate mt-0.5',
-              mono
-                ? 'font-mono font-semibold text-[12px] sm:text-[13px]'
-                : 'font-semibold'
+              'text-[13px] text-xs sm:text-[14px] text-gray-800 truncate mt-0.5'
+             
             )}
           >
             {value}
@@ -642,7 +640,7 @@ function QuickActionCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3.5 p-3.5 sm:p-4 rounded-xl bg-white border border-gray-200/60 hover:border-gray-300/80 hover:shadow-lg hover:shadow-gray-200/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
+      className="group flex items-center gap-3.5 p-3.5 sm:p-4 rounded-xl bg-white border border-gray-200/60 hover:border-gray-300/30 hover:shadow-lg hover:shadow-gray-200/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
     >
       <div
         className={clsx(
@@ -656,12 +654,12 @@ function QuickActionCard({
         <p className="text-[13px] sm:text-[14px] font-bold text-gray-900 flex items-center gap-2">
           {title}
           {badge && (
-            <span className="px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold leading-none">
+            <span className="px-1.5 py-0.5 rounded-md bg-blue-300/10 text-blue-500 text-[10px] font-bold leading-none">
               {badge}
             </span>
           )}
         </p>
-        <p className="text-[11px] text-gray-400 font-medium mt-0.5 truncate">
+        <p className="text-[11px] text-gray-400 text-xs mt-0.5 truncate">
           {description}
         </p>
       </div>
@@ -1165,7 +1163,7 @@ export default function ProfilePage() {
           ].map((stat) => (
             <div
               key={stat.label}
-              className="bg-white rounded-xl sm:rounded-2xl border border-gray-200/60 p-3.5 sm:p-4 lg:p-5 hover:shadow-md hover:border-gray-300/60 transition-all duration-300 group"
+              className="bg-white rounded-xl sm:rounded-2xl border border-gray-200/60 p-3.5 sm:p-4 lg:p-5 hover:shadow-2xl hover:shadow-gray-100 hover:border-gray-100/20 transition-all duration-300 group"
             >
               <div
                 className={clsx(
@@ -1224,14 +1222,14 @@ export default function ProfilePage() {
                 <div className="divide-y divide-gray-100/80">
                   <InfoRow
                     icon={User}
-                    iconBg="bg-blue-50"
+                    iconBg="bg-blue-50/50"
                     iconColor="text-blue-500"
                     label="Full Name"
                     value={profile.name}
                   />
                   <InfoRow
                     icon={AtSign}
-                    iconBg="bg-violet-50"
+                    iconBg="bg-violet-50/50"
                     iconColor="text-violet-500"
                     label="Email Address"
                     value={profile.email}
@@ -1253,7 +1251,7 @@ export default function ProfilePage() {
                   />
                   <InfoRow
                     icon={Phone}
-                    iconBg="bg-emerald-50"
+                    iconBg="bg-emerald-50/50"
                     iconColor="text-emerald-500"
                     label="Phone"
                     value={
@@ -1266,7 +1264,7 @@ export default function ProfilePage() {
                   />
                   <InfoRow
                     icon={Hash}
-                    iconBg="bg-amber-50"
+                    iconBg="bg-amber-50/50"
                     iconColor="text-amber-500"
                     label="Admin ID"
                     value={profile.adminId}
@@ -1289,7 +1287,7 @@ export default function ProfilePage() {
                   />
                   <InfoRow
                     icon={Calendar}
-                    iconBg="bg-cyan-50"
+                    iconBg="bg-cyan-50/50"
                     iconColor="text-cyan-500"
                     label="Member Since"
                     value={format(new Date(profile.createdAt), 'PPP')}
@@ -1459,7 +1457,7 @@ export default function ProfilePage() {
                 title="Change Password"
                 description="Update your password"
                 href="/admin/settings"
-                iconBg="bg-violet-50"
+                iconBg="bg-violet-50/50"
                 iconColor="text-violet-600"
               />
               <QuickActionCard
@@ -1467,7 +1465,7 @@ export default function ProfilePage() {
                 title="Active Sessions"
                 description="Manage your devices"
                 href="/admin/sessions"
-                iconBg="bg-blue-50"
+                iconBg="bg-blue-50/50"
                 iconColor="text-blue-600"
                 badge={
                   profileStats && profileStats.totalActiveSessions > 1
@@ -1486,7 +1484,7 @@ export default function ProfilePage() {
                 href="/admin/settings"
                 iconBg={
                   profile.isTwoFactorEnabled
-                    ? 'bg-emerald-50'
+                    ? 'bg-emerald-50/50'
                     : 'bg-amber-50'
                 }
                 iconColor={
@@ -1500,7 +1498,7 @@ export default function ProfilePage() {
                 title="Activity Log"
                 description="View your activity history"
                 href="/admin/activity-log"
-                iconBg="bg-gray-100"
+                iconBg="bg-gray-100/50"
                 iconColor="text-gray-600"
               />
             </div>

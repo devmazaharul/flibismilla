@@ -8,7 +8,9 @@ import { COOKIE_NAME } from '@/app/api/controller/constant';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import Admin from '@/models/Admin.model';
+import { SignJWT } from 'jose';
 
+// ─── Device Info Extractor ────────────────────────────
 export function extractDeviceInfo(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') || 'Unknown';
   const ip =
@@ -118,7 +120,6 @@ export async function POST(request: NextRequest) {
 
       await Admin.findByIdAndUpdate(admin._id, { $set: updateData });
 
-      // Activity log
       await ActivityLog.create({
         admin: admin._id,
         action: 'failed_login',
@@ -138,12 +139,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6️⃣ Generate session
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  🔐 6️⃣ 2FA CHECK — Password সঠিক, এখন 2FA চেক করো    ║
+    // ╚══════════════════════════════════════════════════════════╝
+    if (admin.isTwoFactorEnabled && admin.twoFactorSecret) {
+      // ✅ Temporary token বানাও (5 মিনিট valid) — শুধু 2FA verify এর জন্য
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET || 'fallback-secret'
+      );
+
+      const tempToken = await new SignJWT({
+        id: admin._id.toString(),
+        purpose: '2fa-verify', // এটা দিয়ে বুঝবো এটা temp token
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('5m') // 5 মিনিট পরে expire
+        .sign(secret);
+
+      // ❌ কোনো cookie সেট করবো না
+      // ❌ কোনো session তৈরি করবো না
+      // ✅ শুধু frontend কে বলবো 2FA code চাই
+      return NextResponse.json(
+        {
+          success: true,
+          requiresTwoFactor: true,
+          message: 'Two-factor authentication required',
+          data: {
+            tempToken,
+            userId: admin._id.toString(),
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 7️⃣ 2FA OFF থাকলে — সরাসরি login (আগের মতোই)
+    // ═══════════════════════════════════════════════════════════
+
     const sessionId: string = uuidv4();
     const { browser, device, ip } = extractDeviceInfo(request);
     const location = 'Unknown';
 
-    // 7️⃣ Create JWT
     const token = await createToken({
       id: admin._id.toString(),
       email: admin.email,
@@ -151,7 +188,6 @@ export async function POST(request: NextRequest) {
       sessionId,
     });
 
-    // 8️⃣ Update admin: session + login info
     await Admin.findByIdAndUpdate(admin._id, {
       $set: {
         isOnline: true,
@@ -186,7 +222,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 9️⃣ Activity log
     await ActivityLog.create({
       admin: admin._id,
       action: 'login',
@@ -196,7 +231,6 @@ export async function POST(request: NextRequest) {
       device: request.headers.get('user-agent') || '',
     });
 
-    // 🔟 Build response WITH cookie
     const adminData = {
       _id: admin._id,
       name: admin.name,
@@ -208,26 +242,24 @@ export async function POST(request: NextRequest) {
       permissions: admin.permissions,
     };
 
-    // ✅ Response banao
     const response = NextResponse.json(
       {
         success: true,
+        requiresTwoFactor: false,
         message: 'Login successful',
         data: {
           admin: adminData,
           sessionId,
-          // ✅ Frontend ke bolo kothay redirect korbe
           redirectUrl: '/admin',
         },
       },
       { status: 200 }
     );
 
-    // ✅ Cookie set koro RESPONSE er upor
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',       // ← 'lax' use koro, 'strict' na
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
     });

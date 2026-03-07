@@ -211,7 +211,7 @@ function StatCard({
   description?: string;
 }) {
   return (
-    <div className="group relative bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-gray-100/50 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden">
+    <div className="group relative bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-2xl hover:shadow-gray-50 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -231,7 +231,7 @@ function StatCard({
         </div>
         <div
           className={clsx(
-            'flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-md',
+            'flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-105 group-hover:shadow-gray-100/50 group-hover:shadow-xl ',
             color
           )}
         >
@@ -929,26 +929,26 @@ export default function ActiveSessionsPage() {
               label="Active Sessions"
               value={totalSessions}
               icon={Wifi}
-              color="bg-emerald-50 text-emerald-600"
+              color="bg-emerald-50/50 text-emerald-600"
               description={`${otherSessions.length} other device${otherSessions.length !== 1 ? 's' : ''}`}
             />
             <StatCard
               label="Devices"
               value={stats.uniqueDevices}
               icon={Monitor}
-              color="bg-blue-50 text-blue-600"
+              color="bg-blue-50/50 text-blue-600"
             />
             <StatCard
               label="Locations"
               value={stats.uniqueLocations}
               icon={MapPin}
-              color="bg-violet-50 text-violet-600"
+              color="bg-violet-50/50 text-violet-600"
             />
             <StatCard
               label="Login History"
               value={stats.totalLoginHistory}
               icon={History}
-              color="bg-amber-50 text-amber-600"
+              color="bg-amber-50/50 text-amber-600"
               description="Total logins recorded"
             />
           </div>
@@ -1028,7 +1028,7 @@ export default function ActiveSessionsPage() {
             <div>
               <button
                 onClick={() => setShowHistory(!showHistory)}
-                className="w-full flex items-center justify-between px-4 py-3.5 bg-white rounded-2xl border border-gray-100 hover:shadow-sm transition-all cursor-pointer group"
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-white rounded-2xl border border-gray-100 hover:shadow-2xl hover:shadow-gray-100 transition-all cursor-pointer group"
               >
                 <span className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">

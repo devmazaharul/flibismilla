@@ -1,3 +1,4 @@
+admin create commad pnpm run create-admin
 ✈️ Fly Bismillah - OTA Platform Documentation
 ১. প্রজেক্ট পরিচিতি (Project Overview)
 Fly Bismillah একটি আধুনিক B2C (Business to Consumer) অনলাইন ট্রাভেল এজেন্সি প্ল্যাটফর্ম। এটি ব্যবহারকারীদের রিয়েল-টাইম গ্লোবাল ফ্লাইট সার্চ, বুকিং, টিকেট হোল্ড (Pay Later) এবং ইনস্ট্যান্ট টিকেট ইস্যু করার সুবিধা দেয়। সিস্টেমটি Duffel API এর ওপর ভিত্তি করে তৈরি এবং সম্পূর্ণ অটোমেটেড ইমেইল ও নোটিফিকেশন সিস্টেম দ্বারা পরিচালিত।
