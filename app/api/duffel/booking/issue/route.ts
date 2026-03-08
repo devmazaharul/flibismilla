@@ -236,12 +236,10 @@ await Booking.findByIdAndUpdate(bookingId, {
     $push: {
         adminNotes: adminNote(
             `✅ Payment Captured & Linked.
-             ------------------------------------
              💰 Client Paid: ${clientPaid} via ${paymentMethod}
              ✈️ Duffel Paid: ${duffelPaid} (Base Fare)
              📈 Net Markup: ${markupAmount.toFixed(2)} ${booking.pricing?.currency}
              🆔 Payment ID: ${paymentId}
-             ------------------------------------
              Action: Ready for Ticket Issuance.`
         ),
     },
@@ -401,7 +399,7 @@ await Booking.findByIdAndUpdate(bookingId, {
                     await Booking.findByIdAndUpdate(bookingId, {
                         $push: {
                             adminNotes: adminNote(
-                                `📧 Issued Email sent to ${emailData.contact.email}. ID: ${emailResult.messageId}`,
+                                `📧 Issued Email sent to ${emailData.contact.email}. ID: ${emailData.pnr}`,
                             ),
                         },
                     }).catch(() => {});

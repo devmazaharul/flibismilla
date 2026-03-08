@@ -1647,6 +1647,9 @@ export default function BookingDetailsPage() {
                             !canChange ||
                             !data.policies.dateChange.allowed
                           }
+                            onClick={() => {
+                              alert("Date change follow not available please use duffel dashboard to process date change");
+                          }}
                           className={cn(
                             "flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-[11px] font-bold transition-all",
                             canChange &&
@@ -1664,14 +1667,7 @@ export default function BookingDetailsPage() {
                             !data.policies.cancellation.allowed
                           }
                           onClick={() => {
-                            const confirm = window.confirm(
-                              "Are you sure you want to cancel this ticket? Standard airline fees will apply."
-                            );
-                            if (confirm) {
-                              toast.info(
-                                "Cancellation request sent to admin."
-                              );
-                            }
+                            toast.error("Cancellation follow not available please use duffel dashboard to process cancellation");
                           }}
                           className={cn(
                             "flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-[11px] font-bold transition-all",

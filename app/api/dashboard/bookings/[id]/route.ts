@@ -5,7 +5,7 @@ import { Duffel } from '@duffel/api';
 import mongoose from 'mongoose';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
-import { decrypt } from '../../../duffel/booking/utils';
+import { decrypt, getShortDateTime } from '../../../duffel/booking/utils';
 import { hasPermission } from '@/app/api/lib/auth';
 
 const duffelToken = process.env.DUFFEL_ACCESS_TOKEN;
@@ -353,7 +353,7 @@ export async function GET(
                     updates.status = 'cancelled';
                     notesToAdd.push(
                         createAdminNote(
-                            `🔄 Auto-sync: Cancelled on Duffel at ${cancelledAt}`,
+                            `🔄 Auto-sync: Cancelled on Duffel at ${getShortDateTime(cancelledAt)}`,
                         ),
                     );
                 }

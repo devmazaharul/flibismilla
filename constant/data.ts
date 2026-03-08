@@ -154,8 +154,8 @@ export const aboutPageData = {
 // ==================== 6. Stats Section ====================
 
 export const statsData = [
-    { id: 1, value: '28k', label: 'Total Users', icon: 'users' },
-    { id: 2, value: '13k', label: 'Total Tours', icon: 'map' },
+    { id: 1, value: '18k', label: 'Total Users', icon: 'users' },
+    { id: 2, value: '5k', label: 'Total Tours', icon: 'map' },
     { id: 3, value: '68k', label: 'Social Likes', icon: 'like' },
     { id: 4, value: '10k', label: '5 Star Ratings', icon: 'star' },
 ];
@@ -264,6 +264,11 @@ export const partnersData = [
         id: 1,
         name: 'MasterCard',
         logo: '/asset/sponsor/Mastercard-logo.svg',
+    },
+    {
+        id: 13,
+        name: 'American Express',
+        logo: '/asset/sponsor/express.jpg',
     },
     {
         id: 2,

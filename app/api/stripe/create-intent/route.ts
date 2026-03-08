@@ -36,11 +36,6 @@ const duffel = DUFFEL_TOKEN
 
 // ================================================================
 // ZERO-DECIMAL CURRENCIES
-// Stripe expects amounts in smallest unit for most currencies
-// (e.g., cents for USD). But some currencies have no decimal
-// sub-unit — for these, amount is passed as-is.
-//
-// Full list: https://stripe.com/docs/currencies#zero-decimal
 // ================================================================
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
@@ -49,14 +44,6 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
     'vuv', 'xaf', 'xof', 'xpf',
 ]);
 
-/**
- * Convert a decimal amount to Stripe's smallest-unit format.
- *
- * Examples:
- *   toStripeAmount(150.50, 'usd') → 15050  (cents)
- *   toStripeAmount(1500, 'jpy')   → 1500   (yen, no sub-unit)
- *   toStripeAmount(99.99, 'gbp')  → 9999   (pence)
- */
 function toStripeAmount(
     amount: number,
     currency: string,
@@ -67,9 +54,6 @@ function toStripeAmount(
     return Math.round(amount * 100);
 }
 
-// ✅ FIX 4: Currency-aware minimum amounts
-// Stripe requires different minimums per currency.
-// https://stripe.com/docs/currencies#minimum-and-maximum-charge-amounts
 function getMinAmount(currency: string): number {
     const minimums: Record<string, number> = {
         usd: 0.50,
@@ -77,14 +61,14 @@ function getMinAmount(currency: string): number {
         eur: 0.50,
         jpy: 50,
         krw: 1000,
-        bdt: 50,   // Bangladeshi Taka
-        inr: 50,   // Indian Rupee
-        aed: 2,    // UAE Dirham
-        sar: 2,    // Saudi Riyal
-        myr: 2,    // Malaysian Ringgit
-        sgd: 0.50, // Singapore Dollar
+        bdt: 50,
+        inr: 50,
+        aed: 2,
+        sar: 2,
+        myr: 2,
+        sgd: 0.50,
     };
-    return minimums[currency] || 0.50; // fallback to $0.50
+    return minimums[currency] || 0.50;
 }
 
 // ================================================================
@@ -106,10 +90,6 @@ function errorResponse(
     );
 }
 
-/**
- * Check if a PaymentIntent is in a reusable state.
- * Succeeded/canceled intents cannot be reused.
- */
 function isReusableIntent(
     intent: Stripe.PaymentIntent,
 ): boolean {
@@ -120,15 +100,6 @@ function isReusableIntent(
 
 // ================================================================
 // RATE LIMITER (per-IP, 10 requests/min)
-// Prevents abuse of PaymentIntent creation.
-//
-// ✅ FIX 1: Removed setInterval — incompatible with serverless.
-// Cleanup happens inline during each request instead.
-// On Vercel, each function invocation may or may not reuse
-// the same process — setInterval creates:
-//   - Memory leaks (timer keeps process alive)
-//   - Phantom cleanup on dead processes
-//   - False sense of security (map resets on cold start)
 // ================================================================
 
 const rateLimitMap = new Map<
@@ -137,7 +108,7 @@ const rateLimitMap = new Map<
 >();
 
 let lastCleanup = Date.now();
-const CLEANUP_INTERVAL = 5 * 60_000; // 5 minutes
+const CLEANUP_INTERVAL = 5 * 60_000;
 const MAX_MAP_SIZE = 5_000;
 
 function isRateLimited(ip: string): boolean {
@@ -145,8 +116,6 @@ function isRateLimited(ip: string): boolean {
     const MAX_REQUESTS = 10;
     const now = Date.now();
 
-    // ✅ Inline cleanup — runs every 5 minutes during requests
-    // No setInterval needed. Serverless-safe.
     if (now - lastCleanup > CLEANUP_INTERVAL) {
         lastCleanup = now;
         for (const [key, entry] of rateLimitMap) {
@@ -154,9 +123,8 @@ function isRateLimited(ip: string): boolean {
         }
     }
 
-    // ✅ Emergency size cap — prevents unbounded memory growth
     if (!rateLimitMap.has(ip) && rateLimitMap.size >= MAX_MAP_SIZE) {
-        return true; // Reject when map is full
+        return true;
     }
 
     const entry = rateLimitMap.get(ip);
@@ -174,24 +142,42 @@ function isRateLimited(ip: string): boolean {
 }
 
 // ================================================================
+// HELPER: Save booking with Stripe PI details
+//
+// Centralizes the repetitive booking save logic.
+// Every time we create/replace a PaymentIntent, we:
+//   1. Store the PI ID
+//   2. Set paymentStatus to 'pending'
+//   3. Mark clientPayWith as 'stripe'
+//   4. Add admin note for audit trail
+//
+// This prevents forgetting clientPayWith in any branch.
+// ================================================================
+
+async function saveBookingWithPI(
+    booking: any,
+    paymentIntent: Stripe.PaymentIntent,
+    note: string,
+) {
+    booking.stripePaymentIntentId = paymentIntent.id;
+    booking.paymentStatus = 'pending';
+    booking.clientPayWith = 'stripe'; // ✅ Track payment method
+
+    booking.adminNotes = booking.adminNotes || [];
+    booking.adminNotes.push({
+        note,
+        addedBy: 'stripe-create-intent',
+        createdAt: new Date(),
+    });
+
+    await booking.save();
+}
+
+// ================================================================
 // POST /api/stripe/create-intent
-//
-// Creates or retrieves a Stripe PaymentIntent for a booking.
-//
-// Flow:
-// 1. Validate request body
-// 2. Fetch booking from DB
-// 3. Guard: status, payment, expiry checks
-// 4. Validate with Duffel (if order exists)
-// 5. Create or reuse PaymentIntent
-// 6. Return clientSecret
-//
-// Request: { bookingId: string }
-// Response: { success: true, clientSecret: string }
 // ================================================================
 
 export async function POST(req: NextRequest) {
-    // ── Rate Limiting ──
     const ip =
         req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         req.headers.get('x-real-ip') ||
@@ -247,9 +233,6 @@ export async function POST(req: NextRequest) {
         // 3. GUARD: Status & Payment Checks
         // ════════════════════════════════════════════
 
-        // ── Already finalized? ──
-        // ✅ FIX 2: Added 'failed' — a failed booking should not
-        //    accept new payment attempts. Admin must create a new booking.
         const terminalStatuses = ['issued', 'cancelled', 'expired', 'failed'];
         if (terminalStatuses.includes(booking.status)) {
             return errorResponse(
@@ -259,7 +242,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Already paid? ──
         const paidStatuses = ['authorized', 'captured', 'refunded'];
         if (paidStatuses.includes(booking.paymentStatus)) {
             return errorResponse(
@@ -269,11 +251,11 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Local payment deadline expired? ──
         const now = new Date();
 
         if (booking.paymentDeadline && new Date(booking.paymentDeadline) < now) {
             booking.status = 'expired';
+            booking.adminNotes = booking.adminNotes || [];
             booking.adminNotes.push({
                 note: 'Auto-expired: Payment deadline passed before PaymentIntent creation.',
                 addedBy: 'stripe-create-intent',
@@ -290,10 +272,6 @@ export async function POST(req: NextRequest) {
 
         // ════════════════════════════════════════════
         // 4. DUFFEL ORDER VALIDATION
-        //
-        // Verify the airline reservation is still valid
-        // before accepting payment. Prevents charging
-        // customers for expired/cancelled flights.
         // ════════════════════════════════════════════
 
         if (booking.duffelOrderId && duffel) {
@@ -301,9 +279,9 @@ export async function POST(req: NextRequest) {
                 const res = await duffel.orders.get(booking.duffelOrderId);
                 const order: any = res.data;
 
-                // ── Cancelled by airline? ──
                 if (order.cancellation || order.cancelled_at) {
                     booking.status = 'cancelled';
+                    booking.adminNotes = booking.adminNotes || [];
                     booking.adminNotes.push({
                         note: `Auto-cancelled: Airline cancelled the order (detected at payment time). cancelled_at: ${order.cancelled_at || 'N/A'}`,
                         addedBy: 'stripe-create-intent',
@@ -318,7 +296,6 @@ export async function POST(req: NextRequest) {
                     );
                 }
 
-                // ── Payment deadline expired on Duffel side? ──
                 const paymentStatus = order.payment_status || {};
                 const duffelDeadline =
                     paymentStatus.payment_required_by ||
@@ -327,6 +304,7 @@ export async function POST(req: NextRequest) {
 
                 if (duffelDeadline && new Date(duffelDeadline) < now) {
                     booking.status = 'expired';
+                    booking.adminNotes = booking.adminNotes || [];
                     booking.adminNotes.push({
                         note: `Auto-expired: Duffel payment deadline passed (${duffelDeadline}).`,
                         addedBy: 'stripe-create-intent',
@@ -341,8 +319,6 @@ export async function POST(req: NextRequest) {
                     );
                 }
             } catch (duffelError: any) {
-                // ── Duffel API failure ──
-                // STRICT MODE: Block payment if we can't verify the order
                 console.error(
                     'Duffel validation failed before PaymentIntent creation:',
                     duffelError.message,
@@ -383,7 +359,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ✅ FIX 4: Currency-aware minimum amount check
         const minAmount = getMinAmount(currency);
         if (rawAmount < minAmount) {
             return errorResponse(
@@ -397,12 +372,6 @@ export async function POST(req: NextRequest) {
 
         // ════════════════════════════════════════════
         // 6. STRIPE METADATA
-        //
-        // Rich metadata helps with:
-        // - Stripe Dashboard search & filtering
-        // - Webhook event context
-        // - Dispute resolution
-        // - Financial reconciliation
         // ════════════════════════════════════════════
 
         const customerEmail = booking.contact?.email || '';
@@ -423,25 +392,33 @@ export async function POST(req: NextRequest) {
             pnr: booking.pnr || '',
             duffelOrderId: booking.duffelOrderId || '',
             markup: String(booking.pricing?.markup || 0),
+            paymentMethod: 'stripe', // ✅ Also in Stripe metadata for dashboard
         };
 
         const description = `Flight: ${route} | ${airline} | Ref: ${booking.bookingReference}`;
 
         // ════════════════════════════════════════════
-        // 7. CREATE OR REUSE PAYMENT INTENT
+        // 7. PAYMENT INTENT CREATION CONFIG
         //
-        // Strategy:
-        // - If existing PI: validate it's reusable + amounts match
-        // - If existing PI is terminal: create new one
-        // - If no PI exists: create new one
-        //
-        // Uses idempotencyKey to prevent duplicate PIs
-        // from rapid double-clicks or network retries.
+        // Reusable config — prevents copy-paste errors
+        // across the 4 different creation branches.
+        // ════════════════════════════════════════════
+
+        const piCreateParams: Stripe.PaymentIntentCreateParams = {
+            amount: stripeAmount,
+            currency,
+            metadata,
+            description,
+            receipt_email: customerEmail || undefined,
+            automatic_payment_methods: { enabled: true },
+        };
+
+        // ════════════════════════════════════════════
+        // 8. CREATE OR REUSE PAYMENT INTENT
         // ════════════════════════════════════════════
 
         let paymentIntent: Stripe.PaymentIntent;
 
-        // Idempotency key: unique per booking + amount combo
         const idempotencyKey = `pi_${booking._id}_${stripeAmount}_${currency}`;
 
         if (booking.stripePaymentIntentId) {
@@ -452,43 +429,37 @@ export async function POST(req: NextRequest) {
                 );
 
                 if (isReusableIntent(existing)) {
-                    // ── Reusable: Verify amount/currency match ──
                     if (
                         existing.amount !== stripeAmount ||
                         existing.currency !== currency
                     ) {
-                        // Amount changed (e.g., markup updated) — cancel old, create new
+                        // ── Amount mismatch: cancel old, create new ──
                         console.warn('Amount mismatch on existing PI, creating new one', {
                             existingAmount: existing.amount,
                             expectedAmount: stripeAmount,
                             bookingRef: booking.bookingReference,
                         });
 
-                        // Cancel the old one (best effort)
                         try {
                             await stripe.paymentIntents.cancel(
                                 existing.id,
                                 { cancellation_reason: 'abandoned' },
                             );
                         } catch {
-                            // Old PI may not be cancellable — that's OK
+                            // Old PI may not be cancellable
                         }
 
                         paymentIntent = await stripe.paymentIntents.create(
-                            {
-                                amount: stripeAmount,
-                                currency,
-                                metadata,
-                                description,
-                                receipt_email: customerEmail || undefined,
-                                automatic_payment_methods: { enabled: true },
-                            },
+                            piCreateParams,
                             { idempotencyKey: `${idempotencyKey}_v2_${Date.now()}` },
                         );
 
-                        booking.stripePaymentIntentId = paymentIntent.id;
-                        booking.paymentStatus = 'pending';
-                        await booking.save();
+                        // ✅ Save with clientPayWith: 'stripe'
+                        await saveBookingWithPI(
+                            booking,
+                            paymentIntent,
+                            `💳 New Stripe PI created (amount changed). PI: ${paymentIntent.id}. Old: ${existing.id}. Amount: ${rawAmount} ${currency.toUpperCase()}`,
+                        );
                     } else {
                         // ── Amount matches: reuse existing PI ──
                         paymentIntent = await stripe.paymentIntents.update(
@@ -499,28 +470,31 @@ export async function POST(req: NextRequest) {
                                 receipt_email: customerEmail || undefined,
                             },
                         );
+
+                        // ✅ Ensure clientPayWith is set even on reuse
+                        // (covers bookings created before this field existed)
+                        if (booking.clientPayWith !== 'stripe') {
+                            booking.clientPayWith = 'stripe';
+                            await booking.save();
+                        }
                     }
                 } else {
-                    // ── Terminal PI (succeeded/canceled): create new ──
+                    // ── Terminal PI: create new ──
                     console.info(
                         `Existing PI ${existing.id} is ${existing.status}, creating new one`,
                     );
 
                     paymentIntent = await stripe.paymentIntents.create(
-                        {
-                            amount: stripeAmount,
-                            currency,
-                            metadata,
-                            description,
-                            receipt_email: customerEmail || undefined,
-                            automatic_payment_methods: { enabled: true },
-                        },
+                        piCreateParams,
                         { idempotencyKey: `${idempotencyKey}_new_${Date.now()}` },
                     );
 
-                    booking.stripePaymentIntentId = paymentIntent.id;
-                    booking.paymentStatus = 'pending';
-                    await booking.save();
+                    // ✅ Save with clientPayWith: 'stripe'
+                    await saveBookingWithPI(
+                        booking,
+                        paymentIntent,
+                        `💳 New Stripe PI created (old was ${existing.status}). PI: ${paymentIntent.id}. Amount: ${rawAmount} ${currency.toUpperCase()}`,
+                    );
                 }
             } catch (retrieveError: any) {
                 // ── Can't retrieve old PI: create fresh ──
@@ -530,42 +504,34 @@ export async function POST(req: NextRequest) {
                 );
 
                 paymentIntent = await stripe.paymentIntents.create(
-                    {
-                        amount: stripeAmount,
-                        currency,
-                        metadata,
-                        description,
-                        receipt_email: customerEmail || undefined,
-                        automatic_payment_methods: { enabled: true },
-                    },
+                    piCreateParams,
                     { idempotencyKey },
                 );
 
-                booking.stripePaymentIntentId = paymentIntent.id;
-                booking.paymentStatus = 'pending';
-                await booking.save();
+                // ✅ Save with clientPayWith: 'stripe'
+                await saveBookingWithPI(
+                    booking,
+                    paymentIntent,
+                    `💳 Stripe PI created (old PI unretrievable). PI: ${paymentIntent.id}. Amount: ${rawAmount} ${currency.toUpperCase()}`,
+                );
             }
         } else {
             // ── NO EXISTING PI: Create fresh ──
             paymentIntent = await stripe.paymentIntents.create(
-                {
-                    amount: stripeAmount,
-                    currency,
-                    metadata,
-                    description,
-                    receipt_email: customerEmail || undefined,
-                    automatic_payment_methods: { enabled: true },
-                },
+                piCreateParams,
                 { idempotencyKey },
             );
 
-            booking.stripePaymentIntentId = paymentIntent.id;
-            booking.paymentStatus = 'pending';
-            await booking.save();
+            // ✅ Save with clientPayWith: 'stripe'
+            await saveBookingWithPI(
+                booking,
+                paymentIntent,
+                `💳 Stripe PI created. PI: ${paymentIntent.id}. Amount: ${rawAmount} ${currency.toUpperCase()}. Customer: ${customerEmail || 'N/A'}`,
+            );
         }
 
         // ════════════════════════════════════════════
-        // 8. RESPONSE
+        // 9. RESPONSE
         // ════════════════════════════════════════════
 
         return NextResponse.json({
@@ -574,11 +540,11 @@ export async function POST(req: NextRequest) {
             paymentIntentId: paymentIntent.id,
             amount: rawAmount,
             currency: currency.toUpperCase(),
+            paymentMethod: 'stripe', // ✅ Frontend knows which method
         });
     } catch (err: any) {
         console.error('❌ Stripe PaymentIntent creation failed:', err);
 
-        // ── Stripe-specific errors ──
         if (err instanceof Stripe.errors.StripeError) {
             const stripeCode = err.code || 'stripe_error';
             const statusCode =
@@ -596,7 +562,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── MongoDB errors ──
         if (err.name === 'MongoError' || err.name === 'MongoServerError') {
             return errorResponse(
                 'Database error. Please try again.',
@@ -605,7 +570,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ── Generic fallback ──
         return errorResponse(
             'Something went wrong while creating payment. Please try again.',
             500,

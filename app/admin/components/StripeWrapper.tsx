@@ -176,7 +176,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
           const issueRes = await fetch("/api/duffel/booking/issue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bookingId, paymentMethod: "stripe" }),
+            body: JSON.stringify({ bookingId}),
           });
 
           const issueData = await issueRes.json().catch(() => null);
