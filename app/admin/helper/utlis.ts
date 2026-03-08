@@ -2,18 +2,15 @@
 import {
     LayoutDashboard,
     Plane,
-    Users,
     CreditCard,
-    Settings,
     LifeBuoy,
     MapPin,
-    Package,
     TicketPercent,
-    User2,
-    Dock,
     Book,
-    User,
-    UsersRound
+    UsersRound,
+    UserStar,
+    CircleUser,
+    Blocks
 } from 'lucide-react';
 
 export const navMain = [
@@ -22,22 +19,22 @@ export const navMain = [
         items: [
             { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
             { title: 'Flight Bookings', url: '/admin/bookings', icon: Plane },
-            { title: 'Customers', url: '/admin/customers', icon: Users },
+            { title: 'Customers', url: '/admin/customers', icon: UserStar  },
             { title: 'Transactions', url: '/admin/transactions', icon: CreditCard },
         ],
     },
     {
         title: 'Content Management',
         items: [
-            { title: 'Tour Packages', url: '/admin/packages', icon: Package },
+            { title: 'Tour Packages', url: '/admin/packages', icon: Blocks  },
             { title: 'Destinations', url: '/admin/destinations', icon: MapPin },
             { title: 'Special Offers', url: '/admin/offers', icon: TicketPercent },
         ],
     },
     {
-        title: 'Settings',
+        title: 'Others',
         items: [
-            { title: 'Profile', url: '/admin/profile', icon: User },
+            { title: 'Profile', url: '/admin/profile', icon: CircleUser   },
             { title: 'Staff Manage', url: '/admin/staff', icon: UsersRound  },
             { title: 'Support', url: '/admin/support', icon: LifeBuoy },
             { title: 'Documentation', url: '/admin/doc', icon: Book },

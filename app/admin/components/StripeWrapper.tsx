@@ -99,7 +99,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       toast.success("Card number copied");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy");
+      
     }
   }, [cardInfo?.cardNumber]);
 
@@ -223,9 +223,9 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       className="w-full max-w-md mx-auto  sm:px-0"
       onFocus={(e) => e.stopPropagation()}
     >
-      <div >
+      <div className="rounded-2xl  shadow-xl">
         <div
-          className="rounded-2xl bg-white p-24 sm:p-5"
+          className="rounded-2xl bg-white p-3 sm:p-5"
           style={{ isolation: "isolate" }}
         >
           {/* Header */}

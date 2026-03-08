@@ -404,6 +404,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 {group.title === 'Content Management' && (
                   <Globe className="w-3 h-3" />
                 )}
+              
                 {group.title}
               </SidebarGroupLabel>
 

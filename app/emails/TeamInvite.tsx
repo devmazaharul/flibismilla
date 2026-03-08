@@ -204,22 +204,7 @@ export default function TeamInvite({
               </Text>
             </Section>
 
-            {/* ───── CTA Button ───── */}
-            <Section className="text-center my-6">
-              <Button
-                href={inviteLink}
-                className="rounded-full font-bold text-[14px] text-white px-10 py-4 no-underline inline-block"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
-                }}
-              >
-                ✨ Accept Invitation
-              </Button>
-              <Text className="text-[11px] text-slate-400 mt-3 mb-0">
-                You'll be directed to the admin dashboard.
-              </Text>
-            </Section>
+    
 
             {/* ───── Fallback Link ───── */}
             <Section

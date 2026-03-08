@@ -221,18 +221,31 @@ export async function POST(req: Request) {
                 paymentId = payment.id;
                 paymentWasCaptured = true;
 
-                await Booking.findByIdAndUpdate(bookingId, {
-                    $set: {
-                        paymentStatus: 'captured',
-                        payment_id: paymentId,
-                        lastRetryAt: new Date(),
-                    },
-                    $push: {
-                        adminNotes: adminNote(
-                            `✅ Payment captured. ${amount} ${currency}. ID: ${paymentId}`,
-                        ),
-                    },
-                });
+
+const clientPaid = `${booking.pricing?.total_amount} ${booking.pricing?.currency}`;
+const duffelPaid = `${order.base_amount} ${booking.pricing?.currency}`;
+const paymentMethod = booking.clientPayWith === 'stripe' ? 'Stripe Card' : 'Wallet Balance';
+const markupAmount = (booking.pricing?.markup || 0);
+
+await Booking.findByIdAndUpdate(bookingId, {
+    $set: {
+        paymentStatus: 'captured',
+        payment_id: paymentId,
+        lastRetryAt: new Date(),
+    },
+    $push: {
+        adminNotes: adminNote(
+            `✅ Payment Captured & Linked.
+             ------------------------------------
+             💰 Client Paid: ${clientPaid} via ${paymentMethod}
+             ✈️ Duffel Paid: ${duffelPaid} (Base Fare)
+             📈 Net Markup: ${markupAmount.toFixed(2)} ${booking.pricing?.currency}
+             🆔 Payment ID: ${paymentId}
+             ------------------------------------
+             Action: Ready for Ticket Issuance.`
+        ),
+    },
+});
             } catch (payErr: any) {
                 const errCode = payErr?.response?.data?.errors?.[0]?.code || '';
                 const errMsg = payErr?.response?.data?.errors?.[0]?.message || '';
