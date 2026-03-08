@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FaPlaneSlash, FaHome, FaSearch } from "react-icons/fa";
 import { appTheme } from "@/constant/theme/global";
-
+import "./(main)/globals.css"
 export default function NotFound() {
   const { colors, typography } = appTheme;
 
@@ -31,13 +31,13 @@ export default function NotFound() {
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4">
         <Link href="/">
-          <Button className={`${appTheme.button.primary} px-6 gap-2`}>
+          <Button className={`${appTheme.button.primary} cursor-pointer px-6 gap-2`}>
             <FaHome /> Back to Home
           </Button>
         </Link>
         
         <Link href="/contact">
-           <Button variant="outline" className={`border-gray-100 px-6 gap-2`}>
+           <Button variant="outline" className={`border-gray-100 cursor-pointer px-6 gap-2`}>
             <FaSearch /> Contact Support
           </Button>
         </Link>

@@ -1,4 +1,3 @@
-'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -10,7 +9,8 @@ import { HiOutlineSparkles } from 'react-icons/hi2';
 import Stats from '../components/Stats';
 
 const Page = () => {
-  const { colors, layout, typography, button } = appTheme;
+  const { layout, button } = appTheme;
+
 
   return (
     <main className="bg-white min-h-screen">
