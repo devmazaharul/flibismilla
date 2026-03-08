@@ -245,58 +245,6 @@ export const sendNewBookingAdminNotification = async (params: AdminEmailParams) 
     }
 };
 
-interface BookingData {
-    pnr: string;
-    contact: { email: string; phone?: string };
-    passengers: any[];
-    flightDetails: {
-        airline: string;
-        route: string;
-        departureDate: string;
-    };
-    documents: { url: string; unique_identifier: string }[];
-}
-
-export const sendTicketIssuedEmail = async (booking: BookingData) => {
-    try {
-        // Duffel থেকে পাওয়া ডকুমেন্ট লিস্ট থেকে PDF লিংক বের করা
-        const ticketDoc = booking.documents.find((doc) => doc.url) || booking.documents[0];
-        const ticketUrl = ticketDoc?.url || '#';
-
-        // যাত্রীদের নাম ফরম্যাট করা
-        const formattedPassengers = booking.passengers.map((p) => ({
-            name: `${p.title ? p.title + '. ' : ''}${p.firstName} ${p.lastName}`,
-            type: p.type,
-        }));
-
-        // ইমেইল পাঠানো
-        const { data, error } = await resend.emails.send({
-            from: `Fly Bismillah <tickets@${ADMIN_BUSINESS_EMAIL}>`, // ✅ tickets@themaza.shop
-            to: [booking.contact.email],
-            subject: `E-Ticket Issued - PNR: ${booking.pnr}`,
-            react: TicketIssuedEmail({
-                customerName: formattedPassengers[0].name, // প্রথম যাত্রীর নাম
-                pnr: booking.pnr,
-                airline: booking.flightDetails.airline,
-                flightDate: format(parseISO(booking.flightDetails.departureDate), 'dd MMM, yyyy'),
-                route: booking.flightDetails.route,
-                ticketUrl: ticketUrl,
-                passengers: formattedPassengers,
-            }),
-        });
-
-        if (error) {
-            console.error('Ticket Email Error:', error);
-            return { success: false, error };
-        }
-
-        console.log(`✅ Ticket Email sent to ${booking.contact.email}`);
-        return { success: true, messageId: data?.id };
-    } catch (err) {
-        console.error('Ticket Email Failed:', err);
-        return { success: false, error: err };
-    }
-};
 
 
 
@@ -312,4 +260,96 @@ export async function sendPackageBookingEmail(data: PackageBookingEmailProps) {
     });
 
     return adminSendPromise
+}
+
+
+interface BookingData {
+    pnr: string;
+    contact: { email: string; phone?: string };
+    passengers: any[];
+    flightDetails: {
+        airline: string;
+        route: string;
+        departureDate: string;
+    };
+    documents: { url: string; unique_identifier: string }[];
+}
+
+export async function sendTicketIssuedEmail(
+    booking: BookingData,
+): Promise<{ success: boolean; messageId?: string; error?: any }> {
+    try {
+        if (!booking.contact?.email) {
+            return { success: false, error: 'No email address' };
+        }
+
+        const ticketDoc =
+            booking.documents?.find((d) => d.url && d.url.startsWith('http')) ||
+            booking.documents?.[0];
+        const ticketUrl = ticketDoc?.url || '';
+
+        const formattedPassengers = (booking.passengers || []).map((p: any) => ({
+            name: `${p.title ? p.title + '. ' : ''}${p.firstName || p.first_name || ''} ${p.lastName || p.last_name || ''}`.trim(),
+            type: p.type || p.passenger_type || 'adult',
+        }));
+
+        if (formattedPassengers.length === 0) {
+            return { success: false, error: 'No passengers' };
+        }
+
+        // ✅ FIX: Handle Date objects, strings, and edge cases
+        let flightDate = 'N/A';
+        try {
+            const raw = booking.flightDetails?.departureDate as any;
+            if (raw) {
+                let parsed: Date;
+
+                if (raw instanceof Date) {
+                    // ✅ MongoDB Date object — use directly
+                    parsed = raw;
+                } else if (typeof raw === 'string') {
+                    // ✅ ISO string or date string
+                    parsed = raw.includes('T') ? parseISO(raw) : new Date(raw);
+                } else {
+                    // ✅ Number (timestamp) or other — try Date constructor
+                    parsed = new Date(raw);
+                }
+
+                if (!isNaN(parsed.getTime())) {
+                    flightDate = format(parsed, 'dd MMM, yyyy');
+                }
+            }
+        } catch {
+            // ✅ FIX: NEVER pass raw value — always convert to string
+            const fallback = booking.flightDetails?.departureDate as any;
+            if (fallback instanceof Date) {
+                flightDate = format(fallback, 'dd MMM, yyyy');
+            } else if (fallback) {
+                flightDate = String(fallback);
+            } else {
+                flightDate = 'N/A';
+            }
+        }
+
+        const { data, error } = await resend.emails.send({
+            from: `Fly Bismillah <tickets@${ADMIN_BUSINESS_EMAIL}>`,
+            to: [booking.contact.email],
+            subject: `E-Ticket Issued - PNR: ${booking.pnr}`,
+            react: TicketIssuedEmail({
+                customerName: formattedPassengers[0].name || 'Valued Customer',
+                pnr: booking.pnr || 'N/A',
+                airline: booking.flightDetails?.airline || 'Airline',
+                flightDate, // ✅ Always a string now
+                route: booking.flightDetails?.route || 'N/A',
+                ticketUrl,
+                passengers: formattedPassengers,
+            }),
+        });
+
+        if (error) return { success: false, error };
+
+        return { success: true, messageId: data?.id };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
 }

@@ -427,7 +427,7 @@ export default function BookingsDashboard() {
     if (!selectedBooking || paymentMethod !== 'balance') return;
     setIsProcessing(true);
     try {
-      const res = await axios.post('/api/dashboard/bookings/issue-ticket', {
+      const res = await axios.post('/api/duffel/booking/issue', {
         bookingId: selectedBooking.id,
         paymentMethod: 'balance',
       });

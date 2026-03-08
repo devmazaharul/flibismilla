@@ -5,8 +5,10 @@ import { Duffel } from '@duffel/api';
 import dbConnect from '@/connection/db';
 import Booking from '@/models/Booking.model';
 import { hasPermission } from '@/app/api/lib/auth';
+import { sendTicketIssuedEmail } from '@/app/emails/email';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const duffel = new Duffel({
     token: process.env.DUFFEL_ACCESS_TOKEN || '',
@@ -14,124 +16,73 @@ const duffel = new Duffel({
 
 const ACTOR = 'issue-ticket-api';
 
-// ================================================================
-// HELPER: Admin Note (matches schema structure)
-// Schema: adminNotes: [{ note: String, addedBy: String, createdAt: Date }]
-// ================================================================
-function createAdminNote(message: string) {
-    return {
-        note: message,
-        addedBy: ACTOR,
-        createdAt: new Date(),
-    };
+function adminNote(msg: string) {
+    return { note: msg, addedBy: ACTOR, createdAt: new Date() };
 }
 
-// ================================================================
-// HELPER: Format admin note for payment captured
-// Clean, structured, all data at a glance
-// ================================================================
-function buildPaymentCapturedNote({
-    method,
-    amount,
-    currency,
-    paymentId,
-    orderId,
-    pnr,
-}: {
-    method: string;
-    amount: string;
-    currency: string;
-    paymentId: string;
-    orderId: string;
-    pnr: string;
-}): string {
-    const methodLabel =
-        method === 'stripe'
-            ? 'Stripe → Duffel Balance'
-            : 'Duffel Balance (Direct)';
-
-    const lines = [
-        `✅ Payment Captured`,
-        ``,
-        `Method    : ${methodLabel}`,
-        `Amount    : ${amount} ${currency}`,
-        `Payment ID: ${paymentId}`,
-        `Order     : ${orderId}`,
-        `PNR       : ${pnr}`,
-        ``,
-        `⏳ Waiting for webhook to issue ticket & send email.`,
-    ];
-
-    return lines.join('\n');
+function mapDocsForDb(docs: any[]) {
+    return (docs || []).map((d: any) => ({
+        unique_identifier: d.unique_identifier || '',
+        docType: d.type || 'electronic_ticket',
+        url: d.url || '',
+    }));
 }
 
-// ================================================================
-// HELPER: Map Duffel documents to DB schema format
-// Duffel returns 'type', schema uses 'docType' to avoid
-// Mongoose reserved keyword conflict.
-// ================================================================
-function mapDocsForDb(duffelDocs: any[]) {
-    return (duffelDocs || [])
-        .filter((doc: any) => doc.url)
-        .map((doc: any) => ({
-            unique_identifier: doc.unique_identifier || '',
-            docType: doc.type || 'electronic_ticket',
-            url: doc.url || '',
-        }));
+// ✅ Date → String converter (prevents React "[object Date]" crash)
+function safeStringDate(value: any): string {
+    if (!value) return new Date().toISOString();
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return new Date(value).toISOString();
+    return String(value);
 }
 
-// ================================================================
-// RATE LIMITER (In-memory, per-instance)
-// ================================================================
-const rateLimitMap = new Map<
-    string,
-    { count: number; startTime: number }
->();
+// ── Rate Limiter ──
+const rateMap = new Map<string, { count: number; start: number }>();
 
 function isRateLimited(ip: string): boolean {
-    const WINDOW = 60 * 1000;
-    const MAX = 5;
     const now = Date.now();
-    const data = rateLimitMap.get(ip) || {
-        count: 0,
-        startTime: now,
-    };
-
-    if (now - data.startTime > WINDOW) {
-        data.count = 1;
-        data.startTime = now;
+    const d = rateMap.get(ip) || { count: 0, start: now };
+    if (now - d.start > 60_000) {
+        d.count = 1;
+        d.start = now;
     } else {
-        data.count++;
+        d.count++;
     }
-
-    rateLimitMap.set(ip, data);
-    return data.count > MAX;
+    rateMap.set(ip, d);
+    return d.count > 5;
 }
 
-// ================================================================
-// TYPES
-// ================================================================
-type ClientPayWith = 'balance' | 'stripe';
-const VALID_METHODS: ClientPayWith[] = ['balance', 'stripe'];
+function extractFlightDetails(order: any) {
+    const slices = order.slices || [];
+    const firstSlice = slices[0];
+    const lastSlice = slices[slices.length - 1];
+    const firstSeg = firstSlice?.segments?.[0];
 
-// ================================================================
-// POST /api/dashboard/bookings/issue-ticket
-//
-// Flow:
-// 1. Validate booking state
-// 2. Fetch latest order from Duffel
-// 3. Pay via Duffel balance
-// 4. Update DB with payment info
-// 5. Webhook handles status='issued' + email
-// ================================================================
+    return {
+        airline:
+            firstSeg?.marketing_carrier?.name ||
+            firstSeg?.operating_carrier?.name ||
+            'Airline',
+        route: `${firstSlice?.origin?.iata_code || firstSeg?.origin?.iata_code || '???'} → ${lastSlice?.destination?.iata_code || lastSlice?.segments?.slice(-1)[0]?.destination?.iata_code || '???'}`,
+        departureDate:
+            firstSeg?.departing_at ||
+            firstSlice?.departing_at ||
+            new Date().toISOString(),
+    };
+}
+
 export async function POST(req: Request) {
     const auth = await hasPermission('booking', 'edit');
     if (!auth.success) return auth.response;
 
     let bookingIdForError: string | null = null;
 
+    // ✅ Track whether payment was captured to prevent
+    //    the catch block from incorrectly reverting it
+    let paymentWasCaptured = false;
+
     try {
-        // ── Rate Limit ──
         const ip =
             req.headers.get('x-forwarded-for') ||
             req.headers.get('x-real-ip') ||
@@ -139,49 +90,24 @@ export async function POST(req: Request) {
 
         if (isRateLimited(ip)) {
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Too many attempts. Wait 1 minute.',
-                },
+                { success: false, message: 'Too many attempts. Wait 1 minute.' },
                 { status: 429 },
             );
         }
 
-        // ── Parse Body ──
         const body = await req.json();
-        const { bookingId, paymentMethod = 'balance' } = body as {
-            bookingId?: string;
-            paymentMethod?: string;
-        };
-
+        const { bookingId } = body as { bookingId?: string };
         bookingIdForError = bookingId || null;
 
-        // ── Input Validation ──
         if (!bookingId) {
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Booking ID is required.',
-                },
+                { success: false, message: 'Booking ID is required.' },
                 { status: 400 },
             );
         }
-
-        if (!VALID_METHODS.includes(paymentMethod as ClientPayWith)) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: `Invalid payment method: "${paymentMethod}". Use: balance or stripe`,
-                },
-                { status: 400 },
-            );
-        }
-
-        const method = paymentMethod as ClientPayWith;
 
         await dbConnect();
 
-        // ── Find Booking ──
         const booking = await Booking.findById(bookingId);
 
         if (!booking) {
@@ -193,74 +119,53 @@ export async function POST(req: Request) {
 
         if (!booking.duffelOrderId) {
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'No Duffel order linked to this booking.',
-                },
+                { success: false, message: 'No Duffel order linked.' },
                 { status: 400 },
             );
         }
 
-        // ── Already Issued Guard ──
         if (booking.status === 'issued' && booking.emailSent) {
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Ticket already issued and email sent.',
-                },
+                { success: false, message: 'Ticket already issued and email sent.' },
                 { status: 400 },
             );
         }
 
-        // ── Retry Limit Guard ──
         if ((booking.retryCount || 0) >= 5) {
             return NextResponse.json(
-                {
-                    success: false,
-                    message:
-                        'Max retry limit (5) reached. Contact support.',
-                },
+                { success: false, message: 'Max retry limit (5) reached.' },
                 { status: 403 },
             );
         }
 
-        // ── Fetch Latest Order from Duffel ──
+        // ── If payment was already captured in a previous attempt ──
+        if (booking.paymentStatus === 'captured') {
+            paymentWasCaptured = true;
+        }
+
+        // ── Fetch Order ──
         let order: any;
         try {
             const res = await duffel.orders.get(booking.duffelOrderId);
             order = res.data;
         } catch (err: any) {
-            console.error('❌ Duffel fetch error:', err.message);
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Failed to connect with Duffel API.',
-                },
+                { success: false, message: 'Duffel API connection failed.' },
                 { status: 502 },
             );
         }
 
-        // ── Cancelled Check ──
         if (order.cancellation || order.cancelled_at) {
             await Booking.findByIdAndUpdate(bookingId, {
                 $set: { status: 'cancelled' },
-                $push: {
-                    adminNotes: createAdminNote(
-                        `❌ Issue blocked: Order cancelled on Duffel. Cancelled at: ${order.cancelled_at || 'unknown'}`,
-                    ),
-                },
+                $push: { adminNotes: adminNote(`❌ Cancelled on Duffel.`) },
             });
-
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Airline cancelled this booking.',
-                },
+                { success: false, message: 'Airline cancelled this booking.' },
                 { status: 400 },
             );
         }
 
-        // ── Expiry Check ──
         const expiresAt =
             order.payment_status?.payment_required_by ||
             order.payment_status?.price_guarantee_expires_at;
@@ -268,236 +173,325 @@ export async function POST(req: Request) {
         if (expiresAt && new Date(expiresAt) < new Date()) {
             await Booking.findByIdAndUpdate(bookingId, {
                 $set: { status: 'expired' },
-                $push: {
-                    adminNotes: createAdminNote(
-                        `⏰ Issue blocked: Order expired. Deadline was: ${expiresAt}`,
-                    ),
-                },
+                $push: { adminNotes: adminNote(`⏰ Expired. Deadline: ${expiresAt}`) },
             });
-
             return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Booking expired. Create a new one.',
-                },
+                { success: false, message: 'Booking expired.' },
                 { status: 400 },
             );
         }
 
-        // ── Already Has Documents ──
-        if (order.documents && order.documents.length > 0) {
-            const docs = mapDocsForDb(order.documents);
+        // ══════════════════════════════════════
+        // PAYMENT
+        // ══════════════════════════════════════
+        let paymentId = booking.payment_id || '';
+        let needsPayment = true;
 
+        // If documents already exist, payment was already done
+        if (order.documents && order.documents.length > 0) {
+            needsPayment = false;
+            paymentWasCaptured = true;
+        }
+
+        if (needsPayment) {
+            const amount = order.total_amount;
+            const currency = order.total_currency;
+
+            if (!amount || !currency) {
+                return NextResponse.json(
+                    { success: false, message: 'Amount/currency missing.' },
+                    { status: 400 },
+                );
+            }
+
+            try {
+                const payRes = await duffel.payments.create({
+                    order_id: booking.duffelOrderId,
+                    payment: { amount, currency, type: 'balance' },
+                });
+
+                const payment = payRes.data as any;
+
+                if (!payment || payment.status !== 'succeeded') {
+                    throw new Error(
+                        payment?.failure_reason || `Payment failed (${payment?.status})`,
+                    );
+                }
+
+                paymentId = payment.id;
+                paymentWasCaptured = true;
+
+                await Booking.findByIdAndUpdate(bookingId, {
+                    $set: {
+                        paymentStatus: 'captured',
+                        payment_id: paymentId,
+                        lastRetryAt: new Date(),
+                    },
+                    $push: {
+                        adminNotes: adminNote(
+                            `✅ Payment captured. ${amount} ${currency}. ID: ${paymentId}`,
+                        ),
+                    },
+                });
+            } catch (payErr: any) {
+                const errCode = payErr?.response?.data?.errors?.[0]?.code || '';
+                const errMsg = payErr?.response?.data?.errors?.[0]?.message || '';
+
+                if (errCode === 'order_already_paid' || /already.*paid/i.test(errMsg)) {
+                    needsPayment = false;
+                    paymentWasCaptured = true;
+
+                    if (booking.paymentStatus !== 'captured') {
+                        await Booking.findByIdAndUpdate(bookingId, {
+                            $set: { paymentStatus: 'captured' },
+                            $push: {
+                                adminNotes: adminNote(
+                                    `💰 Duffel confirms already paid. Synced paymentStatus → captured.`,
+                                ),
+                            },
+                        }).catch(() => {});
+                    }
+                } else {
+                    throw payErr;
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SINGLE DOCUMENT CHECK (Event-Driven — No Polling)
+        // ══════════════════════════════════════════════════════════════
+        let latestOrder: any;
+
+        if (!needsPayment && order.documents && order.documents.length > 0) {
+            latestOrder = order;
+        } else {
+            try {
+                const res = await duffel.orders.get(booking.duffelOrderId);
+                latestOrder = res.data;
+            } catch (err: any) {
+                await Booking.findByIdAndUpdate(bookingId, {
+                    $set: { paymentStatus: 'captured' },
+                    $push: {
+                        adminNotes: adminNote(
+                            `⚠️ Payment captured but failed to re-fetch order. Webhook will handle. Error: ${err.message}`,
+                        ),
+                    },
+                });
+                return NextResponse.json({
+                    success: true,
+                    message: 'Payment successful. Ticket is generating in the background...',
+                    ticketIssued: false,
+                    paymentId,
+                });
+            }
+        }
+
+        const hasDocs = latestOrder.documents && latestOrder.documents.length > 0;
+
+        // ──────────────────────────────────────
+        // CASE A: Delayed Ticket (No documents yet)
+        // ──────────────────────────────────────
+        if (!hasDocs) {
             await Booking.findByIdAndUpdate(bookingId, {
                 $set: {
-                    status: 'issued',
-                    pnr: order.booking_reference || booking.pnr,
-                    documents: docs,
                     paymentStatus: 'captured',
-                    clientPayWith: method,
+                    payment_id: paymentId,
                 },
                 $push: {
-                    adminNotes: createAdminNote(
-                        `📄 Already issued on Duffel (${docs.length} documents found). PNR: ${order.booking_reference || 'N/A'}. Synced to DB.`,
+                    adminNotes: adminNote(
+                        `💳 Payment captured. Waiting for airline to generate tickets (Webhook will issue). Payment ID: ${paymentId}`,
                     ),
                 },
             });
 
             return NextResponse.json({
                 success: true,
-                message:
-                    'Ticket already issued. Email will be sent via webhook.',
-                alreadyIssued: true,
+                message: 'Payment successful. Ticket is generating in the background...',
+                ticketIssued: false,
+                paymentId,
             });
         }
 
-        // ── Validate Payment Amount ──
-        const amountToPay = order.total_amount;
-        const currency = order.total_currency;
+        // ──────────────────────────────────────
+        // CASE B: Instant Ticket (Documents found)
+        // ──────────────────────────────────────
+        const dbDocs = mapDocsForDb(latestOrder.documents);
+        const pnr = latestOrder.booking_reference || booking.pnr || 'N/A';
+        const flight = extractFlightDetails(latestOrder);
 
-        if (!amountToPay || !currency) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Amount or currency missing from Duffel.',
-                },
-                { status: 400 },
-            );
-        }
-
-        // ════════════════════════════════════════════════════
-        // PAYMENT EXECUTION
-        // ════════════════════════════════════════════════════
-
-        console.log(
-            `💳 Paying ${amountToPay} ${currency} | Method: ${method} | Order: ${booking.duffelOrderId}`,
-        );
-
-        const paymentRes = await duffel.payments.create({
-            order_id: booking.duffelOrderId,
-            payment: {
-                amount: amountToPay,
-                currency: currency,
-                type: 'balance',
-            },
-        });
-
-        const payment = paymentRes.data as any;
-
-        if (!payment || payment.status !== 'succeeded') {
-            throw new Error(
-                payment?.failure_reason ||
-                    `Payment failed (status: ${payment?.status || 'unknown'})`,
-            );
-        }
-
-        console.log(`✅ Payment succeeded | ID: ${payment.id}`);
-
-        // ════════════════════════════════════════════════════
-        // DB UPDATE (Post-Payment)
-        //
-        // ❌ DO NOT set status='issued' — webhook handles it
-        // ❌ DO NOT send email — webhook handles it
-        // ✅ Track payment details
-        // ✅ Append admin note with full context
-        // ════════════════════════════════════════════════════
-
-        const pnr = order.booking_reference || booking.pnr || 'N/A';
-
+        // ✅ Set emailSent: true FIRST as a lock to prevent webhook duplicate
         await Booking.findByIdAndUpdate(bookingId, {
             $set: {
+                status: 'issued',
+                pnr,
+                documents: dbDocs,
                 paymentStatus: 'captured',
-                payment_id: payment.id,
-                clientPayWith: method,
+                payment_id: paymentId,
+                emailSent: true, // 🔒 Lock
                 retryCount: 0,
-                lastRetryAt: new Date(),
             },
             $push: {
-                adminNotes: createAdminNote(
-                    buildPaymentCapturedNote({
-                        method,
-                        amount: amountToPay,
-                        currency,
-                        paymentId: payment.id,
-                        orderId: booking.duffelOrderId,
-                        pnr,
-                    }),
+                adminNotes: adminNote(
+                    `🎫 Ticket issued instantly. PNR: ${pnr}. Docs: ${dbDocs.length}. Payment ID: ${paymentId}`,
                 ),
             },
         });
 
+        // ════════════════════════════════════════════════
+        // ✅ SEND EMAIL (Awaited for Serverless safety)
+        //
+        // ✅ FIX: departureDate is sanitized via safeStringDate()
+        //    to prevent React "[object Date]" crash.
+        //    MongoDB stores Date objects, but React email
+        //    templates need strings.
+        // ════════════════════════════════════════════════
+        const emailData = {
+            pnr,
+            contact: {
+                email: booking.contact?.email || '',
+                phone: booking.contact?.phone || '',
+            },
+            passengers: (booking.passengers || []).map((p: any) => ({
+                title: p.title || '',
+                firstName: p.firstName || p.first_name || '',
+                lastName: p.lastName || p.last_name || '',
+                type: p.type || p.passenger_type || 'adult',
+            })),
+            flightDetails: {
+                airline: booking.flightDetails?.airline || flight.airline,
+                route: booking.flightDetails?.route || flight.route,
+                // ✅ FIX: Always convert to string — never pass Date object
+                departureDate: safeStringDate(
+                    booking.flightDetails?.departureDate || flight.departureDate,
+                ),
+            },
+            documents: dbDocs.map((d: any) => ({
+                url: d.url,
+                unique_identifier: d.unique_identifier,
+            })),
+        };
+
+        console.log('📧 Email data:', JSON.stringify({
+            to: emailData.contact.email,
+            pnr: emailData.pnr,
+            passengers: emailData.passengers.length,
+            docs: emailData.documents.length,
+            departureDate: emailData.flightDetails.departureDate,
+        }));
+
+        if (emailData.contact.email) {
+            try {
+                const emailResult = await sendTicketIssuedEmail(emailData);
+
+             
+                if (emailResult.success) {
+                    await Booking.findByIdAndUpdate(bookingId, {
+                        $push: {
+                            adminNotes: adminNote(
+                                `📧 Issued Email sent to ${emailData.contact.email}. ID: ${emailResult.messageId}`,
+                            ),
+                        },
+                    }).catch(() => {});
+                } else {
+                    // Email failed — revert the lock so webhook can retry
+                    await Booking.findByIdAndUpdate(bookingId, {
+                        $set: { emailSent: false },
+                        $push: {
+                            adminNotes: adminNote(
+                                `⚠️ Email failed (lock reverted). Error: ${JSON.stringify(emailResult.error)}`,
+                            ),
+                        },
+                    }).catch(() => {});
+                }
+            } catch (emailErr: any) {
+                console.error('❌ Email crashed:', emailErr?.message || emailErr);
+
+                // Unexpected crash — revert the lock so webhook can retry
+                await Booking.findByIdAndUpdate(bookingId, {
+                    $set: { emailSent: false },
+                    $push: {
+                        adminNotes: adminNote(
+                            `⚠️ Email crashed (lock reverted). Error: ${emailErr?.message || 'Unknown'}`,
+                        ),
+                    },
+                }).catch(() => {});
+            }
+        } else {
+            // No email address — revert lock, add note
+            await Booking.findByIdAndUpdate(bookingId, {
+                $set: { emailSent: false },
+                $push: {
+                    adminNotes: adminNote(
+                        `⚠️ No email address on booking. Lock reverted for webhook.`,
+                    ),
+                },
+            });
+        }
+
         return NextResponse.json({
             success: true,
-            message:
-                method === 'stripe'
-                    ? 'Stripe payment confirmed & airline paid. Ticket issuing...'
-                    : 'Duffel balance payment done. Ticket issuing...',
-            paymentId: payment.id,
-            clientPayWith: method,
-            amount: amountToPay,
-            currency,
+            message: 'Payment confirmed & Ticket Issued Successfully!',
+            ticketIssued: true,
+            paymentId,
         });
     } catch (error: any) {
-        console.error('❌ Issue Error:', {
-            message: error?.message,
-            status: error?.response?.status,
-            data: error?.response?.data,
-        });
-
-        // ── Error Message Mapping ──
         let errorMessage = 'Payment failed. Try again.';
         let statusCode = 400;
 
         const duffelErrors = error?.response?.data?.errors;
-        const firstError = Array.isArray(duffelErrors)
-            ? duffelErrors[0]
-            : null;
+        const firstError = Array.isArray(duffelErrors) ? duffelErrors[0] : null;
 
         if (firstError) {
-            const code = firstError.code || firstError.type || '';
-            const msg = firstError.message || firstError.title || '';
+            const code = firstError.code || '';
+            const msg = firstError.message || '';
 
             const errorMap: Record<string, string> = {
-                order_requires_instant_payment:
-                    'Instant payment required. Create a new booking.',
-                order_expired:
-                    'Booking expired. Create a new booking.',
-                insufficient_balance:
-                    'Duffel balance insufficient. Top up your account.',
-                order_already_paid: 'This order is already paid.',
-                order_not_found: 'Order not found in Duffel.',
-                validation_error: msg || 'Invalid payment data.',
+                order_requires_instant_payment: 'Instant payment required. Create new booking.',
+                order_expired: 'Booking expired.',
+                insufficient_balance: 'Duffel balance insufficient.',
+                order_already_paid: 'Already paid.',
+                order_not_found: 'Order not found.',
             };
 
-            if (errorMap[code]) {
-                errorMessage = errorMap[code];
-            } else if (/instant_payment/i.test(msg)) {
-                errorMessage =
-                    errorMap.order_requires_instant_payment;
-            } else if (/expired/i.test(msg)) {
-                errorMessage = errorMap.order_expired;
-            } else if (/insufficient.*balance/i.test(msg)) {
-                errorMessage = errorMap.insufficient_balance;
-            } else if (/already.*paid/i.test(msg)) {
-                errorMessage = errorMap.order_already_paid;
-            } else if (msg) {
-                errorMessage = msg;
-            }
-
+            errorMessage = errorMap[code] || msg || errorMessage;
             statusCode = error?.response?.status || 400;
 
-            // Auto-expire
-            if (
-                code === 'order_expired' ||
-                /expired/i.test(msg)
-            ) {
+            if (code === 'order_expired' || /expired/i.test(msg)) {
                 if (bookingIdForError) {
-                    await Booking.findByIdAndUpdate(
-                        bookingIdForError,
-                        {
-                            $set: { status: 'expired' },
-                            $push: {
-                                adminNotes: createAdminNote(
-                                    `⏰ Auto-expired: Duffel returned order_expired. Error: ${msg || code}`,
-                                ),
-                            },
-                        },
-                    ).catch(() => {});
+                    await Booking.findByIdAndUpdate(bookingIdForError, {
+                        $set: { status: 'expired' },
+                        $push: { adminNotes: adminNote(`⏰ Auto-expired: ${msg}`) },
+                    }).catch(() => {});
                 }
             }
         } else if (error?.response?.status >= 500) {
-            errorMessage = 'Airline system unavailable. Try later.';
+            errorMessage = 'Airline system unavailable.';
             statusCode = 502;
         } else if (error?.message) {
             errorMessage = error.message;
         }
 
-        // ── Update Retry Count & Log Failure ──
+        // ✅ Only set paymentStatus:'failed' if payment was NOT already captured
         if (bookingIdForError) {
-            try {
-                await Booking.findByIdAndUpdate(bookingIdForError, {
-                    $inc: { retryCount: 1 },
-                    $set: {
-                        lastRetryAt: new Date(),
-                        paymentStatus: 'failed',
-                    },
-                    $push: {
-                        adminNotes: createAdminNote(
-                            `❌ Payment failed: ${errorMessage}. Retry count incremented.`,
-                        ),
-                    },
-                });
-            } catch (updateErr) {
-                console.error(
-                    'Failed to update retry count:',
-                    updateErr,
-                );
+            const failureUpdate: any = {
+                lastRetryAt: new Date(),
+            };
+
+            if (!paymentWasCaptured) {
+                failureUpdate.paymentStatus = 'failed';
             }
+
+            await Booking.findByIdAndUpdate(bookingIdForError, {
+                $inc: { retryCount: 1 },
+                $set: failureUpdate,
+                $push: {
+                    adminNotes: adminNote(
+                        `❌ Failed: ${errorMessage}${paymentWasCaptured ? ' (⚠️ Payment was captured — NOT reverted)' : ''}`,
+                    ),
+                },
+            }).catch(() => {});
         }
 
-        return NextResponse.json(
-            { success: false, message: errorMessage },
-            { status: statusCode },
-        );
+        return NextResponse.json({ success: false, message: errorMessage }, { status: statusCode });
     }
 }

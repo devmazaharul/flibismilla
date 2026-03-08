@@ -469,7 +469,10 @@ const BookingSchema = new Schema(
       type: Boolean,
       default: false,
     },
-
+ confirmationEmailSent: {
+        type: Boolean,
+        default: false,
+    },
     // ==========================================================
     // SECTION 14: OPERATIONAL CONTROL & AUDIT
     // Administrative fields for internal operations, debugging,

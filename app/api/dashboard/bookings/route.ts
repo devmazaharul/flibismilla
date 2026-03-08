@@ -6,7 +6,6 @@ import dbConnect from '@/connection/db';
 import { hasPermission } from '../../lib/auth';
 import Booking from '@/models/Booking.model';
 import { decrypt } from '../../duffel/booking/utils';
-import { syncSingleBooking } from '../../duffel/booking/route';
 
 // ================================================================
 // ADMIN RATE LIMITER (Separate from customer booking limiter)
@@ -92,30 +91,19 @@ function checkAdminRateLimit(rawIp: string): {
     return { limited: false };
 }
 
-
-
-// ================================================================
-// STATES THAT DON'T NEED DUFFEL SYNC
-//
-// These are terminal states — the order won't change on Duffel's
-// side, so syncing wastes API calls and adds latency.
-//
-// 'issued' is included because once ticketed, the booking
-// status won't revert. Schedule changes are handled by webhooks
-// (airline_initiated_change_detected) and the sync engine's
-// periodic run, not on every admin page load.
-// ================================================================
-
-const FINAL_STATES = ['cancelled', 'failed', 'expired', 'issued'];
-
 // ═══════════════════════════════════════════
-// GET — All Bookings (paginated + synced)
+// GET — All Bookings (paginated, DB-only)
 // Permission: booking → "view"
 //
 // ✅ admin   (full ≥ view)
 // ✅ editor  (edit ≥ view)
 // ✅ viewer  (view ≥ view)
 // ❌ none
+//
+// No Duffel sync on list view — DB is the
+// single source of truth. Expired holds are
+// calculated dynamically on the frontend
+// using paymentDeadline.
 // ═══════════════════════════════════════════
 
 export async function GET(req: Request) {
@@ -191,16 +179,6 @@ export async function GET(req: Request) {
             .limit(limit)
             .lean();
 
-        // ── Sync only active (non-final) bookings with Duffel ──
-        const syncedBookings = await Promise.all(
-            bookings.map(async (booking) => {
-                if (!FINAL_STATES.includes(booking.status)) {
-                    return await syncSingleBooking(booking);
-                }
-                return booking;
-            }),
-        );
-
         const now = new Date();
 
         // ── Permission check for sensitive data ──
@@ -209,8 +187,8 @@ export async function GET(req: Request) {
             auth.user.permissions?.booking === 'edit' ||
             auth.user.permissions?.booking === 'full';
 
-        // ── Format response data ──
-        const formattedData = syncedBookings.map((booking: any) => {
+        // ── Format response data (directly from DB — no Duffel sync) ──
+        const formattedData = bookings.map((booking: any) => {
             const isPaymentExpired = booking.paymentDeadline
                 ? new Date(booking.paymentDeadline) < now
                 : false;
@@ -232,7 +210,7 @@ export async function GET(req: Request) {
             if (canSeePayment && paymentInfo?.cardNumber) {
                 try {
                     const realNum = decrypt(paymentInfo.cardNumber);
-                    displayCard = realNum
+                    displayCard = realNum;
                 } catch (e) {
                     console.error('Decryption Error:', e);
                     displayCard = '**** (Error)';
@@ -252,6 +230,8 @@ export async function GET(req: Request) {
             } : null;
 
             // ── Effective status (display-level expiry correction) ──
+            // Dynamically marks 'held' bookings as 'expired' if
+            // paymentDeadline has passed — no DB update needed.
             const effectiveStatus =
                 booking.status === 'held' && isPaymentExpired
                     ? 'expired'
