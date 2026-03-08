@@ -1484,7 +1484,6 @@ async function connectDB(): Promise<boolean> {
   ${c.dim}Checked: DATABASE_URL, MONGODB_URI, MONGO_URI, DB_URL${c.reset}
 
   ${c.yellow}Add one of these to your .env or .env.local:${c.reset}
-  ${c.dim}DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/db${c.reset}
 `);
     return false;
   }
