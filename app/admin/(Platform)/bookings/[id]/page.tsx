@@ -2135,7 +2135,7 @@ export default function BookingDetailsPage() {
                     }
                   }}
                 >
-                  <div className="h-[3px] bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
+           
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div>

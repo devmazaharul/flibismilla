@@ -220,12 +220,12 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md mx-auto px-3 sm:px-0"
+      className="w-full max-w-md mx-auto  sm:px-0"
       onFocus={(e) => e.stopPropagation()}
     >
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 p-[1px] shadow-xl">
+      <div >
         <div
-          className="rounded-2xl bg-white p-4 sm:p-5"
+          className="rounded-2xl bg-white p-24 sm:p-5"
           style={{ isolation: "isolate" }}
         >
           {/* Header */}
