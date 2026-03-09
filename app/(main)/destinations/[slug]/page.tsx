@@ -81,7 +81,7 @@ const DestinationDetails = () => {
         const destinationData = destResponse.data.data || destResponse.data;
         setDest(destinationData);
 
-        const pkgResponse = await axios.get('/api/dashboard/packages');
+        const pkgResponse = await axios.get('/api/public/packages');
         const allPackages = pkgResponse.data.data || [];
 
         if (destinationData) {

@@ -355,7 +355,7 @@ export const packages = [
         slug: 'economy-hajj-package-1e-2025',
         title: 'Bismillah Tours Economy Hajj Package 1E 2025: 13 Nights Package',
         price: '$7,148.00',
-        image: "/11055f59a68bcbcf257dac2088dfc225.jpg", // Kaaba
+        image: "/978ffb16be030a299ad164e390480d92.jpg", // Kaaba
         category: 'Hajj',
         location: 'Makkah & Madinah',
         description: `Departure from USA: 28th May | Departure from Saudi Arabia: 10th June.

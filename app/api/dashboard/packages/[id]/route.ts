@@ -23,8 +23,8 @@ type Props = {
 // ═══════════════════════════════════════════
 
 export async function GET(req: Request, { params }: Props) {
-  const auth = await hasPermission('packages', 'view');
-  if (!auth.success) return auth.response;
+  // const auth = await hasPermission('packages', 'view');
+  // if (!auth.success) return auth.response;
 
   try {
     const { id } = await params;

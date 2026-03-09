@@ -37,8 +37,8 @@ export async function GET(
   req: Request,
   props: { params: Promise<{ id: string }> }
 ) {
-  const auth = await hasPermission('destinations', 'view');
-  if (!auth.success) return auth.response;
+  // const auth = await hasPermission('destinations', 'view');
+  // if (!auth.success) return auth.response;
 
   try {
     const params = await props.params;

@@ -10,7 +10,8 @@ import {
     UsersRound,
     UserStar,
     CircleUser,
-    Blocks
+    Blocks,
+    Info
 } from 'lucide-react';
 
 export const navMain = [
@@ -37,7 +38,7 @@ export const navMain = [
             { title: 'Profile', url: '/admin/profile', icon: CircleUser   },
             { title: 'Staff Manage', url: '/admin/staff', icon: UsersRound  },
             { title: 'Support', url: '/admin/support', icon: LifeBuoy },
-            { title: 'Documentation', url: '/admin/doc', icon: Book },
+            { title: 'Project Snapshot', url: '/admin/doc', icon: Info },
         ],
     },
 ];
